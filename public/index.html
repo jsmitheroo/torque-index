@@ -1442,6 +1442,23 @@ body.au-light .toast{background:#0F4D3A;color:#fff;border-color:#0F4D3A}
 body.typing .tabbar{display:none!important}
 body.typing .tray,body.typing .totop{visibility:hidden}
 .tray:not(.on){transform:translateY(calc(100% + 80px + env(safe-area-inset-bottom,0px)));visibility:hidden;transition:transform .25s ease,visibility 0s .25s}.tray.on{visibility:visible;transition:transform .25s ease}
+/* compare bar removed: the Compare button in the header (with its count) replaces it */
+.tray,.tray.on{display:none!important}
+.tray.on~.totop,.tray.on+.totop{bottom:24px}
+.tray.on~.toasts{bottom:24px}
+@media (max-width:1023px){.toasts,.tray.on~.toasts{bottom:calc(72px + env(safe-area-inset-bottom,0px))}.totop,.tray.on~.totop,.tray.on+.totop{bottom:calc(70px + env(safe-area-inset-bottom,0px))}}
+@media (max-width:400px){.nav .cmpnav{display:inline-flex}.nav .cmpnav{padding-inline:8px}}
+/* very small phones: search shrinks to an icon and opens across the header when tapped */
+@media (max-width:400px){
+  .nav .wrap{position:relative}
+  .nav .qs{flex:0 0 42px;min-width:42px;max-width:42px}
+  .nav .qs input{padding-left:0;padding-right:0;text-indent:-999px;cursor:pointer}
+  .nav .qs svg{left:50%;transform:translate(-50%,-50%);pointer-events:none}
+  .nav .qs:focus-within{position:absolute;left:12px;right:12px;top:50%;transform:translateY(-50%);max-width:none;z-index:5}
+  .nav .qs:focus-within input{padding-left:36px;padding-right:12px;text-indent:0;cursor:text}
+  .nav .qs:focus-within svg{left:13px;transform:translateY(-50%)}
+  .nav .acctbox{margin-left:auto}
+}
 </style>
 
 </head>
@@ -3450,7 +3467,7 @@ acctNav();
 /* hide the tab bar while typing, so it doesn't ride up on top of the keyboard */
 document.addEventListener("focusin",e=>{if(document.documentElement.classList.contains("touch")&&e.target.matches("input:not([type=checkbox]):not([type=radio]):not([type=range]),textarea,select"))document.body.classList.add("typing")});
 document.addEventListener("focusout",()=>setTimeout(()=>{const a=document.activeElement;if(!a||!a.matches||!a.matches("input,textarea,select"))document.body.classList.remove("typing")},50));
-function qsHint(){const q=document.getElementById("qs");if(!q)return;const w=q.getBoundingClientRect().width;q.placeholder=w<150?"Search":w<230?"Search cars":"Search 2,300 cars"}
+function qsHint(){const q=document.getElementById("qs");if(!q)return;const w=q.getBoundingClientRect().width;q.placeholder=innerWidth<=400?"Search cars":w<150?"Search":w<230?"Search cars":"Search 2,300 cars"}
 const _an16b=acctNav;acctNav=function(){_an16b();qsHint()};addEventListener("resize",qsHint);qsHint();
 
 render();syncCmp();
