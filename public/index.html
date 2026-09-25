@@ -1440,6 +1440,8 @@ body.au-light .toast{background:#0F4D3A;color:#fff;border-color:#0F4D3A}
 @media (max-width:420px){.nav #setBtn{display:none}}
 .tabbar{will-change:transform;bottom:0!important;top:auto!important;margin:0!important}
 body.typing .tabbar{display:none!important}
+body.typing .tray,body.typing .totop{visibility:hidden}
+.tray:not(.on){transform:translateY(calc(100% + 80px + env(safe-area-inset-bottom,0px)));visibility:hidden;transition:transform .25s ease,visibility 0s .25s}.tray.on{visibility:visible;transition:transform .25s ease}
 </style>
 
 </head>
@@ -3441,7 +3443,8 @@ acctNav();
    (iPhone/iPad pin fixed bars to the unzoomed page, which makes them float mid-screen) */
 (function(){const vv=window.visualViewport;if(!vv)return;let raf=0;
   const pin=()=>{raf=0;const H=document.documentElement.clientHeight,gap=Math.max(0,H-(vv.offsetTop+vv.height)),zoomed=vv.scale>1.01;
-    document.querySelectorAll(".tabbar,.tray").forEach(el=>{if(!zoomed&&gap<2){el.style.transform="";el.style.transformOrigin="";return}
+    // only the tab bar, and only when zoomed: the compare tray hides itself with a transform, and the keyboard case is handled by hiding the bar while typing
+    document.querySelectorAll(".tabbar").forEach(el=>{if(!zoomed||document.body.classList.contains("typing")){el.style.transform="";el.style.transformOrigin="";return}
       el.style.transformOrigin="left bottom";el.style.transform=`translate(${vv.offsetLeft}px,${-gap}px) scale(${1/vv.scale})`})};
   const q=()=>{if(!raf)raf=requestAnimationFrame(pin)};vv.addEventListener("resize",q);vv.addEventListener("scroll",q);addEventListener("scroll",q,{passive:true});q()})();
 /* hide the tab bar while typing, so it doesn't ride up on top of the keyboard */
