@@ -1459,6 +1459,11 @@ body.typing .tray,body.typing .totop{visibility:hidden}
   .nav .qs:focus-within svg{left:13px;transform:translateY(-50%)}
   .nav .acctbox{margin-left:auto}
 }
+/* phones: the settings button (dark mode, colours, units) is always there */
+.nav #setBtn{display:inline-grid!important}
+@media (max-width:400px){.nav .wrap{gap:6px}.au-in-btn,.au-up-btn{padding:0 8px;font-size:12.5px;height:34px}.nav .cmpnav{padding-inline:6px;gap:4px}.touch .nav .iconbtn{min-width:36px;min-height:36px}}
+@media (max-width:350px){.nav .brand{display:none}}
+@media (max-width:760px){.nav #setBtn{border:1px solid var(--line);border-radius:8px;background:var(--surface)}}
 </style>
 
 </head>
@@ -3432,11 +3437,13 @@ acctNav=function(){let box=document.querySelector(".acctbox");const old=document
   const r=route().name;
   if(AUTH.user){const u=AUTH.user;box.innerHTML=`<button type="button" class="av-btn" id="avBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Your account menu">${avHtml(u,36)}</button>
     <div class="av-menu" id="avMenu" role="menu" hidden><div class="av-head">${avHtml(u,44)}<div><b>${esc(u.username)}</b><small>${esc(u.email)}</small></div></div>
-    <a role="menuitem" href="#account">Your account</a><a role="menuitem" href="#account" data-avpick>Change profile picture</a><a role="menuitem" href="#garage">My garage</a><a role="menuitem" href="#profile">Achievements &amp; stats</a><a role="menuitem" href="#online">Online battles</a><button role="menuitem" type="button" id="avOut">Sign out</button></div>`}
+    <a role="menuitem" href="#account">Your account</a><a role="menuitem" href="#account" data-avpick>Change profile picture</a><a role="menuitem" href="#garage">My garage</a><a role="menuitem" href="#profile">Achievements &amp; stats</a><a role="menuitem" href="#online">Online battles</a><button role="menuitem" type="button" id="avTheme">Dark / light mode</button><button role="menuitem" type="button" id="avSet">Settings &amp; colours</button><button role="menuitem" type="button" id="avOut">Sign out</button></div>`}
   else box.innerHTML=`<a class="au-in-btn" href="#login"${r==="login"?' aria-current="page"':""}>Sign in</a><a class="au-up-btn" href="#signup"${r==="signup"?' aria-current="page"':""}>Sign up</a>`};
 function avMenu(open){const m=$("#avMenu"),b=$("#avBtn");if(!m||!b)return;const o=open==null?m.hidden:open;m.hidden=!o;b.setAttribute("aria-expanded",o);if(o){const f=m.querySelector("a");f&&f.focus()}}
 document.addEventListener("click",e=>{if(e.target.closest("#avBtn")){avMenu();return}
   if(e.target.closest("#avOut")){avMenu(false);api("logout","POST",{}).then(()=>{AUTH.user=null;acctNav();toast("Signed out");location.hash="home"});return}
+  if(e.target.closest("#avTheme")){avMenu(false);const b=document.getElementById("themeBtn");b&&b.click();return}
+  if(e.target.closest("#avSet")){avMenu(false);modal(settingsHtml(),"side");return}
   if(e.target.closest("[data-avpick]")){AUTH.pick=true}
   if(!e.target.closest("#avMenu"))avMenu(false);else if(e.target.closest("a"))avMenu(false)});
 document.addEventListener("keydown",e=>{const m=$("#avMenu");if(!m||m.hidden)return;if(e.key==="Escape"){avMenu(false);$("#avBtn").focus()}
@@ -3469,6 +3476,7 @@ document.addEventListener("focusin",e=>{if(document.documentElement.classList.co
 document.addEventListener("focusout",()=>setTimeout(()=>{const a=document.activeElement;if(!a||!a.matches||!a.matches("input,textarea,select"))document.body.classList.remove("typing")},50));
 function qsHint(){const q=document.getElementById("qs");if(!q)return;const w=q.getBoundingClientRect().width;q.placeholder=innerWidth<=400?"Search cars":w<150?"Search":w<230?"Search cars":"Search 2,300 cars"}
 const _an16b=acctNav;acctNav=function(){_an16b();qsHint()};addEventListener("resize",qsHint);qsHint();
+const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.user?h.replace(/Garage, scores, streaks and achievements live in this browser only\.[^<]*/,`Signed in as ${esc(AUTH.user.username)}. Garage, scores, streaks and achievements sync to your account.`):h.replace(/Garage, scores, streaks and achievements live in this browser only\.[^<]*/,`Garage, scores, streaks and achievements are saved in this browser. <a href="#signup" data-mclose="1">Create a free account</a> to keep them on every device.`)};
 
 render();syncCmp();
 </script>
