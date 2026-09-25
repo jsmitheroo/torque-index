@@ -1404,6 +1404,42 @@ body.au-light .toast{background:#0F4D3A;color:#fff;border-color:#0F4D3A}
 .nav .qs{flex:1 1 260px;max-width:340px}
 @media (min-width:1024px) and (max-width:1399px){.nav .links a{padding-inline:8px}}
 .nav .favnav span,.nav .cmpnav span{display:none}.nav .favnav,.nav .cmpnav{padding-inline:10px}
+/* ================= v20: header account area + profile pictures ================= */
+.acctbox{position:relative;display:flex;align-items:center;gap:6px;flex:none;margin-left:2px}
+.au-in-btn,.au-up-btn{display:inline-flex;align-items:center;height:36px;padding:0 14px;border-radius:8px;font-weight:700;font-size:13.5px;white-space:nowrap}
+.au-in-btn{color:var(--ink);border:1px solid var(--line);background:var(--surface)}
+.au-in-btn:hover{border-color:var(--accent);color:var(--accent)}
+.au-up-btn{background:var(--accent);color:#fff}
+.au-up-btn:hover{background:var(--accent-2)}
+.av{display:inline-grid;place-items:center;border-radius:50%;overflow:hidden;flex:none;color:#fff;font-weight:800;font-family:var(--display);background:#0F4D3A;line-height:1}
+.av img{width:100%;height:100%;object-fit:cover;display:block}
+.av svg{width:58%;height:58%}
+.av-btn{padding:0;border:0;background:transparent;border-radius:50%;cursor:pointer;display:grid;box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--line);transition:box-shadow .15s}
+.av-btn:hover,.av-btn[aria-expanded="true"]{box-shadow:0 0 0 2px var(--surface),0 0 0 3.5px var(--accent)}
+.av-menu{position:absolute;right:0;top:calc(100% + 10px);width:260px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 24px 48px -20px rgba(16,20,24,.45);padding:6px;z-index:60;display:flex;flex-direction:column}
+.av-menu[hidden]{display:none}
+.av-head{display:flex;align-items:center;gap:12px;padding:10px 10px 12px;border-bottom:1px solid var(--line-2);margin-bottom:4px}
+.av-head b{display:block;font-size:15px}.av-head small{display:block;font-size:12.5px;color:var(--muted);word-break:break-all}
+.av-menu a,.av-menu button{display:flex;align-items:center;min-height:42px;padding:0 12px;border-radius:9px;font-size:14px;font-weight:600;color:var(--ink);background:transparent;border:0;text-align:left;cursor:pointer;width:100%}
+.av-menu a:hover,.av-menu button:hover,.av-menu a:focus-visible,.av-menu button:focus-visible{background:var(--surface-2);outline:none}
+.av-menu #avOut{color:#B42318;border-top:1px solid var(--line-2);border-radius:0 0 9px 9px;margin-top:4px}
+.au-av2{box-shadow:0 0 0 3px #fff}
+.av-pick{flex-direction:column;align-items:stretch}
+.av-cur{display:flex;align-items:center;gap:16px}
+.av-grid{display:flex;flex-wrap:wrap;gap:10px;margin-top:14px}
+.av-grid button,.av-up{padding:3px;border:2px solid transparent;border-radius:50%;background:transparent;cursor:pointer;display:grid;justify-items:center;position:relative}
+.av-grid button[aria-checked="true"]{border-color:var(--accent)}
+.av-grid button:hover{border-color:var(--line)}
+.av-up .av{background:var(--surface-2);color:var(--accent);border:1.5px dashed var(--line)}
+.av-up small{position:absolute;bottom:-16px;font-size:11px;color:var(--muted);font-weight:600}
+.av-up:hover .av{border-color:var(--accent)}
+.av-pick.flash{animation:avflash 1.6s ease}
+@keyframes avflash{0%,60%{box-shadow:0 0 0 4px var(--accent-soft)}100%{box-shadow:none}}
+.au-me .av{box-shadow:0 0 0 3px #fff}
+@media (max-width:520px){.au-in-btn,.au-up-btn{padding:0 10px;font-size:13px}.acctbox{gap:4px}.av-menu{position:fixed;right:10px;left:10px;width:auto;top:64px}}
+@media (max-width:420px){.nav #setBtn{display:none}}
+.tabbar{will-change:transform;bottom:0!important;top:auto!important;margin:0!important}
+body.typing .tabbar{display:none!important}
 </style>
 
 </head>
@@ -3353,6 +3389,66 @@ const _home15=home;home=function(){const h=_home15();if(AUTH.user)return h.repla
 authInit();
 /* shorter search hint on narrow screens so it isn't cut off */
 (function(){const q=document.getElementById("qs");if(!q)return;const set=()=>{q.placeholder=q.getBoundingClientRect().width<230?"Search cars":"Search 2,300 cars"};set();addEventListener("resize",set)})();
+
+/* ================= v20: sign in / sign up in the header, profile pictures ================= */
+const AVP=[ // preset avatars: [background, glyph]
+ ["linear-gradient(135deg,#0F4D3A,#2E8B67)",'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="2.2"/><path d="M12 3.5v6.3M4.2 15l5.8-2M19.8 15l-5.8-2"/>'],
+ ["linear-gradient(135deg,#B42318,#F0643B)",'<path d="M4 15.5c0-5 3.6-9 8.4-9 4.2 0 7.6 3 7.6 7.2V16H4z"/><path d="M11 10.5h9"/><path d="M4 16v2.5h16V16"/>'],
+ ["linear-gradient(135deg,#1D3F8F,#4C7BE0)",'<circle cx="12" cy="12" r="8.5"/><circle cx="12" cy="12" r="4"/><path d="M12 3.5v4.5M12 16v4.5M3.5 12H8M16 12h4.5"/>'],
+ ["linear-gradient(135deg,#C98A00,#F5C518)",'<path d="M5 20V4"/><path d="M5 4h13l-2.5 4L18 12H5"/><path d="M9 4v8M13 4v8M5 8h13"/>'],
+ ["linear-gradient(135deg,#5B2A86,#9B5DE5)",'<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 5.5H5a3 3 0 0 0 3 3.5M16 5.5h3a3 3 0 0 1-3 3.5M12 13v4M8.5 20h7"/>'],
+ ["linear-gradient(135deg,#101418,#48535E)",'<path d="M4 17a8 8 0 1 1 16 0"/><path d="M12 17l4-5.5"/><circle cx="12" cy="17" r="1.4"/><path d="M6.5 12.5l1 .6M12 8.5v1.2M17.5 12.5l-1 .6"/>'],
+ ["linear-gradient(135deg,#0B7A8A,#34C3C9)",'<circle cx="8" cy="15" r="3.5"/><path d="M10.5 12.5L19 4M16 7l2 2M14 9l1.5 1.5"/>'],
+ ["linear-gradient(135deg,#8A2E4A,#E0527A)",'<path d="M3 15l2.2-5.2A2 2 0 0 1 7 8.5h10a2 2 0 0 1 1.8 1.3L21 15v3H3z"/><circle cx="7.5" cy="18" r="1.6"/><circle cx="16.5" cy="18" r="1.6"/><path d="M5.5 12.5h13"/>']];
+const avGet=()=>store.get("ti-avatar",null);
+function avHtml(u,size=32,cls=""){const a=avGet(),s=`width:${size}px;height:${size}px`;
+  if(a&&a.t==="img"&&/^data:image\/(jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(a.src||""))return `<span class="av ${cls}" style="${s}"><img src="${a.src}" alt="" width="${size}" height="${size}"></span>`;
+  if(a&&a.t==="p"&&AVP[a.i])return `<span class="av ${cls}" style="${s};background:${AVP[a.i][0]}"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${AVP[a.i][1]}</svg></span>`;
+  const n=(u&&u.username||"?"),h=[...n].reduce((x,c)=>x+c.charCodeAt(0),0)%AVP.length;
+  return `<span class="av ${cls}" style="${s};background:${AVP[h][0]};font-size:${Math.round(size*.44)}px">${esc(n[0].toUpperCase())}</span>`}
+/* header: Sign in + Sign up when logged out, profile picture with a menu when logged in */
+acctNav=function(){let box=document.querySelector(".acctbox");const old=document.querySelector(".acctnav");if(old)old.remove();
+  const anchor=document.querySelector(".cmpnav")||document.querySelector(".nav .qs");
+  if(!box&&anchor){anchor.insertAdjacentHTML("afterend",`<div class="acctbox"></div>`);box=document.querySelector(".acctbox")}if(!box)return;
+  const r=route().name;
+  if(AUTH.user){const u=AUTH.user;box.innerHTML=`<button type="button" class="av-btn" id="avBtn" aria-haspopup="menu" aria-expanded="false" aria-label="Your account menu">${avHtml(u,36)}</button>
+    <div class="av-menu" id="avMenu" role="menu" hidden><div class="av-head">${avHtml(u,44)}<div><b>${esc(u.username)}</b><small>${esc(u.email)}</small></div></div>
+    <a role="menuitem" href="#account">Your account</a><a role="menuitem" href="#account" data-avpick>Change profile picture</a><a role="menuitem" href="#garage">My garage</a><a role="menuitem" href="#profile">Achievements &amp; stats</a><a role="menuitem" href="#online">Online battles</a><button role="menuitem" type="button" id="avOut">Sign out</button></div>`}
+  else box.innerHTML=`<a class="au-in-btn" href="#login"${r==="login"?' aria-current="page"':""}>Sign in</a><a class="au-up-btn" href="#signup"${r==="signup"?' aria-current="page"':""}>Sign up</a>`};
+function avMenu(open){const m=$("#avMenu"),b=$("#avBtn");if(!m||!b)return;const o=open==null?m.hidden:open;m.hidden=!o;b.setAttribute("aria-expanded",o);if(o){const f=m.querySelector("a");f&&f.focus()}}
+document.addEventListener("click",e=>{if(e.target.closest("#avBtn")){avMenu();return}
+  if(e.target.closest("#avOut")){avMenu(false);api("logout","POST",{}).then(()=>{AUTH.user=null;acctNav();toast("Signed out");location.hash="home"});return}
+  if(e.target.closest("[data-avpick]")){AUTH.pick=true}
+  if(!e.target.closest("#avMenu"))avMenu(false);else if(e.target.closest("a"))avMenu(false)});
+document.addEventListener("keydown",e=>{const m=$("#avMenu");if(!m||m.hidden)return;if(e.key==="Escape"){avMenu(false);$("#avBtn").focus()}
+  if(e.key==="ArrowDown"||e.key==="ArrowUp"){e.preventDefault();const it=[...m.querySelectorAll("[role=menuitem]")];const i=it.indexOf(document.activeElement);it[(i+(e.key==="ArrowDown"?1:it.length-1))%it.length].focus()}});
+/* account page: picture picker */
+function avPicker(){const a=avGet();return `<div class="au-box av-pick" id="avPick"><div class="av-cur">${avHtml(AUTH.user,72)}<div><b>Profile picture</b><p>Shown in the top corner and on your account. Pick one or upload a photo.</p></div></div>
+  <div class="av-grid" role="radiogroup" aria-label="Choose a picture"><button type="button" role="radio" aria-checked="${!a}" data-av="none" title="Your initial">${(()=>{const s=store.get("ti-avatar",null);_ss15.call(store,"ti-avatar",null);const h=avHtml(AUTH.user,48);_ss15.call(store,"ti-avatar",s);return h})()}</button>${AVP.map((p,i)=>`<button type="button" role="radio" aria-checked="${!!(a&&a.t==="p"&&a.i===i)}" data-av="${i}"><span class="av" style="width:48px;height:48px;background:${p[0]}"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${p[1]}</svg></span></button>`).join("")}
+  <label class="av-up" title="Upload a photo"><input type="file" accept="image/*" id="avFile" hidden><span class="av" style="width:48px;height:48px">${a&&a.t==="img"?`<img src="${a.src}" alt="" width="48" height="48">`:'<svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 16V5M7 9.5L12 5l5 4.5M5 19h14"/></svg>'}</span><small>Upload</small></label></div><p class="au-err" id="avErr" aria-live="polite"></p></div>`}
+const _acct16=acctPage;acctPage=function(){let h=_acct16();if(!AUTH.user)return h;
+  h=h.replace(/<i class="au-av" aria-hidden="true">[^<]*<\/i>/,avHtml(AUTH.user,68,"au-av2"));
+  return h.replace('<div class="au-stats">',avPicker()+'<div class="au-stats">')};PAGES.account=acctPage;
+function avSet(v){store.set("ti-avatar",v);acctNav();if(route().name==="account"){const p=$("#avPick");if(p){p.outerHTML=avPicker()}const me=document.querySelector(".au-me .av");if(me)me.outerHTML=avHtml(AUTH.user,68,"au-av2")}}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-av]");if(!b)return;const v=b.dataset.av;avSet(v==="none"?null:{t:"p",i:+v});toast("Profile picture updated")});
+document.addEventListener("change",e=>{if(e.target.id!=="avFile")return;const f=e.target.files&&e.target.files[0];const er=$("#avErr");if(!f)return;
+  if(!/^image\//.test(f.type)){er.textContent="That file isn't a picture.";return}if(f.size>15e6){er.textContent="That picture is too big (15 MB max).";return}
+  const url=URL.createObjectURL(f),img=new Image();img.onload=()=>{const S=160,c=document.createElement("canvas");c.width=c.height=S;const x=c.getContext("2d");const m=Math.min(img.width,img.height);x.drawImage(img,(img.width-m)/2,(img.height-m)/2,m,m,0,0,S,S);URL.revokeObjectURL(url);
+    const src=c.toDataURL("image/jpeg",.85);avSet({t:"img",src});toast("Profile picture updated")};img.onerror=()=>{er.textContent="Couldn't read that picture. Try a JPG or PNG.";URL.revokeObjectURL(url)};img.src=url});
+const _ar16=afterRender;afterRender=function(r){_ar16(r);acctNav();if(r.name==="account"&&AUTH.pick){AUTH.pick=false;const p=$("#avPick");if(p){p.scrollIntoView({block:"center"});p.classList.add("flash")}}};
+acctNav();
+/* keep the bottom tab bar pinned to the bottom of what you can see, even when the page is zoomed
+   (iPhone/iPad pin fixed bars to the unzoomed page, which makes them float mid-screen) */
+(function(){const vv=window.visualViewport;if(!vv)return;let raf=0;
+  const pin=()=>{raf=0;const H=document.documentElement.clientHeight,gap=Math.max(0,H-(vv.offsetTop+vv.height)),zoomed=vv.scale>1.01;
+    document.querySelectorAll(".tabbar,.tray").forEach(el=>{if(!zoomed&&gap<2){el.style.transform="";el.style.transformOrigin="";return}
+      el.style.transformOrigin="left bottom";el.style.transform=`translate(${vv.offsetLeft}px,${-gap}px) scale(${1/vv.scale})`})};
+  const q=()=>{if(!raf)raf=requestAnimationFrame(pin)};vv.addEventListener("resize",q);vv.addEventListener("scroll",q);addEventListener("scroll",q,{passive:true});q()})();
+/* hide the tab bar while typing, so it doesn't ride up on top of the keyboard */
+document.addEventListener("focusin",e=>{if(document.documentElement.classList.contains("touch")&&e.target.matches("input:not([type=checkbox]):not([type=radio]):not([type=range]),textarea,select"))document.body.classList.add("typing")});
+document.addEventListener("focusout",()=>setTimeout(()=>{const a=document.activeElement;if(!a||!a.matches||!a.matches("input,textarea,select"))document.body.classList.remove("typing")},50));
+function qsHint(){const q=document.getElementById("qs");if(!q)return;const w=q.getBoundingClientRect().width;q.placeholder=w<150?"Search":w<230?"Search cars":"Search 2,300 cars"}
+const _an16b=acctNav;acctNav=function(){_an16b();qsHint()};addEventListener("resize",qsHint);qsHint();
 
 render();syncCmp();
 </script>
