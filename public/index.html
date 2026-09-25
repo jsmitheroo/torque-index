@@ -1152,6 +1152,174 @@ a:focus-visible,button:focus-visible,input:focus-visible,select:focus-visible{ou
 .emo{font-size:18px}
 @media (max-width:1000px){.onl-g{grid-template-columns:minmax(0,1fr)}.rhead{grid-template-columns:minmax(0,1fr)}}
 @media (max-width:760px){.rplayers{grid-template-columns:minmax(0,1fr)}.rvs{display:none}.rgames{grid-template-columns:minmax(0,1fr)}.onpromo{grid-template-columns:1fr}.onp-code{max-width:220px}.remotes{justify-content:center}}
+/* ================= v18: all-device polish ================= */
+html{-webkit-text-size-adjust:100%;text-size-adjust:100%}
+html,body{overflow-x:clip}
+a,button,summary,label{-webkit-tap-highlight-color:transparent;touch-action:manipulation}
+img,svg,video,canvas{max-width:100%}
+.wrap{padding-left:max(clamp(16px,4vw,40px),env(safe-area-inset-left,0px));padding-right:max(clamp(16px,4vw,40px),env(safe-area-inset-right,0px))}
+/* iOS zooms the page when a focused field's text is under 16px */
+.touch input,.touch select,.touch textarea{font-size:16px!important}
+.touch .iconbtn{min-width:40px;min-height:40px}
+/* hover lifts feel sticky on touch screens */
+@media (hover:none){.btile:hover,.card:hover,.coll:hover,.tool:hover,.h3-quick a:hover,.h3-rec:hover{transform:none}}
+/* swipeable rails */
+.rail{scroll-snap-type:x mandatory;overscroll-behavior-x:contain;-webkit-overflow-scrolling:touch;scroll-padding-inline:2px}
+.rail>*{scroll-snap-align:start}
+.touch .rail{scrollbar-width:none}.touch .rail::-webkit-scrollbar{display:none}
+
+/* ---- header that fits every width ---- */
+.nav .wrap{gap:10px}
+.nav .qs{flex:1 1 200px;min-width:0;max-width:320px}
+.nav .brand{flex:none}
+.cmpnav{display:inline-flex;align-items:center;gap:6px}
+@media (max-width:1279px){.nav #palBtn,.nav .iconbtn.rand{display:none}.favnav span,.cmpnav span{display:none}}
+@media (max-width:1100px){.nav .brand span{display:none}}
+/* tablets in portrait get the same bottom tab bar as phones */
+@media (max-width:1023px){
+  .links,.burger,.links.open{display:none!important}
+  .tabbar{display:grid;grid-template-columns:repeat(5,1fr);position:fixed;left:0;right:0;bottom:0;z-index:46;background:color-mix(in srgb,var(--surface) 92%,transparent);backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);padding-inline:max(0px,env(safe-area-inset-left,0px))}
+  .tabbar a{display:flex;flex-direction:column;align-items:center;gap:2px;padding:8px 0 7px;font-size:11px;color:var(--muted);min-height:50px;justify-content:center}
+  .tabbar a svg{width:21px;height:21px}
+  .tabbar a[aria-current="page"]{color:var(--accent)}
+  body{padding-bottom:calc(58px + env(safe-area-inset-bottom,0px))}
+  .tray{bottom:calc(58px + env(safe-area-inset-bottom,0px))}
+  .nav .qs{max-width:none}
+}
+@media (min-width:761px) and (max-width:1023px){.tabbar a{flex-direction:row;gap:8px;font-size:13px;font-weight:600}}
+@media (max-width:760px){.nav .favnav{display:none}}
+@media (max-width:420px){.nav #themeBtn{display:none}.nav .wrap{gap:8px}}
+
+/* ---- new home ---- */
+.h3-hero{min-height:clamp(540px,76svh,780px);display:flex;align-items:stretch}
+.h3-hero::after{display:none}
+.h3-bg,.h3-bg .slides{position:absolute;inset:0;z-index:0}
+.h3-hero .bgimg{opacity:0;background-position:center 58%;z-index:0}
+.h3-hero .bgimg.on{opacity:1}
+.h3-shade{position:absolute;inset:0;z-index:1;background:linear-gradient(90deg,rgba(8,10,12,.92) 0%,rgba(8,10,12,.72) 38%,rgba(8,10,12,.18) 72%,rgba(8,10,12,.05) 100%),linear-gradient(0deg,rgba(8,10,12,.85) 0%,rgba(8,10,12,0) 38%)}
+.h3-hero>.wrap.h3-in{position:relative;z-index:2;width:100%;display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:24px;padding-block:clamp(48px,9vh,110px) clamp(72px,9vh,104px)}
+.h3-copy{align-self:center;max-width:620px}
+.h3-copy h1{font-family:var(--display);font-weight:800;font-size:clamp(40px,6.2vw,80px);line-height:.98;letter-spacing:-.025em;text-transform:none;max-width:13ch;margin:10px 0 0;color:#fff}
+.h3-copy h1 span{color:var(--plate)}
+.h3-copy p{color:rgba(241,243,244,.82);font-size:clamp(16px,1.6vw,18px);max-width:44ch;margin:16px 0 22px}
+.h3-copy .eyebrow{color:rgba(241,243,244,.7)}
+.h3-hero .hsearch{display:flex;align-items:center;gap:8px;background:#fff;border:0;border-radius:12px;padding:6px 6px 6px 16px;max-width:560px;color:#101418;box-shadow:0 18px 40px -18px rgba(0,0,0,.7)}
+.h3-hero .hsearch input{flex:1;min-width:0;color:#101418;padding:12px 4px;background:transparent;border:0;outline:none;font-size:16px}
+.h3-hero .hsearch input::placeholder{color:#6b737a}
+.h3-hero .hsearch button{border:0;border-radius:8px;background:var(--plate);color:#101418;font-weight:700;padding:12px 18px;min-height:44px}
+.h3-hero .h-chips{margin-top:14px}
+.h3-hero .hchip{min-height:34px;background:rgba(255,255,255,.1);border-color:rgba(255,255,255,.22);color:#fff;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
+.h3-cap{display:flex;flex-direction:column;align-items:flex-end;gap:10px;text-align:right;max-width:300px}
+.h3-cap .hnow{display:flex!important;position:static;align-items:flex-end;text-align:right;max-width:none}
+.h3-cap .hnow a{font-size:17px;text-transform:none;letter-spacing:-.01em}
+.h3-cap .hnow small,.h3-cap .hnow small a{font-size:11px;font-weight:500;font-family:var(--body);color:rgba(241,243,244,.7);display:inline;text-transform:none;letter-spacing:0}
+.h3-cap .hdots{display:flex!important;position:static;gap:5px}
+.h3-cap .hdots button{width:18px;height:4px;padding:0;border:0;border-radius:2px;background:rgba(255,255,255,.35);cursor:pointer}
+.h3-cap .hdots button[aria-current="true"]{background:var(--plate);width:28px}
+@keyframes kb3{from{transform:scale(1.08)}to{transform:scale(1)}}
+.h3-hero .bgimg.on{animation:kb3 12s ease-out both}
+@media (prefers-reduced-motion:reduce){.h3-hero .bgimg.on{animation:none}}
+
+.h3-stats{position:relative;z-index:3;margin:-44px 0 0;display:grid;grid-template-columns:repeat(4,minmax(0,1fr));background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 20px 40px -24px rgba(16,20,24,.45);overflow:hidden}
+.h3-stats div{padding:18px 20px;display:flex;flex-direction:column-reverse;gap:2px;border-left:1px solid var(--line-2)}
+.h3-stats div:first-child{border-left:0}
+.h3-stats dd{margin:0;font-family:var(--display);font-weight:800;font-size:clamp(24px,3vw,34px);letter-spacing:-.02em;line-height:1.05}
+.h3-stats dt{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+
+.h3-quick{display:grid;grid-template-columns:repeat(6,minmax(0,1fr));gap:12px;margin-top:22px}
+.h3-quick a{display:flex;flex-direction:column;gap:4px;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;transition:transform .2s,border-color .2s,box-shadow .2s;min-height:118px}
+.h3-quick a:hover{transform:translateY(-2px);border-color:var(--accent);box-shadow:var(--shadow)}
+.h3-quick .hubi{width:38px;height:38px;border-radius:10px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent);margin-bottom:6px}
+.h3-quick b{font-weight:700;font-size:15px}.h3-quick small{font-size:12.5px;color:var(--muted);line-height:1.35}
+
+.h3-tgrid{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:16px}
+.h3-cotw{position:relative;display:block;border-radius:14px;overflow:hidden;min-height:320px;background:#111;color:#fff}
+.h3-cotw .ph{position:absolute;inset:0;width:100%;height:100%;border-radius:0}
+.h3-cotw::after{content:"";position:absolute;inset:0;background:linear-gradient(0deg,rgba(8,10,12,.92) 0%,rgba(8,10,12,.35) 55%,rgba(8,10,12,0) 80%)}
+.h3-cotw-t{position:absolute;left:0;right:0;bottom:0;z-index:1;padding:22px 24px}
+.h3-cotw-t .eyebrow{color:var(--plate)}
+.h3-cotw-t b{display:block;font-family:var(--display);font-weight:800;font-size:clamp(26px,3.2vw,38px);letter-spacing:-.02em;line-height:1.05;margin:6px 0 4px}
+.h3-cotw-t p{margin:0 0 10px;color:rgba(241,243,244,.8);font-size:14px}
+.h3-cotw-t .go2{color:var(--plate);font-weight:700;font-size:14px}
+.h3-cotw:hover .ph{transform:scale(1.03)}.h3-cotw .ph{transition:transform .6s ease}
+.h3-tside{display:grid;grid-template-rows:repeat(3,minmax(0,1fr));gap:12px}
+.h3-tc{display:grid;grid-template-columns:44px minmax(0,1fr);grid-template-rows:auto auto;column-gap:14px;row-gap:6px;align-items:center;padding:16px;background:var(--surface);border:1px solid var(--line);border-radius:12px;transition:border-color .2s}
+.h3-tc:hover{border-color:var(--accent)}
+.h3-tc .hubi{grid-row:1/3;width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:var(--accent-soft);color:var(--accent)}
+.h3-tc b{display:block;font-size:15.5px;font-weight:700}.h3-tc small{display:block;font-size:13px;color:var(--muted)}
+.h3-tc em{font-style:normal;font-size:12.5px;font-weight:700;color:var(--accent)}
+.h3-me{margin-top:16px}
+
+.h3-rail{grid-auto-columns:minmax(240px,1fr)}
+.h3-recs{grid-auto-columns:minmax(190px,1fr)}
+.h3-rec{display:flex;flex-direction:column;background:var(--surface);border:1px solid var(--line);border-radius:12px;overflow:hidden;transition:transform .2s,box-shadow .2s}
+.h3-rec:hover{transform:translateY(-2px);box-shadow:var(--shadow)}
+.h3-rec .ph{aspect-ratio:16/10;width:100%;height:auto;border-radius:0}
+.h3-rec .rk{padding:12px 14px 0;font-size:10.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+.h3-rec em{padding:2px 14px 0;font-style:normal;font-family:var(--display);font-weight:800;font-size:26px;letter-spacing:-.02em}
+.h3-rec b{padding:0 14px 14px;font-size:13.5px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+.h3-bodies{display:grid;grid-template-columns:repeat(9,minmax(0,1fr));gap:10px}
+.h3-bodies .btile .lab{padding:8px 10px}
+.h3-bodies .btile .lab b{font-size:14px}
+
+.h3-hub{margin-top:0}
+.h3-hub .hub-h{cursor:pointer;list-style:none}
+.h3-hub .hub-h::-webkit-details-marker{display:none}
+.h3-hub .hub-h h3{font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:-.01em;margin:0}
+.h3-hub .hub-col:not([open]) .hub-h{border-bottom:0;padding-bottom:8px}
+
+/* tablets */
+@media (max-width:1180px){.h3-quick{grid-template-columns:repeat(3,minmax(0,1fr))}.h3-bodies{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media (max-width:1023px){
+  .h3-hero{min-height:0}
+  .h3-hero>.wrap.h3-in{grid-template-columns:minmax(0,1fr);padding-block:clamp(56px,10vw,96px) 84px}
+  .h3-cap{align-items:flex-start;text-align:left;max-width:none;flex-direction:row;justify-content:space-between;align-items:flex-end;width:100%}
+  .h3-cap .hnow{align-items:flex-start;text-align:left}
+  .h3-tgrid{grid-template-columns:minmax(0,1fr)}
+  .h3-tside{grid-template-rows:none;grid-template-columns:repeat(3,minmax(0,1fr))}
+  .h3-tc{grid-template-columns:minmax(0,1fr);grid-template-rows:none}
+  .h3-tc .hubi{grid-row:auto}
+  .h3-hub{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .h3-hub small{display:none!important}
+  .h3-hub .hub-h span{display:none}
+  .h3-hub li a{grid-template-columns:28px 1fr auto;padding:9px 2px}
+}
+/* phones */
+@media (max-width:760px){
+  .h3-shade{background:linear-gradient(0deg,rgba(8,10,12,.96) 0%,rgba(8,10,12,.78) 45%,rgba(8,10,12,.25) 80%,rgba(8,10,12,.35) 100%)}
+  .h3-hero>.wrap.h3-in{padding-block:120px 76px;gap:18px}
+  .h3-copy h1{font-size:clamp(36px,10.5vw,48px)}
+  .h3-copy p{margin:12px 0 18px}
+  .h3-hero .hsearch button{padding:12px 14px}
+  .h3-hero .h-chips{flex-wrap:nowrap;overflow-x:auto;scrollbar-width:none;margin-inline:-16px;padding-inline:16px}
+  .h3-hero .h-chips::-webkit-scrollbar{display:none}
+  .h3-hero .h-chips>*{flex:none}
+  .h3-cap .hdots{display:none!important}
+  .h3-stats{grid-template-columns:repeat(2,minmax(0,1fr));margin-top:-40px}
+  .h3-stats div:nth-child(3){border-left:0}
+  .h3-stats div:nth-child(n+3){border-top:1px solid var(--line-2)}
+  .h3-stats div{padding:14px 16px}
+  .h3-quick{grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:16px}
+  .h3-quick a{min-height:0;padding:14px}
+  .h3-quick .hubi{width:34px;height:34px}
+  .h3-cotw{min-height:260px}
+  .h3-tside{grid-template-columns:minmax(0,1fr);gap:10px}
+  .h3-tc{grid-template-columns:44px minmax(0,1fr) auto;grid-template-rows:none;padding:14px}
+  .h3-tc em{font-size:0}.h3-tc em::after{content:"→";font-size:18px}
+  .h3-rail{grid-auto-columns:78%}
+  .h3-recs{grid-auto-columns:56%}
+  .h3-bodies{display:grid;grid-auto-flow:column;grid-template-columns:none;grid-auto-columns:38%;overflow-x:auto;scroll-snap-type:x mandatory;scrollbar-width:none;margin-inline:-16px;padding-inline:16px}
+  .h3-bodies::-webkit-scrollbar{display:none}
+  .h3-bodies>*{scroll-snap-align:start}
+  .h3-rail,.h3-recs{margin-inline:-16px;padding-inline:16px;scroll-padding-inline:16px}
+  .h3-hub{grid-template-columns:minmax(0,1fr);gap:10px}
+  .h3-hub .hub-h span{display:inline}
+  .h3-hub .hub-h::after{content:"+";font-size:22px;font-weight:400;color:var(--muted);margin-left:auto}
+  .h3-hub .hub-col[open] .hub-h::after{content:"–"}
+  .h3-hub .hub-h{align-items:center}
+  .h3-hub .hub-h span{flex:1;text-align:right}
+}
 </style>
 
 </head>
@@ -2961,6 +3129,51 @@ const _ar13=afterRender;afterRender=function(r){_ar13(r);
   if(r.name==="circuit"&&NET.gpPending&&NET.S&&NET.S.gp&&NET.gpPending===NET.S.gp.run){NET.gpPending=null;const ph=document.querySelector(".phead.gph");if(ph)ph.insertAdjacentHTML("afterend",`<div class="onbanner"><span><b>Online race</b> · ${pName("a")} v ${pName("b")} · room ${NET.code}</span><a class="btn" href="#room-${NET.code}">Back to room</a></div>`);later(()=>crGo(),700)}};
 HUB[2][2].splice(0,0,["online","Online battles","Room codes · play a friend anywhere","users"]);
 const _pp13=playPage;playPage=function(){return _pp13().replace("Eleven ways","Twelve ways").replace('<a class="cdpromo"',`<a class="onpromo" href="#online"><div class="onp-code num">K7QMX</div><div><div class="eyebrow">New · Multiplayer</div><b>Online battles</b><p>Create a room, send a friend the code, and battle at Top Trumps, the drag strip or a Grand Prix on your own devices.</p></div><span class="go2">Play →</span></a><a class="cdpromo"`)};
+
+/* ================= v18: new home layout + all-device polish ================= */
+const QUICK=[["browse","Browse","2,300 cars, every filter","list"],["compare","Compare","Up to three side by side","cmp"],["circuit","Grand Prix","Real circuits, real physics","flag"],["race","Drag strip","Reaction starts, ¼ mile","clock"],["online","Online battles","Play a friend by room code","users"],["cardle","Car-dle","Today's mystery car","search"]];
+function homeV3(){const H=D.hero,hs=heroSlides();const nMakes=Object.keys(MAKES).length,y0=Math.min(...CARS.filter(c=>c.y0).map(c=>c.y0));
+  const pick=(f,cmp)=>CARS.filter(f).sort(cmp)[0];
+  const REC=[["Most powerful",pick(()=>1,(a,b)=>b.bhp-a.bhp),c=>c.bhp+" bhp"],["Quickest 0–62",pick(c=>c.acc>0,(a,b)=>a.acc-b.acc),c=>acc(c.acc)],["Highest top speed",pick(()=>1,(a,b)=>b.top-a.top),c=>c.top+" mph"],["Quickest EV",pick(c=>c.fuel==="E"&&c.acc>0,(a,b)=>a.acc-b.acc),c=>acc(c.acc)],["Quickest under £30k",pick(c=>c.price>0&&c.price<30&&c.acc>0,(a,b)=>a.acc-b.acc),c=>acc(c.acc)],["Cheapest new",pick(c=>c.price>0&&c.cur,(a,b)=>a.price-b.price),c=>money(c.price)],["Oldest in the index",pick(c=>c.y0>0,(a,b)=>a.y0-b.y0),c=>String(c.y0)],["Most powerful diesel",pick(c=>c.fuel==="D",(a,b)=>b.bhp-a.bhp),c=>c.bhp+" bhp"]];
+  const newest=CARS.filter(c=>c.y0>=2025&&c.ph>=0).sort((a,b)=>b.y0-a.y0||b.bhp-a.bhp).slice(0,12);
+  const decs={};CARS.forEach(c=>{if(c.dec)decs[c.dec]=(decs[c.dec]||0)+1});const dmax=Math.max(...Object.values(decs));
+  const topMakes=Object.entries(MAKES).sort((a,b)=>b[1].length-a[1].length).slice(0,12).map(([m,l])=>`<a class="mk-t" href="#make-${slug(m)}"><b>${esc(m)}<small>${esc(COUNTRY[m]||"")}</small></b><span>${l.length}</span></a>`).join("");
+  const c7=cotw(),s=streakGet(),st=store.get("ti-daily",{}),cd=store.get("ti-cdl",{}),done=ACH.filter(a=>ACHD[a[0]]).length;
+  const chips=["Golf GTI","911","Supra","Defender","V12","Electric"];
+  const today=[["#daily","cal","Daily 5",st.day===day?`You scored ${st.right}/5`:"Five cars, same for everyone",s.n?`${s.n}-day streak`:"Play today"],
+    ["#cardle","search","Car-dle",cd.day===day?(cd.won?`Solved in ${cd.n}`:"Better luck tomorrow"):"Guess the mystery car in 8",cd.day===day?"See your result":"Play today"],
+    ["#online","users","Online battles","Top Trumps, drag race or Grand Prix","Create a room"]];
+  return `<section class="hero h3-hero"><div class="h3-bg">${hs.html}</div><div class="h3-shade" aria-hidden="true"></div>
+   <div class="wrap h3-in"><div class="h3-copy"><div class="eyebrow">The car encyclopedia · ${y0} to ${YNOW}</div>
+    <h1>Every car worth knowing, <span>measured.</span></h1>
+    <p>Specs, rankings, real photos and simulated races for ${CARS.length.toLocaleString()} cars from ${nMakes} makers.</p>
+    <form class="hsearch" id="hform" role="search"><svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg><input id="hq" type="search" placeholder="Search a make, model or engine" aria-label="Search cars" enterkeyhint="search"><button type="submit">Search</button></form>
+    <div class="h-chips"><span>Popular</span>${chips.map(q=>`<button type="button" class="hchip" data-hq="${q}">${q}</button>`).join("")}</div></div>
+    <div class="h3-cap"><div id="hnow" class="hnow"></div><div class="hdots" id="hdots">${H.map((_,i)=>`<button type="button" aria-label="Photo ${i+1}" data-i="${i}"></button>`).join("")}</div></div></div></section>
+  <div class="wrap h3">
+  <dl class="h3-stats"><div><dd class="num">${CARS.length.toLocaleString()}</dd><dt>Cars</dt></div><div><dd class="num">${nMakes}</dd><dt>Makers</dt></div><div><dd class="num">${CARS.filter(c=>c.ph>=0).length.toLocaleString()}</dd><dt>Real photos</dt></div><div><dd class="num">${Object.keys(TRKS).length}</dd><dt>Real circuits</dt></div></dl>
+  <section class="h3-quick" aria-label="Jump in">${QUICK.map(([h,n,x,k])=>`<a href="#${h}"><span class="hubi">${ic2(k,20)}</span><b>${n}</b><small>${x}</small></a>`).join("")}</section>
+  ${RECENT.length?`<section class="sec"><div class="sec-h"><h2>Pick up where you left off</h2><a class="more" href="#profile">History →</a></div><div class="rail h3-rail">${RECENT.slice(0,10).map(id=>card(BY[id])).join("")}</div></section>`:""}
+  <section class="sec h3-today"><div class="sec-h"><h2>Today</h2><span class="eyebrow">${new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}</span></div>
+   <div class="h3-tgrid">${c7?`<a class="h3-cotw" href="#cotw">${ph(c7)}<div class="h3-cotw-t"><div class="eyebrow">Car of the week</div><b>${esc(c7.make)} ${esc(c7.model)}</b><p>${esc(c7.years)} · ${c7.bhp} bhp · ${acc(c7.acc)} 0–62</p><span class="go2">Read the feature →</span></div></a>`:""}
+   <div class="h3-tside">${today.map(([h,k,n,x,g])=>`<a class="h3-tc" href="${h}"><span class="hubi">${ic2(k,20)}</span><span><b>${n}</b><small>${x}</small></span><em>${g} →</em></a>`).join("")}</div></div></section>
+  <section class="h-me h3-me"><a href="#garage"><span class="k">My garage</span><b>${FAV.length} car${FAV.length===1?"":"s"}</b><small>${FAV.length?"View your collection":"Tap ♥ on any car"}</small></a><a href="#profile"><span class="k">Achievements</span><b>${done} of ${ACH.length}</b><small>Your profile</small></a><a href="#daily"><span class="k">Daily streak</span><b>${s.n||0} day${s.n===1?"":"s"}</b><small>Daily 5</small></a><a href="#racing"><span class="k">Best reaction</span><b>${ST.bestrt!=null?ST.bestrt.toFixed(3)+"s":"—"}</b><small>Drag strip</small></a></section>
+  <section class="sec"><div class="sec-h"><h2>Record holders</h2><span class="eyebrow">Across all ${CARS.length.toLocaleString()} cars</span></div><div class="rail h3-rail h3-recs">${REC.filter(r=>r[1]).map(([k,c,f])=>`<a class="h3-rec" href="#car-${c.id}">${ph(c)}<span class="rk">${k}</span><em class="num">${f(c)}</em><b>${esc(c.make)} ${esc(c.model)}</b></a>`).join("")}</div></section>
+  <section class="sec"><div class="sec-h"><h2>New for ${YNOW-1}–${YNOW+1}</h2><a class="more" href="#browse">Browse all →</a></div><div class="rail h3-rail">${newest.map(card).join("")}</div></section>
+  <section class="sec"><div class="sec-h"><h2>Browse by body style</h2><a class="more" href="#browse">All cars →</a></div><div class="h3-bodies">${Object.keys(BODY).map(b=>`<a class="btile" href="#body-${b}"><div class="sk">${carSVG({id:"hk3-"+b,body:b,fuel:"P"})}</div><div class="lab"><b>${BODY[b]}</b><span>${CARS.filter(c=>c.body===b).length}</span></div></a>`).join("")}</div></section>
+  <section class="sec"><div class="sec-h"><h2>Collections</h2><a class="more" href="#collections">All ${COLL.length} →</a></div><div class="rail h3-rail">${COLL.slice(0,10).map(k=>`<a class="coll" href="#c-${k.id}">${ph(k.cover)}<em>${k.cars.length} cars</em><b>${k.name}</b><span>${k.desc}</span></a>`).join("")}</div></section>
+  <section class="sec"><div class="sec-h"><h2>Everything on Torque Index</h2></div><div class="h-hub h3-hub">${HUB.map(([t,d,items])=>`<details class="hub-col" open><summary class="hub-h"><h3>${t}</h3><span>${d}</span></summary><ul>${items.map(([h,n,x,k])=>`<li><a href="#${h}"><span class="hubi">${ic2(k)}</span><span><b>${n}</b><small>${x}</small></span><i aria-hidden="true">→</i></a></li>`).join("")}</ul></details>`).join("")}</div></section>
+  <section class="sec h-two"><div><div class="sec-h"><h2>By decade</h2><a class="more" href="#years">Time machine →</a></div><div class="decbars">${Object.keys(decs).map(Number).sort().filter(d=>d>=1950).map(d=>`<a href="#dec-${d}"><span>${d}s</span><i style="width:${Math.max(4,decs[d]/dmax*100)}%"></i><em class="num">${decs[d]}</em></a>`).join("")}</div></div>
+   <div><div class="sec-h"><h2>Popular makers</h2><a class="more" href="#makes">All ${nMakes} →</a></div><div class="makes">${topMakes}</div></div></section>
+  </div>`}
+home=homeV3;
+/* on phones the hub starts collapsed so the page stays short */
+function hubFold(){if(!matchMedia("(max-width:760px)").matches)return;document.querySelectorAll(".h3-hub details").forEach(d=>d.open=false)}
+/* compare chip gets an icon so it still reads when the label is hidden */
+(function(){const c=document.querySelector(".cmpnav");if(c&&!c.querySelector("svg"))c.insertAdjacentHTML("afterbegin",`<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M8 3v18M16 3v18M3 8h5M16 16h5"/></svg>`);c&&c.setAttribute("aria-label","Compare")})();
+/* touch devices: flag for CSS, and keep the viewport from zooming on input focus */
+if(matchMedia("(pointer:coarse)").matches)document.documentElement.classList.add("touch");
+const _ar14=afterRender;afterRender=function(r){_ar14(r);if(r.name==="home")hubFold()};
 
 render();syncCmp();
 </script>
