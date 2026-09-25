@@ -12,3 +12,6 @@
 
 /hero/*
   Cache-Control: public, max-age=604800
+
+/version.txt
+  Cache-Control: no-store

@@ -1481,6 +1481,9 @@ body.typing .tray,body.typing .totop{visibility:hidden}
 @media (max-width:400px){.nav .brand span{display:none}}
 @media (max-width:374px){.nav .wrap{column-gap:5px}.au-in-btn,.au-up-btn{padding:0 8px;font-size:12.5px}.nav .favnav,.nav .cmpnav,.nav #setBtn{width:36px;min-width:36px}}
 @media (max-width:520px){.av-menu{position:fixed;top:58px;left:10px;right:10px;width:auto}}
+.upd{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top,0px));z-index:120;display:flex;align-items:center;gap:12px;background:#fff;color:#101418;border:1px solid #DCE0DC;border-radius:12px;padding:10px 10px 10px 16px;box-shadow:0 18px 40px -18px rgba(16,20,24,.5);font-size:14px;font-weight:600;width:max-content;max-width:calc(100% - 24px)}
+.upd button{border:0;border-radius:8px;background:#0F4D3A;color:#fff;font-weight:700;padding:9px 14px;min-height:38px;white-space:nowrap}
+.sf-build{opacity:.6}
 </style>
 
 </head>
@@ -2957,7 +2960,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("[data-hq]");if(!
 footer=function(){const col=(t,l)=>`<div><h4>${t}</h4><ul>${l.map(([h,n])=>`<li><a href="#${h}">${n}</a></li>`).join("")}</ul></div>`;
   return `<footer class="sitefoot"><div class="wrap"><div class="sf-grid"><div class="sf-brand"><div class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><circle cx="16" cy="16" r="13" fill="none" stroke="currentColor" stroke-width="2.5"/><path d="M16 16 L24 9" stroke="var(--plate)" stroke-width="3" stroke-linecap="round"/><circle cx="16" cy="16" r="2.6" fill="currentColor"/></svg><span>Torque Index</span></div><p>${CARS.length.toLocaleString()} cars from ${Object.keys(MAKES).length} makers. Figures are typical for the version listed and approximate; prices are approximate UK list prices when new. Races, laps and used values are simulated estimates.</p></div>
    ${col("Research",[["browse","Browse"],["makes","Makers"],["compare","Compare"],["collections","Collections"],["years","Time machine"],["lab","Data lab"]])}${col("Race",[["racing","Racing hub"],["race","Drag strip"],["circuit","Grand Prix"],["tournament","Tournament"],["tune","Tuning shop"]])}${col("Play",[["play","All games"],["daily","Daily 5"],["headlights","Headlight challenge"],["trumps2","Top Trumps · 2 players"],["budget","Budget garage"]])}${col("You",[["garage","My garage"],["profile","Profile"],["cotw","Car of the week"],["credits","Photo credits"]])}</div>
-   <div class="sf-bot"><span>© ${YNOW} James Smith. All rights reserved.</span><span>Independent fan project. Photos from Wikimedia Commons contributors, used under their stated licences · Circuit data: TUMFTM, OpenStreetMap contributors, bacinger/f1-circuits.</span></div></div></footer>`};
+   <div class="sf-bot"><span>© ${YNOW} James Smith. All rights reserved. <span class="sf-build">· Version ${BUILD}</span></span><span>Independent fan project. Photos from Wikimedia Commons contributors, used under their stated licences · Circuit data: TUMFTM, OpenStreetMap contributors, bacinger/f1-circuits.</span></div></div></footer>`};
 /* 2-player trumps entry + play card */
 const _r10=route;route=function(){if(location.hash==="#trumps2"){TTPVP=true;return{name:"trumps"}}return _r10()};
 const _pp10=playPage;playPage=function(){return _pp10().replace('<a class="bgpromo" href="#budget">',`<a class="bgpromo" href="#trumps2"><span class="ti">${ic2("users",26)}</span><div><b>Top Trumps · 2 players</b><p>Pass-and-play on one device, with your names, a quick, standard or long game and a running score.</p></div><span class="go2">Play →</span></a><a class="bgpromo" href="#budget">`).replace("Seven ways","Eight ways")};
@@ -3499,6 +3502,12 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
 (function(){const upd=()=>["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b){if(b.textContent.trim()==="0")b.dataset.zero="";else delete b.dataset.zero}});
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
+/* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
+const BUILD="202609251534";
+(function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
+  const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
+    if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
+  setTimeout(check,4000);setInterval(check,5*60e3);document.addEventListener("visibilitychange",check)})();
 
 render();syncCmp();
 </script>
