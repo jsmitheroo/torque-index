@@ -1320,6 +1320,90 @@ img,svg,video,canvas{max-width:100%}
   .h3-hub .hub-h{align-items:center}
   .h3-hub .hub-h span{flex:1;text-align:right}
 }
+/* ================= v19: accounts ================= */
+/* sign-up, log-in and account pages are always light, whatever the theme */
+body.au-light{color-scheme:light;--bg:#F4F5F1;--surface:#FFFFFF;--surface-2:#F6F7F4;--ink:#101418;--muted:#5A626A;--line:#DCE0DC;--line-2:#E8EBE7;--accent:#0F4D3A;--accent-2:#16664D;--accent-soft:#E2ECE6;--sk-a:#FFFFFF;--sk-b:#E3E8EC;background:var(--bg);color:var(--ink)}
+.acctnav{display:inline-flex;align-items:center;gap:7px;height:36px;padding:0 12px;border-radius:8px;background:var(--accent);color:#fff;font-weight:700;font-size:13px;white-space:nowrap;flex:none}
+.acctnav:hover{background:var(--accent-2)}
+.acctnav.in{background:var(--surface-2);color:var(--ink);border:1px solid var(--line);padding:0 10px 0 4px}
+.acctnav.in i{font-style:normal;width:28px;height:28px;border-radius:50%;display:grid;place-items:center;background:var(--accent);color:#fff;font-size:13px}
+@media (max-width:1100px){.acctnav.in span{display:none}.acctnav.in{padding:0 4px}}
+@media (max-width:520px){.acctnav:not(.in) span{display:none}.acctnav:not(.in){width:40px;padding:0;justify-content:center}}
+
+.au{padding-block:clamp(20px,4vw,48px) 48px}
+.au-card{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);max-width:1020px;margin-inline:auto;background:#fff;border:1px solid var(--line);border-radius:18px;overflow:hidden;box-shadow:0 30px 60px -40px rgba(16,20,24,.35)}
+.au-side{background:linear-gradient(160deg,#EAF2EC 0%,#F6F3E4 100%);padding:clamp(24px,4vw,44px);display:flex;flex-direction:column;gap:18px;color:#101418}
+.au-side .eyebrow{color:#0F4D3A}
+.au-side h2{font-family:var(--display);font-weight:800;font-size:clamp(28px,3.4vw,40px);line-height:1.02;letter-spacing:-.02em;margin:0;text-transform:none}
+.au-side ul{list-style:none;margin:0;padding:0;display:grid;gap:14px}
+.au-side li{display:grid;grid-template-columns:30px 1fr;gap:12px;align-items:start}
+.au-side b{display:block;font-size:15px}.au-side small{display:block;font-size:13.5px;color:#4A535B;line-height:1.45;margin-top:2px}
+.au-tick{width:30px;height:30px;border-radius:50%;background:#0F4D3A;color:#fff;display:grid;place-items:center;flex:none}
+.au-cars{margin-top:auto;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;opacity:.95}
+.au-cars svg{width:100%;height:auto}
+.au-form{padding:clamp(24px,4vw,48px);display:flex;flex-direction:column;gap:14px;background:#fff}
+.au-form h1{font-family:var(--display);font-weight:800;font-size:clamp(28px,3vw,36px);letter-spacing:-.02em;margin:0;text-transform:none;line-height:1.05}
+.au-sub{margin:-6px 0 4px;color:var(--muted);font-size:15px}
+.au-f label{display:block;font-weight:600;font-size:14px;margin-bottom:6px}
+.au-in{position:relative;display:flex}
+.au-in input{width:100%;min-height:48px;padding:12px 14px;font-size:16px;border:1.5px solid var(--line);border-radius:10px;background:#fff;color:#101418;outline:none;transition:border-color .15s,box-shadow .15s}
+.au-in input:focus{border-color:var(--accent);box-shadow:0 0 0 4px var(--accent-soft)}
+.au-in input[aria-invalid="true"]{border-color:#B42318;box-shadow:0 0 0 4px #FDECEA}
+.au-in input::placeholder{color:#8A9199}
+.au-eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:transparent;color:var(--accent);font-weight:700;font-size:13px;padding:8px 10px;border-radius:8px;min-height:36px}
+.au-in:has(.au-eye) input{padding-right:70px}
+.au-err{margin:6px 0 0;color:#B42318;font-size:13px;min-height:0}.au-err:empty{display:none}
+.au-top{margin:0;padding:10px 12px;background:#FDECEA;border-radius:8px}
+.au-meter{display:grid;grid-template-columns:repeat(4,1fr);gap:5px;margin-top:-6px}
+.au-meter i{height:5px;border-radius:3px;background:var(--line)}
+.au-meter[data-s="1"] i:nth-child(-n+1){background:#D1482F}
+.au-meter[data-s="2"] i:nth-child(-n+2){background:#E0A100}
+.au-meter[data-s="3"] i:nth-child(-n+3){background:#3E8E5E}
+.au-meter[data-s="4"] i{background:#0F4D3A}
+.au-hint{margin:-6px 0 0;font-size:13px;color:var(--muted)}
+.au-btn{display:inline-flex;align-items:center;justify-content:center;min-height:50px;padding:0 22px;border:0;border-radius:10px;background:var(--accent);color:#fff;font-weight:700;font-size:16px;cursor:pointer;transition:background .15s,transform .1s}
+.au-btn:hover{background:var(--accent-2)}.au-btn:active{transform:scale(.99)}
+.au-btn:disabled{background:#AEB7B2;cursor:not-allowed}
+.au-form .au-btn{width:100%;margin-top:4px}
+.au-btn.ghost{background:#fff;color:var(--ink);border:1.5px solid var(--line);min-height:44px;font-size:14px}
+.au-btn.ghost:hover{border-color:var(--accent);color:var(--accent)}
+.au-btn.danger{background:#B42318;color:#fff;border:0}.au-btn.ghost.danger{background:#fff;color:#B42318;border:1.5px solid #F2C4BE}
+.au-switch{margin:2px 0 0;text-align:center;font-size:14.5px;color:var(--muted)}.au-switch a{color:var(--accent);font-weight:700}
+.au-fine{margin:0;font-size:12.5px;color:var(--muted);text-align:center;line-height:1.5}
+.au-note{padding:12px 14px;border-radius:10px;background:#FFF7DB;border:1px solid #F2DC8A;font-size:14px;color:#4A3D00}
+.au-acct{max-width:760px;margin-inline:auto;display:grid;gap:14px}
+.au-me{display:flex;align-items:center;gap:18px;padding:24px;background:linear-gradient(160deg,#EAF2EC 0%,#F6F3E4 100%);border-radius:18px;border:1px solid var(--line)}
+.au-av{font-style:normal;width:68px;height:68px;border-radius:50%;background:var(--accent);color:#fff;display:grid;place-items:center;font-family:var(--display);font-weight:800;font-size:30px;flex:none}
+.au-me h1{font-family:var(--display);font-weight:800;font-size:clamp(28px,4vw,38px);letter-spacing:-.02em;margin:2px 0;text-transform:none;line-height:1.05;word-break:break-word}
+.au-me p{margin:0;color:var(--muted);font-size:14px;word-break:break-word}
+.au-stats{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.au-stats a{background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 16px;display:flex;flex-direction:column}
+.au-stats b{font-family:var(--display);font-weight:800;font-size:26px}.au-stats span{font-size:12.5px;color:var(--muted)}
+.au-box{display:flex;align-items:center;justify-content:space-between;gap:16px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.au-box b{font-size:15.5px}.au-box p{margin:2px 0 0;font-size:13.5px;color:var(--muted)}
+.au-danger{display:block}
+.au-danger summary{display:flex;align-items:center;justify-content:space-between;gap:16px;list-style:none;cursor:pointer}
+.au-danger summary::-webkit-details-marker{display:none}
+.au-danger[open] summary .au-btn{visibility:hidden}
+.au-delf{display:grid;gap:10px;margin-top:14px;padding-top:14px;border-top:1px solid var(--line-2)}
+.h3-join{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;margin-top:16px;padding:16px 18px;border-radius:12px;background:linear-gradient(160deg,#EAF2EC 0%,#F6F3E4 100%);border:1px solid var(--line);color:#101418}
+.h3-join b{display:block;font-size:15.5px}.h3-join small{display:block;font-size:13px;color:#4A535B}
+.h3-join em{font-style:normal;font-weight:700;color:#fff;background:#0F4D3A;padding:10px 14px;border-radius:9px;font-size:14px;white-space:nowrap}
+.h3-signed{margin:16px 0 -4px;font-size:13.5px;color:var(--muted)}.h3-signed a{color:var(--accent);font-weight:700}
+@media (max-width:860px){.au-card{grid-template-columns:minmax(0,1fr)}.au-side{order:2}.au-cars{display:none}}
+@media (max-width:560px){.au-card{border-radius:14px}.au-form{padding:22px 18px}.au-side{padding:22px 18px}.au-stats{grid-template-columns:minmax(0,1fr) minmax(0,1fr) minmax(0,1fr)}.au-stats a{padding:12px}.au-stats b{font-size:22px}.au-box{flex-direction:column;align-items:stretch}.au-danger summary{flex-direction:column;align-items:stretch}.au-me{padding:18px;gap:14px}.au-av{width:54px;height:54px;font-size:24px}.h3-join{grid-template-columns:auto minmax(0,1fr)}.h3-join em{grid-column:1/-1;text-align:center}}
+/* header room for the account button */
+.nav .qs{min-width:150px}
+.cmpnav,.favnav{flex:none}
+@media (max-width:1499px){.nav #palBtn,.nav .iconbtn.rand{display:none}}
+@media (max-width:1399px){.favnav span,.cmpnav span{display:none}}
+@media (max-width:760px){.nav .qs{min-width:0}}
+@media (max-width:400px){.nav .cmpnav{display:none}}
+body.au-light .toast{background:#0F4D3A;color:#fff;border-color:#0F4D3A}
+.nav #palBtn,.nav .iconbtn.rand{display:none!important}
+.nav .qs{flex:1 1 260px;max-width:340px}
+@media (min-width:1024px) and (max-width:1399px){.nav .links a{padding-inline:8px}}
+.nav .favnav span,.nav .cmpnav span{display:none}.nav .favnav,.nav .cmpnav{padding-inline:10px}
 </style>
 
 </head>
@@ -3174,6 +3258,101 @@ function hubFold(){if(!matchMedia("(max-width:760px)").matches)return;document.q
 /* touch devices: flag for CSS, and keep the viewport from zooming on input focus */
 if(matchMedia("(pointer:coarse)").matches)document.documentElement.classList.add("touch");
 const _ar14=afterRender;afterRender=function(r){_ar14(r);if(r.name==="home")hubFold()};
+
+/* ================= v19: accounts — sign up, log in, sync ================= */
+const AUTH={user:null,ready:false,online:false,busy:false,timer:null,last:null};
+const SYNC_SKIP=["ti-pid","ti-theme","ti-set","ti-seen","ti-sync-at"];
+const syncable=k=>k.startsWith("ti-")&&!SYNC_SKIP.includes(k);
+function syncCollect(){const d={};try{for(let i=0;i<localStorage.length;i++){const k=localStorage.key(i);if(syncable(k))d[k]=JSON.parse(localStorage.getItem(k))}}catch(e){}return d}
+function syncApply(d){try{Object.keys(d||{}).forEach(k=>{if(syncable(k))localStorage.setItem(k,JSON.stringify(d[k]))})}catch(e){}}
+async function api(path,method="GET",body){try{const r=await fetch("/api/auth/"+path,{method,headers:body?{"content-type":"application/json"}:{},body:body?JSON.stringify(body):undefined,credentials:"same-origin",cache:"no-store"});let j={};try{j=await r.json()}catch(e){}return {ok:r.ok,status:r.status,...j}}catch(e){return {ok:false,status:0,error:"Couldn't reach the server. Check your connection."}}}
+const _ss15=store.set;store.set=function(k,v){_ss15.call(store,k,v);if(AUTH.user&&syncable(k))syncSoon()};
+function syncSoon(){clearTimeout(AUTH.timer);AUTH.timer=setTimeout(syncNow,4000)}
+async function syncNow(){if(!AUTH.user)return false;clearTimeout(AUTH.timer);const r=await api("data","PUT",{data:syncCollect()});if(r.ok){AUTH.last=r.updated;_ss15.call(store,"ti-sync-at",r.updated);AUTH.user.updated=r.updated}acctSyncLine();return r.ok}
+document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="hidden"&&AUTH.user&&AUTH.timer){clearTimeout(AUTH.timer);AUTH.timer=null;try{fetch("/api/auth/data",{method:"PUT",headers:{"content-type":"application/json"},body:JSON.stringify({data:syncCollect()}),keepalive:true,credentials:"same-origin"})}catch(e){}}});
+function nameFromAccount(u){if(u&&(!TTN[0]||TTN[0]==="Player"||TTN[0]==="Player 1")){TTN[0]=u.username.slice(0,16);_ss15.call(store,"ti-tt-names",TTN)}}
+async function authInit(){AUTH.online=await netCheck();if(!AUTH.online){AUTH.ready=true;acctNav();return}
+  const r=await api("me");AUTH.user=r.user||null;AUTH.ready=true;acctNav();
+  if(AUTH.user){nameFromAccount(AUTH.user);const mine=store.get("ti-sync-at",0);
+    if(AUTH.user.updated&&AUTH.user.updated>mine){const d=await api("data");if(d.ok&&d.data){syncApply(d.data);_ss15.call(store,"ti-sync-at",AUTH.user.updated);location.reload();return}}}
+  const rn=route().name;if(["signup","login","account"].includes(rn))render()}
+/* header button */
+const PERSON='<svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21c1-4 4.3-6 8-6s7 2 8 6"/></svg>';
+function acctNav(){let a=document.querySelector(".acctnav");const cmp=document.querySelector(".cmpnav");if(!a&&cmp){cmp.insertAdjacentHTML("afterend",`<a class="acctnav" href="#signup"></a>`);a=document.querySelector(".acctnav")}if(!a)return;
+  if(AUTH.user){a.href="#account";a.classList.add("in");a.setAttribute("aria-label","Your account");a.innerHTML=`<i aria-hidden="true">${esc(AUTH.user.username[0].toUpperCase())}</i><span>${esc(AUTH.user.username)}</span>`}
+  else{a.href="#signup";a.classList.remove("in");a.setAttribute("aria-label","Sign up");a.innerHTML=`${PERSON}<span>Sign up</span>`}}
+acctNav();
+/* pages */
+const AU_PERKS=[["Your garage on every device","Favourites, history and settings follow you from phone to laptop."],["Keep every streak","Daily 5, Car-dle, achievements and best times are saved to your account."],["Your name in online battles","Friends see your username when you join their room."],["Ready for leaderboards","Your scores will count when global leaderboards launch."]];
+const TICK='<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>';
+function auSide(){return `<aside class="au-side"><div class="eyebrow">Free account</div><h2>Your garage, everywhere.</h2><ul>${AU_PERKS.map(([b,s])=>`<li><span class="au-tick">${TICK}</span><div><b>${b}</b><small>${s}</small></div></li>`).join("")}</ul><div class="au-cars" aria-hidden="true">${["hatch","supercar","suv"].map((b,i)=>`<div>${carSVG({id:"au-"+i,body:b,fuel:"P"})}</div>`).join("")}</div></aside>`}
+function auField(id,label,type,ac,extra=""){return `<div class="au-f"><label for="${id}">${label}</label><div class="au-in">${`<input id="${id}" name="${id}" type="${type}" autocomplete="${ac}" ${extra}>`}${type==="password"?`<button type="button" class="au-eye" data-eye="${id}" aria-label="Show password">Show</button>`:""}</div><p class="au-err" id="${id}-err" aria-live="polite"></p></div>`}
+function offNote(){return AUTH.ready&&!AUTH.online?`<div class="au-note" role="note"><b>Accounts switch on with the website.</b> They work once Torque Index is published at its own address. Until then your progress is saved on this device.</div>`:""}
+function signupPage(){if(AUTH.user){later(()=>location.replace("#account"),0);return ""}
+  return `<div class="wrap au"><div class="au-card">${auSide()}<form class="au-form" id="auForm" data-mode="signup" novalidate><div class="eyebrow">Sign up</div><h1>Create your account</h1><p class="au-sub">It's free and takes a few seconds. Your current progress on this device comes with you.</p>${offNote()}
+   ${auField("auUser","Username","text","username",'maxlength="20" autocapitalize="none" spellcheck="false" placeholder="e.g. james_s"')}
+   ${auField("auEmail","Email","email","email",'maxlength="254" autocapitalize="none" spellcheck="false" inputmode="email" placeholder="you@example.com"')}
+   ${auField("auPw","Password","password","new-password",'maxlength="200" placeholder="At least 8 characters"')}
+   <div class="au-meter" aria-hidden="true"><i></i><i></i><i></i><i></i></div><p class="au-hint" id="auPwHint">Use 8 or more characters. A short phrase is easy to remember and hard to guess.</p>
+   <p class="au-err au-top" id="auErr" aria-live="assertive"></p>
+   <button class="au-btn" type="submit" ${AUTH.ready&&!AUTH.online?"disabled":""}>Create account</button>
+   <p class="au-switch">Already have an account? <a href="#login">Log in</a></p>
+   <p class="au-fine">We only store your username, email, a scrambled (hashed) password and your saved progress. No emails, no adverts.</p></form></div></div>`}
+function loginPage(){if(AUTH.user){later(()=>location.replace("#account"),0);return ""}
+  return `<div class="wrap au"><div class="au-card">${auSide()}<form class="au-form" id="auForm" data-mode="login" novalidate><div class="eyebrow">Log in</div><h1>Welcome back</h1><p class="au-sub">Log in to load your garage and progress on this device.</p>${offNote()}
+   ${auField("auLogin","Email or username","text","username",'maxlength="254" autocapitalize="none" spellcheck="false"')}
+   ${auField("auPw","Password","password","current-password",'maxlength="200"')}
+   <p class="au-err au-top" id="auErr" aria-live="assertive"></p>
+   <button class="au-btn" type="submit" ${AUTH.ready&&!AUTH.online?"disabled":""}>Log in</button>
+   <p class="au-switch">New to Torque Index? <a href="#signup">Create an account</a></p></form></div></div>`}
+function acctPage(){if(!AUTH.ready)return `<div class="wrap au"><p class="note c">Loading your account…</p></div>`;
+  if(!AUTH.user){later(()=>location.replace("#login"),0);return ""}
+  const u=AUTH.user,since=new Date(u.created).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"});const done=ACH.filter(a=>ACHD[a[0]]).length;
+  return `<div class="wrap au"><div class="au-acct"><div class="au-me"><i class="au-av" aria-hidden="true">${esc(u.username[0].toUpperCase())}</i><div><div class="eyebrow">Your account</div><h1>${esc(u.username)}</h1><p>${esc(u.email)} · member since ${since}</p></div></div>
+   <div class="au-stats"><a href="#garage"><b class="num">${FAV.length}</b><span>Cars in garage</span></a><a href="#profile"><b class="num">${done}/${ACH.length}</b><span>Achievements</span></a><a href="#daily"><b class="num">${streakGet().n||0}</b><span>Day streak</span></a></div>
+   <div class="au-box"><div><b>Sync</b><p id="auSync"></p></div><button class="au-btn ghost" type="button" id="auSyncBtn">Sync now</button></div>
+   <div class="au-box"><div><b>Sign out</b><p>Your progress stays on this device and in your account.</p></div><button class="au-btn ghost" type="button" id="auOut">Sign out</button></div>
+   <details class="au-box au-danger"><summary><div><b>Delete account</b><p>Removes your account and synced data for good. Progress on this device stays.</p></div><span class="au-btn ghost danger">Delete…</span></summary>
+    <form id="auDel" class="au-delf" novalidate>${auField("auDelPw","Type your password to confirm","password","current-password",'maxlength="200"')}<button class="au-btn danger" type="submit">Delete my account</button></form></details></div></div>`}
+function acctSyncLine(){const el=$("#auSync");if(!el||!AUTH.user)return;const t=AUTH.user.updated;el.textContent=t?`Last saved ${new Date(t).toLocaleString("en-GB",{day:"numeric",month:"short",hour:"2-digit",minute:"2-digit"})}. Changes save automatically.`:"Nothing saved yet. Changes save automatically."}
+/* strength meter: length and variety, no rules the user has to satisfy beyond 8 chars */
+function pwScore(p){if(!p)return 0;let s=0;if(p.length>=8)s++;if(p.length>=12)s++;if(/[a-z]/.test(p)&&/[A-Z]/.test(p)||/\d/.test(p)&&/[a-z]/i.test(p))s++;if(/[^A-Za-z0-9]/.test(p)||p.length>=16)s++;if(/^(password|12345678|qwerty)/i.test(p))s=1;return Math.min(4,s)}
+document.addEventListener("input",e=>{if(e.target.id==="auPw"&&$("#auForm")?.dataset.mode==="signup"){const n=pwScore(e.target.value);const m=document.querySelector(".au-meter");if(m){m.dataset.s=n;const h=$("#auPwHint");if(h)h.textContent=!e.target.value?"Use 8 or more characters. A short phrase is easy to remember and hard to guess.":["Too short — keep going","Weak — add a few more characters","Okay — longer is stronger","Good password","Strong password"][n]}}
+  if(e.target.closest(".au-f")){const er=$("#"+e.target.id+"-err");if(er)er.textContent="";e.target.removeAttribute("aria-invalid")}});
+document.addEventListener("click",e=>{const b=e.target.closest("[data-eye]");if(b){const i=$("#"+b.dataset.eye);const show=i.type==="password";i.type=show?"text":"password";b.textContent=show?"Hide":"Show";b.setAttribute("aria-label",show?"Hide password":"Show password");return}
+  if(e.target.id==="auSyncBtn"){const t=e.target;t.disabled=true;t.textContent="Syncing…";syncNow().then(ok=>{t.disabled=false;t.textContent=ok?"Synced ✓":"Try again";later(()=>{if(t.isConnected)t.textContent="Sync now"},2000)})}
+  if(e.target.id==="auOut"){api("logout","POST",{}).then(()=>{AUTH.user=null;acctNav();toast("Signed out");location.hash="home"})}});
+function fieldErr(id,msg){const i=$("#"+id),er=$("#"+id+"-err");if(er)er.textContent=msg;if(i){i.setAttribute("aria-invalid","true");i.focus()}}
+document.addEventListener("submit",async e=>{const f=e.target;
+  if(f.id==="auDel"){e.preventDefault();const pw=$("#auDelPw").value;if(!pw)return fieldErr("auDelPw","Enter your password.");const r=await api("delete","POST",{password:pw});if(!r.ok)return fieldErr("auDelPw",r.error||"Something went wrong.");AUTH.user=null;_ss15.call(store,"ti-sync-at",0);acctNav();toast("Account deleted");location.hash="home";return}
+  if(f.id!=="auForm")return;e.preventDefault();if(AUTH.busy)return;const top=$("#auErr");top.textContent="";const btn=f.querySelector(".au-btn");
+  const mode=f.dataset.mode;let body;
+  if(mode==="signup"){const username=$("#auUser").value.trim(),email=$("#auEmail").value.trim(),password=$("#auPw").value;
+    if(!/^[A-Za-z0-9_]{3,20}$/.test(username))return fieldErr("auUser","Use 3–20 letters, numbers or underscores.");
+    if(!/^[^\s@]+@[^\s@]+\.[A-Za-z]{2,}$/.test(email))return fieldErr("auEmail","Enter an email like you@example.com.");
+    if(password.length<8)return fieldErr("auPw","Use at least 8 characters.");
+    body={username,email,password,data:syncCollect()}}
+  else{const login=$("#auLogin").value.trim(),password=$("#auPw").value;if(!login)return fieldErr("auLogin","Enter your email or username.");if(!password)return fieldErr("auPw","Enter your password.");body={login,password}}
+  AUTH.busy=true;btn.disabled=true;const lab=btn.textContent;btn.textContent=mode==="signup"?"Creating account…":"Logging in…";
+  const r=await api(mode,"POST",body);AUTH.busy=false;btn.disabled=false;btn.textContent=lab;
+  if(!r.ok){const map={username:"auUser",email:"auEmail",password:"auPw"};if(r.field&&map[r.field]&&$("#"+map[r.field]))return fieldErr(map[r.field],r.error);top.textContent=r.error||"Something went wrong. Try again.";return}
+  AUTH.user=r.user;nameFromAccount(r.user);acctNav();
+  if(mode==="login"&&r.data&&Object.keys(r.data).length){syncApply(r.data);_ss15.call(store,"ti-sync-at",r.user.updated||Date.now());location.hash="account";location.reload();return}
+  if(mode==="login")await syncNow();else _ss15.call(store,"ti-sync-at",r.user.updated||0);
+  toast(mode==="signup"?`Welcome, ${esc(r.user.username)}! Your account is ready.`:`Welcome back, ${esc(r.user.username)}`);location.hash="account"});
+/* routing */
+const AU_ROUTES={signup:1,login:1,account:1};
+const _r15=route;route=function(){const h=location.hash.slice(1);if(AU_ROUTES[h])return{name:h};return _r15()};
+Object.assign(PAGES,{signup:signupPage,login:loginPage,account:acctPage});Object.assign(GT,{signup:"Sign up",login:"Log in",account:"Your account"});
+PAL_PAGES.push(["Sign up","#signup"],["Log in","#login"],["Your account","#account"]);
+const _ar15=afterRender;afterRender=function(r){_ar15(r);document.body.classList.toggle("au-light",!!AU_ROUTES[r.name]);if(r.name==="account")acctSyncLine();
+  const a=document.querySelector(".acctnav");if(a)a.setAttribute("aria-current",AU_ROUTES[r.name]?"page":"false")};
+/* home: gentle sign-up nudge when logged out */
+const _home15=home;home=function(){const h=_home15();if(AUTH.user)return h.replace('<section class="h-me h3-me">',`<p class="h3-signed">Signed in as <a href="#account">${esc(AUTH.user.username)}</a> · progress syncs automatically</p><section class="h-me h3-me">`);
+  return h.replace('<section class="h-me h3-me">',`<a class="h3-join" href="#signup"><span class="au-tick">${PERSON}</span><span><b>Save your progress to every device</b><small>Create a free account for your garage, streaks and achievements.</small></span><em>Sign up free →</em></a><section class="h-me h3-me">`)};
+authInit();
+/* shorter search hint on narrow screens so it isn't cut off */
+(function(){const q=document.getElementById("qs");if(!q)return;const set=()=>{q.placeholder=q.getBoundingClientRect().width<230?"Search cars":"Search 2,300 cars"};set();addEventListener("resize",set)})();
 
 render();syncCmp();
 </script>

@@ -5,7 +5,7 @@ This folder holds the whole site plus the small server that runs online battles
 
 ## What's inside
 - `public/`: the website (index.html, car photo sprites, icons)
-- `worker.js`: serves the site and runs rooms. Each room code is one Durable Object that passes moves between the two players.
+- `worker.js`: serves the site, runs online battle rooms, and handles accounts (sign up, log in, progress sync). Passwords are stored hashed (PBKDF2).
 - `wrangler.jsonc`: Cloudflare settings
 - `deploy.bat` (Windows) / `deploy.command` (Mac): one-click deploy
 
