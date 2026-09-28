@@ -1787,6 +1787,13 @@ html.cd-lock,html.cd-lock body{overflow:hidden;overscroll-behavior:none}
 .dz-next.brk{background:rgba(200,30,30,.92)}.dz-next.brk svg{color:#fff}.dz-next.brk b{letter-spacing:.14em}
 @media (max-width:760px){.dz-zoom{top:calc(190px + env(safe-area-inset-top,0px))}.dz-next{top:calc(100px + env(safe-area-inset-top,0px))}}
 @media (max-height:500px) and (min-width:600px){.cd-speed{left:calc(16px + env(safe-area-inset-left,0px));right:auto;bottom:auto;top:calc(146px + env(safe-area-inset-top,0px));transform:none;text-align:left}.cd-speed b{font-size:30px}.dz-cam{top:calc(118px + env(safe-area-inset-top,0px))}.dz-zoom{top:calc(158px + env(safe-area-inset-top,0px))}.dz-next{top:calc(10px + env(safe-area-inset-top,0px))}}
+.dz-next[hidden]{display:none}
+/* v36 chase view horizon */
+.cd-ov.cam-chase{background:#3F7F3A}
+.cd-ov.cam-chase #dzCv{inset:auto 0 auto 0;top:-150%;height:250%;transform:perspective(620px) rotateX(42deg) scale(1.55,1.9);transform-origin:50% 90%}
+.dz-sky{position:absolute;left:0;right:0;top:0;background:linear-gradient(#7FAFDB,#B9D3E8 70%,#D5E3EA);pointer-events:none}
+.dz-fog{position:absolute;left:0;right:0;background:linear-gradient(#D5E3EA 0,#D5E3EA 18%,rgba(213,227,234,.55) 45%,rgba(213,227,234,0));pointer-events:none}
+.dz-sky[hidden],.dz-fog[hidden]{display:none}
 </style>
 
 </head>
@@ -3810,7 +3817,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202609281247";
+const BUILD="202609281326";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -4257,7 +4264,7 @@ function dzRaceStart(o){ // o: {track,laps,mine:{car,name,tyre},rivals:[{car,nam
       if(c.tow>0){const f=[Math.cos(c.h),Math.sin(c.h)],a=c.tow*1.1*dt;c.vx+=f[0]*a;c.vy+=f[1]*a}
       if(c.vmax0==null)c.vmax0=c.M.vmax;c.M.vmax=c.vmax0*(1-(c.dmg||0)*.5)});
     if(S.go&&!S.done&&o.mode!=="tt"){S.rpT=(S.rpT||0)-dt;if(S.rpT<=0){S.rpT+=.1;(S.replay=S.replay||[]).push([+S.t.toFixed(2),cars.map(c=>[+c.x.toFixed(1),+c.y.toFixed(1),+c.h.toFixed(2)])])}}
-    if(o.online&&S.go){S.sendT-=dt;if(S.sendT<=0){S.sendT=.1;netSend({t:"act",data:{k:"cdpos",x:+me.x.toFixed(2),y:+me.y.toFixed(2),h:+me.h.toFixed(3),vx:+me.vx.toFixed(2),vy:+me.vy.toFixed(2),p:me.prog,l:me.lap}})}}
+    if(o.online&&S.go){S.sendT-=dt;if(S.sendT<=0){S.sendT=.1;netSend({t:"act",data:{k:"cdpos",ts:Math.round(performance.now()),x:+me.x.toFixed(2),y:+me.y.toFixed(2),h:+me.h.toFixed(3),vx:+me.vx.toFixed(2),vy:+me.vy.toFixed(2),p:me.prog,l:me.lap}})}}
     dzHud(S);dzDraw(S);S.raf=requestAnimationFrame(loop)};S.raf=requestAnimationFrame(loop)}
 function dzRank(S){return [...S.cars].sort((a,b)=>(a.fin!=null&&b.fin!=null)?a.fin-b.fin:(a.fin!=null?-1:b.fin!=null?1:b.prog-a.prog))}
 function confirmQuit(){return true}
@@ -4502,9 +4509,9 @@ function dzCache(G){if(G.cache)return G.cache;const N=G.N,Dr=dzDress(G),n=Math.c
   return G.cache={C,n}}
 const _dzDraw21=dzDraw;
 dzDraw=function(S){const cv=S.cv,x=S.ctx,Wd=cv.width,Hd=cv.height,dpr=S.dpr,G=S.G,me=S.me;if(!Wd)return;const {C,n}=dzCache(G);
-  const v=Math.hypot(me.vx,me.vy),sc=dpr*Math.sqrt(Wd/dpr*Hd/dpr)/(typeof DZZOOM!=="undefined"?DZZOOM[DZZ]:40)/(1+v/95);S.cam=S.cam==null?me.h:S.cam+(((me.h-S.cam+Math.PI*3)%(Math.PI*2))-Math.PI)*.12;
+  const v=Math.hypot(me.vx,me.vy),sc=dpr*Math.sqrt(innerWidth*innerHeight)/(typeof DZZOOM!=="undefined"?DZZOOM[DZZ]:40)/(1+v/95);S.cam=S.cam==null?me.h:S.cam+(((me.h-S.cam+Math.PI*3)%(Math.PI*2))-Math.PI)*.12;
   const shake=S.shake>0?(Math.random()-.5)*S.shake*18*dpr:0;x.setTransform(1,0,0,1,0,0);
-  x.setTransform(1,0,0,1,Wd/2+shake,Hd*.72);x.rotate(-S.cam-Math.PI/2);x.scale(sc,sc);x.translate(-me.x,-me.y);
+  x.setTransform(1,0,0,1,Wd/2+shake,Hd*(S.camY||.72));x.rotate(-S.cam-Math.PI/2);x.scale(sc,sc);x.translate(-me.x,-me.y);
   const R=Math.hypot(Wd,Hd)/sc;x.fillStyle="#3F7F3A";x.fillRect(me.x-R,me.y-R,R*2,R*2);x.fillStyle="#468A40";const st=24,gx0=Math.floor((me.x-R)/(st*2))*st*2;for(let gx=gx0;gx<me.x+R;gx+=st*2)x.fillRect(gx,me.y-R,st,R*2); /* mown stripes: a few solid bands, far cheaper than a texture */
   const c0=Math.floor(((me.idx-Math.round(R/G.ds))%G.N+G.N)%G.N/DZCH),span=Math.ceil(2*R/G.ds/DZCH)+2,vis=[];for(let k=0;k<=Math.min(n-1,span);k++)vis.push(C[(c0+k)%n]);
   x.fillStyle="#D8C38C";vis.forEach(P=>x.fill(P.gr));
@@ -4992,9 +4999,9 @@ dzStep=function(S,car,dt,G){const M=car.M,f=[Math.cos(car.h),Math.sin(car.h)],r=
   const n=dzNearest(G,car.x,car.y,car.idx);const grass=Math.abs(n.off)>G.HW[n.i],wall=Math.abs(n.off)>G.HW[n.i]+G.RUN;
   const surf=grass?.55:1,down=1+M.aero*Math.min(2.5,(v/55)**2),aMax=G_*M.mu*surf*down;const hb=!!car.hb&&S.go;
   /* longitudinal: engine, ABS brakes, handbrake, drag */
-  let aL=0;if(S.go){if(car.thr>0&&vL>-1)aL+=car.thr*Math.min(Math.max(0,(M.vmax-vL)/M.tau),M.trac*surf)*(hb?.5:1);
+  let aL=0;if(S.go){if(car.thr>0&&vL>-1)aL+=car.thr*Math.min(Math.max(0,(M.vmax-vL)/M.tau),M.trac*surf)*(hb?.85:1);
     if(car.brk>0&&Math.abs(vL)>.5)aL-=Math.sign(vL)*Math.min(car.brk*G_*M.mu*M.brake*surf*down,aMax*.9);
-    if(hb&&Math.abs(vL)>.5)aL-=Math.sign(vL)*G_*.32*surf;
+    if(hb&&Math.abs(vL)>.5)aL-=Math.sign(vL)*G_*.18*surf;
     if(car.brk>0&&Math.abs(vL)<.6&&car.thr===0)aL-=car.brk*3}
   aL-=vL*Math.abs(vL)*.00008+(grass?Math.sign(vL)*2.2:Math.sign(vL)*.12);
   const aLc=Math.max(-aMax*.95,Math.min(aMax*.95,aL));
@@ -5002,19 +5009,19 @@ dzStep=function(S,car,dt,G){const M=car.M,f=[Math.cos(car.h),Math.sin(car.h)],r=
   const use=Math.min(1,Math.abs(aLc)/aMax),latFrac=Math.max(.55,Math.sqrt(1-use*use));const latAvail=aMax*DZGRIP*latFrac;
   const brakeLoad=aLc<0&&vL>2?Math.min(.28,-aLc/aMax*.3):0; /* weight on the nose = sharper turn-in */
   /* rear grip: handbrake or a held slide */
-  car.drift=hb?1:Math.max(0,(car.drift||0)-dt*(car.thr>.5?.9:2.2));const rear=hb?.32:1-(car.drift||0)*.45;
+  car.drift=hb?1:Math.max(0,(car.drift||0)-dt*(car.thr>.5?1.6:2.8));const rear=hb?.45:1-(car.drift||0)*.4;
   /* steering: less lock at speed; a loose rear lets the car rotate more */
   const lock=.55/(1+Math.abs(vL)/18),loose=1-rear;let yawWant=vL*Math.tan(car.steer*lock)/2.7*(1+loose*.9);
   const yawMax=(latAvail*1.12*(1+brakeLoad))/Math.max(3,Math.abs(vL))*(1+loose*1.45);
   const yaw=Math.max(-yawMax,Math.min(yawMax,yawWant));const under=Math.abs(yawWant)>yawMax*1.02&&!loose;
-  car.h+=yaw*dt*(car.spin>0?.3:1)+(car.spin>0?car.spinDir*2.6*dt:0);
+  car.h+=yaw*dt*(car.spin>0?.3:1)+(car.spin>0?car.spinDir*2.6*dt:0);if(loose>0&&car.spin<=0&&v>4){const vd=Math.atan2(car.vy,car.vx);let e=vd-car.h;while(e>Math.PI)e-=2*Math.PI;while(e<-Math.PI)e+=2*Math.PI;if(Math.abs(e)>.35)car.h+=Math.sign(e)*Math.min(Math.abs(e)-.35,(Math.abs(e)-.35)*3*dt)}
   /* tyres pull the velocity toward where the car points — much less when the rears are loose */
   /* the velocity stays in the world; turning the car only changes where the tyres push. What they can't correct becomes a slide. */
   const wx=car.vx+f[0]*aLc*dt,wy=car.vy+f[1]*aLc*dt,f2=[Math.cos(car.h),Math.sin(car.h)],r2=[-f2[1],f2[0]];vL=wx*f2[0]+wy*f2[1];vT=wx*r2[0]+wy*r2[1];
   const fix=Math.min(Math.abs(vT),latAvail*dt*1.22*(rear<1?.3+.7*rear:1));vT-=Math.sign(vT)*fix;car.vx=f2[0]*vL+r2[0]*vT;car.vy=f2[1]*vL+r2[1]*vT;
   const slip=Math.atan2(Math.abs(vT),Math.max(1,Math.abs(vL)));car.slip=slip;
   car.skid=slip>.12||under&&v>15||hb&&v>5?Math.min(1,slip*3+(under?.3:0)+(hb?.4:0)):0;
-  if(slip>(car.drift>.05?1.25:.95)&&v>12&&car.spin<=0){car.spin=1.1;car.spinDir=Math.sign(vT)||1;car.msg=["SPIN!",1.2];car.drift=0}
+  if(slip>(car.drift>.05?1.5:.95)&&v>12&&car.spin<=0){car.spin=1.1;car.spinDir=Math.sign(vT)||1;car.msg=["SPIN!",1.2];car.drift=0}
   if(car.spin>0){car.spin-=dt;car.vx*=1-1.6*dt;car.vy*=1-1.6*dt}
   car.x+=car.vx*dt;car.y+=car.vy*dt;
   /* the barrier */
@@ -5054,6 +5061,32 @@ const _hud29=dzHud;dzHud=function(S){_hud29(S);S.ncT=(S.ncT||0)+1;if(S.ncT%5)ret
   const c=dzNextCorner(S);if(!c||c.deg<25){el.hidden=true;return}el.hidden=false;
   const kind=c.deg>130?"Hairpin":c.deg>80?"Tight":c.deg>45?"Medium":"Fast";el.querySelector("b").textContent=c.brake?"BRAKE":(c.right?"Right":"Left")+" · "+kind;
   el.querySelector("span").textContent=`${Math.round(c.dist)} m · about ${Math.round(c.vc*2.237)} mph`;el.classList.toggle("brk",c.brake);el.querySelector("svg").style.transform=c.right?"":"scaleX(-1)"};
+
+/* ================= v36: chase view to the horizon, smooth rival cars online ================= */
+/* ---------- chase view: a taller canvas so the track runs off into the distance, with haze at the horizon ---------- */
+function dzChaseFit(){const S=DZ2.S,ov=$("#dzOv"),cv=$("#dzCv");if(!S||!ov||!cv)return;const chase=ov.classList.contains("cam-chase");
+  S.dprBase=S.dprBase||S.dpr;S.dpr=chase?Math.min(S.dprBase,.85):S.dprBase;S.camY=chase?.9:.72;
+  cv.width=Math.round(cv.clientWidth*S.dpr);cv.height=Math.round(cv.clientHeight*S.dpr);
+  let fog=$("#dzFog");if(!fog){ov.insertAdjacentHTML("afterbegin",`<div class="dz-sky" id="dzSky"></div>`);cv.insertAdjacentHTML("afterend",`<div class="dz-fog" id="dzFog"></div>`);fog=$("#dzFog")}
+  if(!chase){fog.hidden=true;$("#dzSky").hidden=true;return}
+  requestAnimationFrame(()=>requestAnimationFrame(()=>{const r=cv.getBoundingClientRect(),top=Math.max(0,r.top);fog.hidden=false;const sky=$("#dzSky");sky.hidden=false;sky.style.height=(top+2)+"px";
+    fog.style.top=Math.max(0,top-30)+"px";fog.style.height=Math.round(innerHeight*.16+30)+"px"}))}
+const _cam30=dzCamApply;dzCamApply=function(){_cam30();dzChaseFit()};
+const _rs30=dzRaceStart;dzRaceStart=function(o){_rs30(o);const S=DZ2.S;if(!S)return;S.dprBase=S.dpr;dzChaseFit();const f=()=>{if(DZ2.S===S)dzChaseFit();else removeEventListener("resize",f)};addEventListener("resize",f)};
+/* ---------- smooth remote cars: buffer packets and draw them slightly in the past, interpolated ---------- */
+dzRemote=function(from,d){if(typeof dzLive==="function")dzLive(from,d);const S=DZ2.S;if(!S)return;
+  const c=S.cars.find(x=>x.remote&&x.seat===from)||(S.rival&&S.rival.remote&&!S.rival.seat?S.rival:null);if(!c)return;const now=performance.now();
+  let t=now;if(d.ts!=null){const off=now-d.ts;c.clk=c.clk==null||off<c.clk?off:c.clk+(off-c.clk)*.01;t=d.ts+c.clk}
+  (c.buf=c.buf||[]).push({t,x:d.x,y:d.y,h:d.h,vx:d.vx||0,vy:d.vy||0});if(c.buf.length>24)c.buf.shift();c.target={...d,at:now}};
+dzRemoteTick=function(S,r){const B=r.buf,T=r.target;if(!T)return;r.prog=T.p;r.lap=T.l;if(!B||!B.length)return;
+  const now=performance.now(),rt=now-(r.clk!=null?190:200);let px,py,ph,vx,vy;
+  let i=B.length-2;while(i>=0&&B[i].t>rt)i--;
+  if(i<0)i=0;if(B.length>1&&i<B.length-1&&(B[i+1].t>=rt||i<B.length-2)){const a=B[i],b=B[i+1],dt=Math.max(.001,(b.t-a.t)/1000),s=Math.min(1,Math.max(0,(rt-a.t)/(b.t-a.t))),s2=s*s,s3=s2*s;
+    const h00=2*s3-3*s2+1,h10=s3-2*s2+s,h01=-2*s3+3*s2,h11=s3-s2;px=h00*a.x+h10*dt*a.vx+h01*b.x+h11*dt*b.vx;py=h00*a.y+h10*dt*a.vy+h01*b.y+h11*dt*b.vy;
+    let dh=b.h-a.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;ph=a.h+dh*s;vx=a.vx+(b.vx-a.vx)*s;vy=a.vy+(b.vy-a.vy)*s}
+  else{const L=B[B.length-1],age=Math.min(.35,Math.max(0,(rt-L.t)/1000));px=L.x+L.vx*age;py=L.y+L.vy*age;ph=L.h;vx=L.vx;vy=L.vy}
+  const fdt=Math.min(.1,(now-(r.lastT||now))/1000);r.lastT=now;const k=r.x==null||Math.hypot(px-r.x,py-r.y)>25?1:Math.min(1,fdt*60);
+  r.x+=(px-r.x)*k;r.y+=(py-r.y)*k;let dh=ph-r.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;r.h+=dh*k;r.vx=vx;r.vy=vy};
 
 render();syncCmp();
 </script>
