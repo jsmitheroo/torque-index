@@ -3654,7 +3654,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202609281047";
+const BUILD="202609281053";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -3942,8 +3942,11 @@ function dzGeom(k){if(DZG[k])return DZG[k];const T=TRKS[k],N=T.N;let px=0;for(le
   const R=P.map((b,i)=>{const K=6,a=P[(i-K+N)%N],c=P[(i+K)%N];const A=Math.hypot(b[0]-a[0],b[1]-a[1]),B=Math.hypot(c[0]-b[0],c[1]-b[1]),C=Math.hypot(c[0]-a[0],c[1]-a[1]);const ar=Math.abs((b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]))/2;return ar<1e-6?1e5:A*B*C/(4*ar)});
   const Rs=R.map((_,i)=>{let mn=1e9;for(let k=-5;k<=5;k++)mn=Math.min(mn,R[(i+k+N)%N]);return mn});
   const side=P.map((b,i)=>{const a=P[(i-6+N)%N],c=P[(i+6)%N];return Math.sign((b[0]-a[0])*(c[1]-b[1])-(b[1]-a[1])*(c[0]-b[0]))||1});
+  /* real-world half widths: Monaco is narrow, Silverstone generous; straights and the start/finish area are wider */
+  const base={monaco:5,spa:7,monza:7.2,silverstone:7.5,suzuka:6.5}[k]||7,raw=Rs.map((r,i)=>base+Math.min(1,Math.max(0,(r-150)/250))*1.2+(r<45?.8:0)+(i>N-70||i<25?2:0));
+  const HW=raw.map((_,i)=>{let t=0;for(let q=-12;q<=12;q++)t+=raw[(i+q+N)%N];return t/25});const RUN=k==="monaco"?3.5:13;
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;P.forEach(p=>{x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])});
-  return DZG[k]={k,N,P,tan,Rs,side,ds,len:T.len*DZSCALE,bb:[x0,y0,x1,y1],name:T.name}}
+  return DZG[k]={k,N,P,tan,Rs,side,HW,RUN,ds,len:T.len*DZSCALE,bb:[x0,y0,x1,y1],name:T.name}}
 function dzNearest(G,x,y,hint){const N=G.N;let best=hint,bd=1e18;const scan=(from,to)=>{for(let j=from;j<=to;j++){const i=((j%N)+N)%N,p=G.P[i],d=(p[0]-x)**2+(p[1]-y)**2;if(d<bd){bd=d;best=i}}};
   if(hint==null)scan(0,N-1);else{scan(hint-25,hint+45);if(bd>3600)scan(0,N-1)}
   const p=G.P[best],t=G.tan[best];const off=(x-p[0])*(-t[1])+(y-p[1])*t[0];return {i:best,off,dist:Math.sqrt(bd)}}
@@ -3954,7 +3957,7 @@ function dzCar(c,G,slot){const M=carModel(c);const i0=(G.N-8-(slot?4:0))%G.N,p=G
 function dzStep(S,car,dt,G){const M=car.M,f=[Math.cos(car.h),Math.sin(car.h)],r=[-f[1],f[0]];
   let vL=car.vx*f[0]+car.vy*f[1],vT=car.vx*r[0]+car.vy*r[1];const v=Math.hypot(car.vx,car.vy);
   if(car.crash>0){car.crash-=dt;car.vx*=.9;car.vy*=.9;if(car.crash<=0)dzRespawn(car,G);return}
-  const n=dzNearest(G,car.x,car.y,car.idx);const grass=Math.abs(n.off)>DZW/2,wall=Math.abs(n.off)>DZW/2+DZRUN;
+  const n=dzNearest(G,car.x,car.y,car.idx);const grass=Math.abs(n.off)>G.HW[n.i],wall=Math.abs(n.off)>G.HW[n.i]+G.RUN;
   const surf=grass?.5:1,downforce=1+M.aero*Math.min(2.5,(v/55)**2);const aMax=G_*M.mu*surf*downforce;
   /* longitudinal: engine (fades toward top speed), brakes, drag */
   let aL=0;if(S.go){if(car.thr>0&&vL>-1)aL+=car.thr*Math.min(Math.max(0,(M.vmax-vL)/M.tau),M.trac*surf);
@@ -3978,7 +3981,7 @@ function dzStep(S,car,dt,G){const M=car.M,f=[Math.cos(car.h),Math.sin(car.h)],r=
   /* the barrier */
   if(wall){const m2=dzNearest(G,car.x,car.y,n.i),p=G.P[m2.i],t=G.tan[m2.i],sgn=Math.sign(m2.off),nx=-t[1]*sgn,ny=t[0]*sgn;const into=car.vx*nx+car.vy*ny;
     if(v>19&&into>7){car.crash=2;car.crashes=(car.crashes||0)+1;car.msg=["CRASH!",2];car.vx=car.vy=0;S.shake=.6;if(car===S.me)dzBuzz(120)}
-    else{car.vx-=1.6*into*nx;car.vy-=1.6*into*ny;car.vx*=.7;car.vy*=.7;const lim=DZW/2+DZRUN-.5;car.x=p[0]+nx*lim;car.y=p[1]+ny*lim;if(car===S.me)dzBuzz(40)}}
+    else{car.vx-=1.6*into*nx;car.vy-=1.6*into*ny;car.vx*=.7;car.vy*=.7;const lim=G.HW[m2.i]+G.RUN-.5;car.x=p[0]+nx*lim;car.y=p[1]+ny*lim;if(car===S.me)dzBuzz(40)}}
   /* lap counting from progress along the lap */
   const m3=dzNearest(G,car.x,car.y,n.i);let d=m3.i-car.idx;if(d>G.N/2)d-=G.N;if(d<-G.N/2)d+=G.N;car.idx=m3.i;car.prog+=d;car.off=m3.off;car.grass=grass;
   const lapNow=Math.floor(car.prog/G.N);if(lapNow>car.lap){if(lapNow>=1&&S.go){const lt=S.t-car.lapStart;car.laps.push(lt);car.best=car.best==null?lt:Math.min(car.best,lt)}car.lap=lapNow;car.lapStart=Math.max(0,S.t);
@@ -3994,8 +3997,8 @@ function dzAiPlan(car,G,skill){const M=car.M,N=G.N,vl=new Float64Array(N);for(le
   for(let pass=0;pass<2;pass++)for(let j=2*N;j>0;j--){const i=j%N,ip=(i+1)%N;const b=G_*M.mu*M.brake*.9;vl[i]=Math.min(vl[i],Math.sqrt(vl[ip]*vl[ip]+2*b*G.ds))}
   car.plan=vl.map(v=>v*skill);car.lane=0}
 function dzAi(S,car,G,other){const N=G.N,v=Math.hypot(car.vx,car.vy);const look=Math.max(10,v*.55),k=Math.round(look/G.ds);const ti=(car.idx+k)%N,p=G.P[ti],t=G.tan[ti];
-  if(other&&other.fin==null){let gap=other.prog-car.prog;if(gap>-3&&gap<14/G.ds*1.5){const side=Math.sign(other.off-car.lane)||1;car.lane=Math.max(-6,Math.min(6,car.lane-side*.8))}else car.lane*=.985}
-  const inside=-G.side[ti]*Math.min(4,40/Math.max(40,G.Rs[ti])*4);const tx=p[0]-t[1]*(car.lane+inside),ty=p[1]+t[0]*(car.lane+inside);
+  if(other&&other.fin==null){let gap=other.prog-car.prog;if(gap>-3&&gap<14/G.ds*1.5){const side=Math.sign(other.off-car.lane)||1;car.lane=Math.max(-(G.HW[car.idx]-2.5),Math.min(G.HW[car.idx]-2.5,car.lane-side*.8))}else car.lane*=.985}
+  const inside=-G.side[ti]*Math.min(Math.max(0,G.HW[ti]-3),40/Math.max(40,G.Rs[ti])*4);const tx=p[0]-t[1]*(car.lane+inside),ty=p[1]+t[0]*(car.lane+inside);
   let ang=Math.atan2(ty-car.y,tx-car.x)-car.h;while(ang>Math.PI)ang-=2*Math.PI;while(ang<-Math.PI)ang+=2*Math.PI;car.steer=Math.max(-1,Math.min(1,ang*2.4));
   const want=car.plan[(car.idx+Math.round(Math.max(8,v*.35)/G.ds))%N];if(v<want-1){car.thr=1;car.brk=0}else if(v>want+1.5){car.thr=0;car.brk=Math.min(1,(v-want)/6)}else{car.thr=.4;car.brk=0}}
 
@@ -4171,7 +4174,7 @@ function dzDress(G){if(G.dress)return G.dress;const N=G.N,K=[],GR=[];let i=0;
     if(mn<110)GR.push({a:mid-Math.round(len*.2),b:b+pad+8,sgn:-sgn})});                              // gravel trap on the outside
   return G.dress={K,GR}}
 function dzNorm(G,i){const t=G.tan[((i%G.N)+G.N)%G.N];return [-t[1],t[0]]}
-function dzEdge(G,i,off){const k=((i%G.N)+G.N)%G.N,p=G.P[k],n=dzNorm(G,k);return [p[0]+n[0]*off,p[1]+n[1]*off]}
+function dzEdge(G,i,off){const k=((i%G.N)+G.N)%G.N,p=G.P[k],n=dzNorm(G,k);if(typeof off==="function")off=off(k);return [p[0]+n[0]*off,p[1]+n[1]*off]}
 function dzStripPath(x,G,a,b,o1,o2){x.beginPath();for(let j=a;j<=b;j++){const e=dzEdge(G,j,o1);j===a?x.moveTo(e[0],e[1]):x.lineTo(e[0],e[1])}for(let j=b;j>=a;j--){const e=dzEdge(G,j,o2);x.lineTo(e[0],e[1])}x.closePath()}
 function dzLine(x,G,a,b,off){x.beginPath();for(let j=a;j<=b;j++){const e=dzEdge(G,j,off);j===a?x.moveTo(e[0],e[1]):x.lineTo(e[0],e[1])}}
 let DZPAT=null;
@@ -4224,24 +4227,24 @@ dzDraw=function(S){const cv=S.cv,x=S.ctx,Wd=cv.width,Hd=cv.height,dpr=S.dpr,G=S.
   x.setTransform(1,0,0,1,Wd/2+shake,Hd*.66);x.rotate(-S.cam-Math.PI/2);x.scale(sc,sc);x.translate(-me.x,-me.y);
   x.fillStyle=dzGrass(x);x.fillRect(me.x-400,me.y-400,800,800);
   const N=G.N,from=me.idx-80,to=me.idx+Math.round(380/G.ds),vis=(a,b)=>b>=from&&a<=to,cl=(a,b)=>[Math.max(a,from),Math.min(b,to)];
-  const path=(off)=>{x.beginPath();let pen=false;for(let j=from;j<=to;j++){const k=((j%N)+N)%N;if(off&&G.side[k]*Math.sign(off)>0&&G.Rs[k]<Math.abs(off)+4){pen=false;continue}const e=off?dzEdge(G,j,off):G.P[k];pen?x.lineTo(e[0],e[1]):x.moveTo(e[0],e[1]);pen=true}};
+  const path=(off)=>{x.beginPath();let pen=false;for(let j=from;j<=to;j++){const k=((j%N)+N)%N;const ov=typeof off==="function"?off(k):off;if(ov&&G.side[k]*Math.sign(ov)>0&&G.Rs[k]<Math.abs(ov)+4){pen=false;continue}const e=off?dzEdge(G,j,off):G.P[k];pen?x.lineTo(e[0],e[1]):x.moveTo(e[0],e[1]);pen=true}};
   x.lineJoin="round";x.lineCap="butt";
   /* gravel traps */
-  x.fillStyle="#D8C38C";Dr.GR.forEach(g=>{for(const sh of [0,N,-N]){const a=g.a+sh,b=g.b+sh;if(!vis(a,b))continue;const [p,q]=cl(a,b);dzStripPath(x,G,p,q,g.sgn*(DZW/2+.5),g.sgn*(DZW/2+DZRUN-1.5));x.fill()}});
+  x.fillStyle="#D8C38C";Dr.GR.forEach(g=>{for(const sh of [0,N,-N]){const a=g.a+sh,b=g.b+sh;if(!vis(a,b))continue;const [p,q]=cl(a,b);dzStripPath(x,G,p,q,k=>g.sgn*(G.HW[k]+.5),k=>g.sgn*(G.HW[k]+G.RUN-1.5));x.fill()}});
   /* barriers: armco both sides, tyre walls behind gravel */
-  x.strokeStyle="#B9BEC2";x.lineWidth=.6;path(DZW/2+DZRUN);x.stroke();path(-(DZW/2+DZRUN));x.stroke();
-  x.setLineDash([.7,.7]);x.lineWidth=1.2;Dr.GR.forEach(g=>{for(const sh of [0,N,-N]){const a=g.a+sh,b=g.b+sh;if(!vis(a,b))continue;const [p,q]=cl(a,b);x.strokeStyle="#222";dzLine(x,G,p,q,g.sgn*(DZW/2+DZRUN-.6));x.stroke();x.strokeStyle="#E23A2E";x.lineDashOffset=.7;x.stroke();x.lineDashOffset=0}});x.setLineDash([]);
+  x.strokeStyle="#B9BEC2";x.lineWidth=.6;path(k=>G.HW[k]+G.RUN);x.stroke();path(k=>-(G.HW[k]+G.RUN));x.stroke();
+  x.setLineDash([.7,.7]);x.lineWidth=1.2;Dr.GR.forEach(g=>{for(const sh of [0,N,-N]){const a=g.a+sh,b=g.b+sh;if(!vis(a,b))continue;const [p,q]=cl(a,b);x.strokeStyle="#222";dzLine(x,G,p,q,k=>g.sgn*(G.HW[k]+G.RUN-.6));x.stroke();x.strokeStyle="#E23A2E";x.lineDashOffset=.7;x.stroke();x.lineDashOffset=0}});x.setLineDash([]);
   /* tarmac */
-  path(0);x.strokeStyle="#4A4F54";x.lineWidth=DZW;x.stroke();x.strokeStyle="rgba(0,0,0,.08)";x.lineWidth=DZW*.4;x.stroke();
+  dzStripPath(x,G,from,to,k=>G.HW[k],k=>-G.HW[k]);x.fillStyle="#4A4F54";x.fill();path(0);x.strokeStyle="rgba(0,0,0,.08)";x.lineWidth=4.5;x.lineJoin="round";x.stroke();
   /* white edge lines */
-  x.strokeStyle="rgba(255,255,255,.9)";x.lineWidth=.3;path(DZW/2-.35);x.stroke();path(-(DZW/2-.35));x.stroke();
+  x.strokeStyle="rgba(255,255,255,.9)";x.lineWidth=.3;path(k=>G.HW[k]-.35);x.stroke();path(k=>-(G.HW[k]-.35));x.stroke();
   /* kerbs only at corners: inside at the apex, outside on entry and exit */
   Dr.K.forEach(k=>{for(const sh of [0,N,-N]){const a=k.a+sh,b=k.b+sh;if(!vis(a,b))continue;const [p,q]=cl(a,b);
-    for(let j=p;j<q;j++){x.fillStyle=((j%2)+2)%2?"#E7372C":"#F4F4F4";x.beginPath();const e1=dzEdge(G,j,k.sgn*(DZW/2-.6)),e2=dzEdge(G,j+1,k.sgn*(DZW/2-.6)),e3=dzEdge(G,j+1,k.sgn*(DZW/2+.9)),e4=dzEdge(G,j,k.sgn*(DZW/2+.9));x.moveTo(e1[0],e1[1]);x.lineTo(e2[0],e2[1]);x.lineTo(e3[0],e3[1]);x.lineTo(e4[0],e4[1]);x.closePath();x.fill()}}});
+    for(let j=p;j<q;j++){x.fillStyle=((j%2)+2)%2?"#E7372C":"#F4F4F4";x.beginPath();const o1=q=>k.sgn*(G.HW[q]-.6),o2=q=>k.sgn*(G.HW[q]+.9),e1=dzEdge(G,j,o1),e2=dzEdge(G,j+1,o1),e3=dzEdge(G,j+1,o2),e4=dzEdge(G,j,o2);x.moveTo(e1[0],e1[1]);x.lineTo(e2[0],e2[1]);x.lineTo(e3[0],e3[1]);x.lineTo(e4[0],e4[1]);x.closePath();x.fill()}}});
   /* skid marks */
   if(S.marks&&S.marks.length){x.strokeStyle="rgba(15,15,15,.32)";x.lineWidth=.3;x.beginPath();S.marks.forEach(m=>{x.moveTo(m[0],m[1]);x.lineTo(m[2],m[3])});x.stroke()}
   /* start/finish and grid boxes */
-  const s0=G.P[0],t0=G.tan[0];x.save();x.translate(s0[0],s0[1]);x.rotate(Math.atan2(t0[1],t0[0]));for(let a=-DZW/2;a<DZW/2;a+=1.2)for(let b=0;b<2;b++){x.fillStyle=((Math.round(a/1.2)+b)%2+2)%2?"#111":"#fff";x.fillRect(b*1.2-1.2,a,1.2,1.2)}
+  const s0=G.P[0],t0=G.tan[0];x.save();x.translate(s0[0],s0[1]);x.rotate(Math.atan2(t0[1],t0[0]));for(let a=-G.HW[0];a<G.HW[0];a+=1.2)for(let b=0;b<2;b++){x.fillStyle=((Math.round(a/1.2)+b)%2+2)%2?"#111":"#fff";x.fillRect(b*1.2-1.2,a,1.2,1.2)}
   x.strokeStyle="rgba(255,255,255,.85)";x.lineWidth=.25;[[-8*G.ds,-4.5],[-12*G.ds,4.5]].forEach(([gx,gy])=>{x.beginPath();x.moveTo(gx+2.8,gy-1.5);x.lineTo(gx+2.8,gy+1.5);x.moveTo(gx+2.8,gy-1.5);x.lineTo(gx+2,gy-1.5);x.moveTo(gx+2.8,gy+1.5);x.lineTo(gx+2,gy+1.5);x.stroke()});x.restore();
   /* cars */
   S.cars.forEach(c=>{if(!c.paint){c.paint=c.col;dzPaint(c.c,p=>c.paint=p)}x.save();x.translate(c.x,c.y);x.rotate(c.h);dzCarShape(x,c,c.paint,c.col);x.restore();
