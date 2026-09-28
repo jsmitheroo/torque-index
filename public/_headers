@@ -15,3 +15,6 @@
 
 /version.txt
   Cache-Control: no-store
+
+/sw.js
+  Cache-Control: no-cache

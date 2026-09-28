@@ -52,7 +52,7 @@ export default {
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
       return stub.fetch(request);
     }
-    const a = url.pathname.match(/^\/api\/auth\/(signup|login|logout|me|data|delete)$/);
+    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del))$/);
     if (a) {
       // Accounts: writes must come from this site (blocks cross-site form tricks).
       if (request.method !== "GET") {
@@ -61,7 +61,7 @@ export default {
         if (!same) return json({ error: "Forbidden" }, 403, url.host);
       }
       const stub = env.ACCOUNTS.get(env.ACCOUNTS.idFromName("accounts"));
-      const fwd = new Request("https://accounts/" + a[1], { method: request.method, headers: { "content-type": "application/json", "cookie": request.headers.get("Cookie") || "", "x-ip": request.headers.get("CF-Connecting-IP") || "local", "x-secure": url.protocol === "https:" ? "1" : "0" }, body: request.method === "GET" ? null : await request.text() });
+      const fwd = new Request("https://accounts/" + (a[1] || a[2]) + url.search, { method: request.method, headers: { "content-type": "application/json", "cookie": request.headers.get("Cookie") || "", "x-ip": request.headers.get("CF-Connecting-IP") || "local", "x-secure": url.protocol === "https:" ? "1" : "0" }, body: request.method === "GET" ? null : await request.text() });
       return withHeaders(await stub.fetch(fwd), url.host);
     }
     if (url.pathname.startsWith("/api/")) return new Response("Not found", { status: 404 });
@@ -203,6 +203,13 @@ export class Accounts extends DurableObject {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS users(id TEXT PRIMARY KEY, email TEXT UNIQUE, username TEXT UNIQUE COLLATE NOCASE, salt TEXT, hash TEXT, created INTEGER, data TEXT, updated INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS sessions(token TEXT PRIMARY KEY, uid TEXT, expires INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS attempts(k TEXT PRIMARY KEY, n INTEGER, reset INTEGER)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS laps(uid TEXT, track TEXT, car TEXT, t REAL, created INTEGER, PRIMARY KEY(uid,track))`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS wins(uid TEXT, game TEXT, n INTEGER, PRIMARY KEY(uid,game))`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS cup(week INTEGER, uid TEXT, t REAL, created INTEGER, PRIMARY KEY(week,uid))`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS friends(a TEXT, b TEXT, status TEXT, created INTEGER, PRIMARY KEY(a,b))`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS invites(id INTEGER PRIMARY KEY AUTOINCREMENT, to_uid TEXT, from_uid TEXT, code TEXT, created INTEGER)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS reviews(car TEXT, uid TEXT, rating INTEGER, text TEXT, created INTEGER, PRIMARY KEY(car,uid))`);
+    try { this.sql.exec(`ALTER TABLE users ADD COLUMN seen INTEGER`); } catch (e) {}
   }
   // Counts attempts per key inside a time window; returns false once the limit is hit.
   limit(k, max, windowMs) {
@@ -258,7 +265,10 @@ export class Accounts extends DurableObject {
       return json({ user: this.pub(u), data: u.data ? JSON.parse(u.data) : null }, 200, null, { "set-cookie": await this.newSession(u.id, secure) });
     }
 
+    const q = new URL(req.url).searchParams;
     const s = await this.session(req);
+    const pub = await this.publicRoutes(route, q, s);
+    if (pub) return pub;
     if (route === "me") return json({ user: s ? this.pub(s) : null });
     if (!s) return json({ error: "Please log in." }, 401);
 
@@ -282,8 +292,113 @@ export class Accounts extends DurableObject {
       if (!u || !same(await hashPw(String(body.password || ""), u.salt), u.hash)) return json({ error: "That password isn't right.", field: "password" }, 401);
       this.sql.exec(`DELETE FROM sessions WHERE uid=?`, s.uid);
       this.sql.exec(`DELETE FROM users WHERE id=?`, s.uid);
+      for (const t of ["laps","wins","cup","reviews"]) this.sql.exec(`DELETE FROM ${t} WHERE uid=?`, s.uid);
+      this.sql.exec(`DELETE FROM friends WHERE a=? OR b=?`, s.uid, s.uid);this.sql.exec(`DELETE FROM invites WHERE to_uid=? OR from_uid=?`, s.uid, s.uid);
       return json({ ok: true }, 200, null, { "set-cookie": this.cookie("", secure, 0) });
     }
+    const soc = await this.socialRoutes(route, body, s);
+    if (soc) return soc;
     return json({ error: "Not found" }, 404);
+  }
+
+  /* ---------- leaderboards, weekly cup, reviews (anyone can read) ---------- */
+  async publicRoutes(route, q, s) {
+    const TRACK_RE = /^[a-z]{2,16}$/, CAR_RE = /^[a-z0-9-]{2,90}$/;
+    if (route === "lb-laps") {
+      const track = String(q.get("track") || ""); if (!TRACK_RE.test(track)) return json({ error: "Bad track" }, 400);
+      const top = this.sql.exec(`SELECT u.username, l.car, l.t, l.created FROM laps l JOIN users u ON u.id=l.uid WHERE l.track=? ORDER BY l.t ASC LIMIT 25`, track).toArray();
+      const mine = s ? this.sql.exec(`SELECT car, t FROM laps WHERE uid=? AND track=?`, s.uid, track).toArray()[0] || null : null;
+      return json({ top, mine });
+    }
+    if (route === "lb-wins") {
+      const game = String(q.get("game") || ""); if (!/^(bb|cd|champ)$/.test(game)) return json({ error: "Bad game" }, 400);
+      return json({ top: this.sql.exec(`SELECT u.username, w.n FROM wins w JOIN users u ON u.id=w.uid WHERE w.game=? ORDER BY w.n DESC LIMIT 25`, game).toArray() });
+    }
+    if (route === "cup") {
+      const week = Math.floor(Date.now() / 6048e5);
+      const top = this.sql.exec(`SELECT u.username, c.t FROM cup c JOIN users u ON u.id=c.uid WHERE c.week=? ORDER BY c.t ASC LIMIT 32`, week).toArray();
+      const mine = s ? (this.sql.exec(`SELECT t FROM cup WHERE week=? AND uid=?`, week, s.uid).toArray()[0] || null) : null;
+      return json({ week, top, mine, ends: (week + 1) * 6048e5 });
+    }
+    if (route === "reviews") {
+      const car = String(q.get("car") || ""); if (!CAR_RE.test(car)) return json({ error: "Bad car" }, 400);
+      const items = this.sql.exec(`SELECT u.username, r.rating, r.text, r.created FROM reviews r JOIN users u ON u.id=r.uid WHERE r.car=? ORDER BY r.created DESC LIMIT 30`, car).toArray();
+      const agg = this.sql.exec(`SELECT COUNT(*) AS n, AVG(rating) AS avg FROM reviews WHERE car=?`, car).toArray()[0];
+      const mine = s ? (this.sql.exec(`SELECT rating, text FROM reviews WHERE car=? AND uid=?`, car, s.uid).toArray()[0] || null) : null;
+      return json({ n: agg.n, avg: agg.avg, items, mine });
+    }
+    return null;
+  }
+
+  /* ---------- things that need you signed in ---------- */
+  async socialRoutes(route, body, s) {
+    const now = Date.now(), uname = u => this.sql.exec(`SELECT id, username FROM users WHERE username=?`, String(u || "").trim()).toArray()[0];
+    if (route === "lb-lap") {
+      if (!this.limit("lb:" + s.uid, 200, 3600e3)) return json({ error: "Slow down" }, 429);
+      const track = String(body.track || ""), car = String(body.car || ""), t = +body.t;
+      if (!/^[a-z]{2,16}$/.test(track) || !/^[a-z0-9-]{2,90}$/.test(car) || !(t > 15 && t < 2000)) return json({ error: "Bad lap" }, 400);
+      const old = this.sql.exec(`SELECT t FROM laps WHERE uid=? AND track=?`, s.uid, track).toArray()[0];
+      if (!old || t < old.t) this.sql.exec(`INSERT OR REPLACE INTO laps(uid,track,car,t,created) VALUES(?,?,?,?,?)`, s.uid, track, car, t, now);
+      const rank = this.sql.exec(`SELECT COUNT(*)+1 AS r FROM laps WHERE track=? AND t<?`, track, Math.min(t, old ? old.t : t)).toArray()[0].r;
+      return json({ ok: true, best: !old || t < old.t, rank });
+    }
+    if (route === "lb-win") {
+      if (!this.limit("lw:" + s.uid, 60, 3600e3)) return json({ error: "Slow down" }, 429);
+      const game = String(body.game || ""); if (!/^(bb|cd|champ)$/.test(game)) return json({ error: "Bad game" }, 400);
+      this.sql.exec(`INSERT INTO wins(uid,game,n) VALUES(?,?,1) ON CONFLICT(uid,game) DO UPDATE SET n=n+1`, s.uid, game);
+      return json({ ok: true });
+    }
+    if (route === "cup-post") {
+      if (!this.limit("cp:" + s.uid, 120, 3600e3)) return json({ error: "Slow down" }, 429);
+      const week = Math.floor(now / 6048e5), t = +body.t;
+      if (+body.week !== week) return json({ error: "That cup has finished" }, 409);
+      if (!(t > 15 && t < 2000)) return json({ error: "Bad time" }, 400);
+      const old = this.sql.exec(`SELECT t FROM cup WHERE week=? AND uid=?`, week, s.uid).toArray()[0];
+      if (!old || t < old.t) this.sql.exec(`INSERT OR REPLACE INTO cup(week,uid,t,created) VALUES(?,?,?,?)`, week, s.uid, t, now);
+      return json({ ok: true, best: !old || t < old.t });
+    }
+    if (route === "review") {
+      if (!this.limit("rv:" + s.uid, 20, 3600e3)) return json({ error: "Slow down" }, 429);
+      const car = String(body.car || ""), rating = Math.round(+body.rating), text = String(body.text || "").replace(/[<>]/g, "").trim().slice(0, 600);
+      if (!/^[a-z0-9-]{2,90}$/.test(car) || !(rating >= 1 && rating <= 5)) return json({ error: "Pick 1 to 5 stars" }, 400);
+      this.sql.exec(`INSERT OR REPLACE INTO reviews(car,uid,rating,text,created) VALUES(?,?,?,?,?)`, car, s.uid, rating, text, now);
+      return json({ ok: true });
+    }
+    if (route === "review-del") { this.sql.exec(`DELETE FROM reviews WHERE car=? AND uid=?`, String(body.car || ""), s.uid); return json({ ok: true }); }
+    if (route === "social") {
+      this.sql.exec(`UPDATE users SET seen=? WHERE id=?`, now, s.uid);
+      const fr = this.sql.exec(`SELECT u.username, u.seen FROM friends f JOIN users u ON u.id = CASE WHEN f.a=? THEN f.b ELSE f.a END WHERE (f.a=? OR f.b=?) AND f.status='ok' ORDER BY u.username`, s.uid, s.uid, s.uid).toArray();
+      const incoming = this.sql.exec(`SELECT u.username FROM friends f JOIN users u ON u.id=f.a WHERE f.b=? AND f.status='pending'`, s.uid).toArray().map(r => r.username);
+      const outgoing = this.sql.exec(`SELECT u.username FROM friends f JOIN users u ON u.id=f.b WHERE f.a=? AND f.status='pending'`, s.uid).toArray().map(r => r.username);
+      this.sql.exec(`DELETE FROM invites WHERE created<?`, now - 15 * 60e3);
+      const invites = this.sql.exec(`SELECT i.id, u.username AS "from", i.code, i.created FROM invites i JOIN users u ON u.id=i.from_uid WHERE i.to_uid=? ORDER BY i.created DESC LIMIT 5`, s.uid).toArray();
+      return json({ friends: fr.map(r => ({ username: r.username, online: !!r.seen && now - r.seen < 90e3, seen: r.seen || null })), incoming, outgoing, invites });
+    }
+    if (route === "friend-add") {
+      if (!this.limit("fa:" + s.uid, 30, 3600e3)) return json({ error: "Slow down" }, 429);
+      const o = uname(body.username); if (!o) return json({ error: "No player with that username." }, 404); if (o.id === s.uid) return json({ error: "That's you!" }, 400);
+      const rev = this.sql.exec(`SELECT status FROM friends WHERE a=? AND b=?`, o.id, s.uid).toArray()[0];
+      if (rev) { this.sql.exec(`UPDATE friends SET status='ok' WHERE a=? AND b=?`, o.id, s.uid); return json({ ok: true, now: "friends" }); }
+      this.sql.exec(`INSERT OR IGNORE INTO friends(a,b,status,created) VALUES(?,?,'pending',?)`, s.uid, o.id, now);
+      return json({ ok: true, now: "requested" });
+    }
+    if (route === "friend-respond") {
+      const o = uname(body.username); if (!o) return json({ error: "Not found" }, 404);
+      if (body.accept) this.sql.exec(`UPDATE friends SET status='ok' WHERE a=? AND b=? AND status='pending'`, o.id, s.uid);
+      else this.sql.exec(`DELETE FROM friends WHERE a=? AND b=?`, o.id, s.uid);
+      return json({ ok: true });
+    }
+    if (route === "friend-remove") { const o = uname(body.username); if (o) this.sql.exec(`DELETE FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)`, s.uid, o.id, o.id, s.uid); return json({ ok: true }); }
+    if (route === "invite") {
+      if (!this.limit("iv:" + s.uid, 40, 3600e3)) return json({ error: "Slow down" }, 429);
+      const o = uname(body.username), code = String(body.code || "").toUpperCase();
+      if (!o || !/^[A-HJ-NP-Z2-9]{5}$/.test(code)) return json({ error: "Bad invite" }, 400);
+      const ok = this.sql.exec(`SELECT 1 FROM friends WHERE ((a=? AND b=?) OR (a=? AND b=?)) AND status='ok'`, s.uid, o.id, o.id, s.uid).toArray().length;
+      if (!ok) return json({ error: "You can only invite friends." }, 403);
+      this.sql.exec(`INSERT INTO invites(to_uid,from_uid,code,created) VALUES(?,?,?,?)`, o.id, s.uid, code, now);
+      return json({ ok: true });
+    }
+    if (route === "invite-clear") { this.sql.exec(`DELETE FROM invites WHERE id=? AND to_uid=?`, +body.id, s.uid); return json({ ok: true }); }
+    return null;
   }
 }
