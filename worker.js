@@ -52,7 +52,7 @@ export default {
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
       return stub.fetch(request);
     }
-    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
+    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
     if (a) {
       // Accounts: writes must come from this site (blocks cross-site form tricks).
       if (request.method !== "GET") {
@@ -214,6 +214,7 @@ export class Accounts extends DurableObject {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS cup(week INTEGER, uid TEXT, t REAL, created INTEGER, PRIMARY KEY(week,uid))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS friends(a TEXT, b TEXT, status TEXT, created INTEGER, PRIMARY KEY(a,b))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS invites(id INTEGER PRIMARY KEY AUTOINCREMENT, to_uid TEXT, from_uid TEXT, code TEXT, created INTEGER)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS dailyr(day INTEGER, uid TEXT, car TEXT, t REAL, created INTEGER, PRIMARY KEY(day,uid))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS reviews(car TEXT, uid TEXT, rating INTEGER, text TEXT, created INTEGER, PRIMARY KEY(car,uid))`);
     try { this.sql.exec(`ALTER TABLE users ADD COLUMN seen INTEGER`); } catch (e) {}
     this.sql.exec(`CREATE TABLE IF NOT EXISTS notifs(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, kind TEXT, text TEXT, link TEXT, created INTEGER, read INTEGER DEFAULT 0)`);
@@ -299,7 +300,7 @@ export class Accounts extends DurableObject {
       if (!u || !same(await hashPw(String(body.password || ""), u.salt), u.hash)) return json({ error: "That password isn't right.", field: "password" }, 401);
       this.sql.exec(`DELETE FROM sessions WHERE uid=?`, s.uid);
       this.sql.exec(`DELETE FROM users WHERE id=?`, s.uid);
-      for (const t of ["laps","wins","cup","reviews","notifs"]) this.sql.exec(`DELETE FROM ${t} WHERE uid=?`, s.uid);
+      for (const t of ["laps","wins","cup","reviews","notifs","dailyr"]) this.sql.exec(`DELETE FROM ${t} WHERE uid=?`, s.uid);
       this.sql.exec(`DELETE FROM friends WHERE a=? OR b=?`, s.uid, s.uid);this.sql.exec(`DELETE FROM invites WHERE to_uid=? OR from_uid=?`, s.uid, s.uid);
       return json({ ok: true }, 200, null, { "set-cookie": this.cookie("", secure, 0) });
     }
@@ -318,6 +319,14 @@ export class Accounts extends DurableObject {
       const top = this.sql.exec(`SELECT u.username, l.car, l.t, l.created FROM laps l JOIN users u ON u.id=l.uid WHERE l.track=? ORDER BY l.t ASC LIMIT 25`, track).toArray();
       const mine = s ? this.sql.exec(`SELECT car, t FROM laps WHERE uid=? AND track=?`, s.uid, track).toArray()[0] || null : null;
       return json({ top, mine });
+    }
+    if (route === "daily") {
+      const day = Math.floor(Date.now() / 864e5), d = +(q.get("day") || day);
+      if (!(d === day || d === day - 1)) return json({ error: "Bad day" }, 400);
+      const top = this.sql.exec(`SELECT u.username, r.car, r.t FROM dailyr r JOIN users u ON u.id=r.uid WHERE r.day=? ORDER BY r.t ASC LIMIT 25`, d).toArray();
+      const mine = s ? (this.sql.exec(`SELECT t FROM dailyr WHERE day=? AND uid=?`, d, s.uid).toArray()[0] || null) : null;
+      this.sql.exec(`DELETE FROM dailyr WHERE day<?`, day - 30);
+      return json({ day: d, top, mine });
     }
     if (route === "lb-wins") {
       const game = String(q.get("game") || ""); if (!/^(bb|cd|champ)$/.test(game)) return json({ error: "Bad game" }, 400);
@@ -373,6 +382,16 @@ export class Accounts extends DurableObject {
       const game = String(body.game || ""); if (!/^(bb|cd|champ)$/.test(game)) return json({ error: "Bad game" }, 400);
       this.sql.exec(`INSERT INTO wins(uid,game,n) VALUES(?,?,1) ON CONFLICT(uid,game) DO UPDATE SET n=n+1`, s.uid, game);
       return json({ ok: true });
+    }
+    if (route === "daily-post") {
+      if (!this.limit("dp:" + s.uid, 200, 3600e3)) return json({ error: "Slow down" }, 429);
+      const day = Math.floor(now / 864e5), t = +body.t, car = String(body.car || "");
+      if (+body.day !== day) return json({ error: "That daily race has finished" }, 409);
+      if (!(t > 15 && t < 2000) || !/^[a-z0-9-]{2,90}$/.test(car)) return json({ error: "Bad time" }, 400);
+      const old = this.sql.exec(`SELECT t FROM dailyr WHERE day=? AND uid=?`, day, s.uid).toArray()[0];
+      if (!old || t < old.t) this.sql.exec(`INSERT OR REPLACE INTO dailyr(day,uid,car,t,created) VALUES(?,?,?,?,?)`, day, s.uid, car, t, now);
+      const rank = this.sql.exec(`SELECT COUNT(*)+1 AS r FROM dailyr WHERE day=? AND t<?`, day, Math.min(t, old ? old.t : t)).toArray()[0].r;
+      return json({ ok: true, best: !old || t < old.t, rank });
     }
     if (route === "cup-post") {
       if (!this.limit("cp:" + s.uid, 120, 3600e3)) return json({ error: "Slow down" }, 429);
