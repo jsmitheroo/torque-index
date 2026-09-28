@@ -52,7 +52,7 @@ export default {
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
       return stub.fetch(request);
     }
-    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del))$/);
+    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
     if (a) {
       // Accounts: writes must come from this site (blocks cross-site form tricks).
       if (request.method !== "GET") {
@@ -99,12 +99,13 @@ export class Room extends DurableObject {
     }
     // one seat per person; a returning player keeps their seat
     let seat = meta.seats[pid];
-    if (!seat) {
+    const watch = url.searchParams.get("watch") === "1";
+    if (!seat && !watch) {
       const taken = Object.values(meta.seats);
-      seat = !taken.includes("a") ? "a" : !taken.includes("b") ? "b" : null;
-      if (!seat) return fail("full");
-      meta.seats[pid] = seat;
+      seat = ["a", "b", "c", "d"].find(s => !taken.includes(s)) || null;   // up to four players
+      if (seat) meta.seats[pid] = seat;
     }
+    if (!seat) seat = "s";                                                   // everyone else watches
     meta.names = meta.names || {};
     meta.names[pid] = name;
     await this.ctx.storage.put("meta", meta);
@@ -116,8 +117,8 @@ export class Room extends DurableObject {
     }
     server.serializeAttachment({ pid, seat, name });
     const state = (await this.ctx.storage.get("state")) || null;
-    server.send(JSON.stringify({ t: "hello", you: { pid, seat, name }, players: this.players(meta, server), state }));
-    this.broadcast({ t: "peers", players: this.players(meta) }, server);
+    server.send(JSON.stringify({ t: "hello", you: { pid, seat, name }, players: this.players(meta, server), watchers: this.watchers(), state }));
+    this.broadcast({ t: "peers", players: this.players(meta), watchers: this.watchers() }, server);
     await this.ctx.storage.setAlarm(Date.now() + IDLE_MS);
     return new Response(null, { status: 101, webSocket: client });
   }
@@ -128,6 +129,8 @@ export class Room extends DurableObject {
     if (extra) { const a = extra.deserializeAttachment(); if (a) online.add(a.pid); }
     return Object.entries(meta.seats).map(([pid, seat]) => ({ seat, name: (meta.names || {})[pid] || "Player", online: online.has(pid) }));
   }
+
+  watchers(except) { let n = 0; for (const ws of this.ctx.getWebSockets()) { if (ws === except) continue; const a = ws.deserializeAttachment(); if (a && a.seat === "s") n++; } return n; }
 
   broadcast(msg, except) {
     const s = JSON.stringify(msg);
@@ -159,8 +162,11 @@ export class Room extends DurableObject {
       if (!msg.state || typeof msg.state !== "object") return;
       await this.ctx.storage.put("state", msg.state);
       this.broadcast({ t: "state", state: msg.state }, ws);
-    } else if (msg.t === "act" && (me.seat === "a" || me.seat === "b")) { // a move from either player, relayed to the other
+    } else if (msg.t === "act" && ["a", "b", "c", "d"].includes(me.seat)) { // a move from a player, relayed to everyone else
       this.broadcast({ t: "act", from: me.seat, data: msg.data }, ws);
+    } else if (msg.t === "chat") {                         // room chat: plain text only, short
+      const text = String(msg.text || "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 200);
+      if (text) this.broadcast({ t: "chat", from: me.seat, name: me.name, text, at: Date.now() }, ws);
     } else if (msg.t === "emote" && EMOTES.includes(msg.e)) {
       this.broadcast({ t: "emote", from: me.seat, e: msg.e }, ws);
     } else return;
@@ -169,7 +175,7 @@ export class Room extends DurableObject {
 
   async webSocketClose(ws) {
     const meta = await this.ctx.storage.get("meta");
-    if (meta) this.broadcast({ t: "peers", players: this.players(meta, null, ws) }, ws);
+    if (meta) this.broadcast({ t: "peers", players: this.players(meta, null, ws), watchers: this.watchers(ws) }, ws);
   }
 
   async webSocketError(ws) { await this.webSocketClose(ws); }
@@ -210,6 +216,7 @@ export class Accounts extends DurableObject {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS invites(id INTEGER PRIMARY KEY AUTOINCREMENT, to_uid TEXT, from_uid TEXT, code TEXT, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS reviews(car TEXT, uid TEXT, rating INTEGER, text TEXT, created INTEGER, PRIMARY KEY(car,uid))`);
     try { this.sql.exec(`ALTER TABLE users ADD COLUMN seen INTEGER`); } catch (e) {}
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS notifs(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, kind TEXT, text TEXT, link TEXT, created INTEGER, read INTEGER DEFAULT 0)`);
   }
   // Counts attempts per key inside a time window; returns false once the limit is hit.
   limit(k, max, windowMs) {
@@ -292,7 +299,7 @@ export class Accounts extends DurableObject {
       if (!u || !same(await hashPw(String(body.password || ""), u.salt), u.hash)) return json({ error: "That password isn't right.", field: "password" }, 401);
       this.sql.exec(`DELETE FROM sessions WHERE uid=?`, s.uid);
       this.sql.exec(`DELETE FROM users WHERE id=?`, s.uid);
-      for (const t of ["laps","wins","cup","reviews"]) this.sql.exec(`DELETE FROM ${t} WHERE uid=?`, s.uid);
+      for (const t of ["laps","wins","cup","reviews","notifs"]) this.sql.exec(`DELETE FROM ${t} WHERE uid=?`, s.uid);
       this.sql.exec(`DELETE FROM friends WHERE a=? OR b=?`, s.uid, s.uid);this.sql.exec(`DELETE FROM invites WHERE to_uid=? OR from_uid=?`, s.uid, s.uid);
       return json({ ok: true }, 200, null, { "set-cookie": this.cookie("", secure, 0) });
     }
@@ -300,6 +307,8 @@ export class Accounts extends DurableObject {
     if (soc) return soc;
     return json({ error: "Not found" }, 404);
   }
+
+  notify(uid, kind, text, link) { this.sql.exec(`INSERT INTO notifs(uid,kind,text,link,created) VALUES(?,?,?,?,?)`, uid, kind, String(text).slice(0, 200), link || "", Date.now()); this.sql.exec(`DELETE FROM notifs WHERE uid=? AND id NOT IN (SELECT id FROM notifs WHERE uid=? ORDER BY id DESC LIMIT 50)`, uid, uid); }
 
   /* ---------- leaderboards, weekly cup, reviews (anyone can read) ---------- */
   async publicRoutes(route, q, s) {
@@ -320,6 +329,21 @@ export class Accounts extends DurableObject {
       const mine = s ? (this.sql.exec(`SELECT t FROM cup WHERE week=? AND uid=?`, week, s.uid).toArray()[0] || null) : null;
       return json({ week, top, mine, ends: (week + 1) * 6048e5 });
     }
+    if (route === "profile") {
+      const u = this.sql.exec(`SELECT id, username, created, data FROM users WHERE username=?`, String(q.get("u") || "").trim()).toArray()[0];
+      if (!u) return json({ error: "No player with that name." }, 404);
+      let d = {}; try { d = JSON.parse(u.data || "{}"); } catch (e) {}
+      const pubGarage = d["ti-public"] !== false;
+      const av = d["ti-avatar"] && typeof d["ti-avatar"] === "object" ? d["ti-avatar"] : null;
+      const laps = this.sql.exec(`SELECT l.track, l.car, l.t, (SELECT COUNT(*)+1 FROM laps x WHERE x.track=l.track AND x.t<l.t) AS rank FROM laps l WHERE l.uid=? ORDER BY rank ASC, l.t ASC`, u.id).toArray();
+      const wins = Object.fromEntries(this.sql.exec(`SELECT game, n FROM wins WHERE uid=?`, u.id).toArray().map(r => [r.game, r.n]));
+      const reviews = this.sql.exec(`SELECT car, rating, text, created FROM reviews WHERE uid=? ORDER BY created DESC LIMIT 10`, u.id).toArray();
+      const ach = d["ti-ach"] && typeof d["ti-ach"] === "object" ? Object.keys(d["ti-ach"]).length : 0;
+      const friends = this.sql.exec(`SELECT COUNT(*) AS n FROM friends WHERE (a=? OR b=?) AND status='ok'`, u.id, u.id).toArray()[0].n;
+      let rel = null;
+      if (s && s.uid !== u.id) { const f = this.sql.exec(`SELECT a, status FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)`, s.uid, u.id, u.id, s.uid).toArray()[0]; rel = f ? (f.status === "ok" ? "friends" : f.a === s.uid ? "requested" : "incoming") : "none"; }
+      return json({ username: u.username, created: u.created, avatar: av, garage: pubGarage && Array.isArray(d["ti-fav"]) ? d["ti-fav"].slice(0, 24) : null, laps, wins, reviews, ach, friends, me: s ? s.uid === u.id : false, rel });
+    }
     if (route === "reviews") {
       const car = String(q.get("car") || ""); if (!CAR_RE.test(car)) return json({ error: "Bad car" }, 400);
       const items = this.sql.exec(`SELECT u.username, r.rating, r.text, r.created FROM reviews r JOIN users u ON u.id=r.uid WHERE r.car=? ORDER BY r.created DESC LIMIT 30`, car).toArray();
@@ -338,7 +362,9 @@ export class Accounts extends DurableObject {
       const track = String(body.track || ""), car = String(body.car || ""), t = +body.t;
       if (!/^[a-z]{2,16}$/.test(track) || !/^[a-z0-9-]{2,90}$/.test(car) || !(t > 15 && t < 2000)) return json({ error: "Bad lap" }, 400);
       const old = this.sql.exec(`SELECT t FROM laps WHERE uid=? AND track=?`, s.uid, track).toArray()[0];
+      const holder = this.sql.exec(`SELECT uid, t FROM laps WHERE track=? ORDER BY t ASC LIMIT 1`, track).toArray()[0];
       if (!old || t < old.t) this.sql.exec(`INSERT OR REPLACE INTO laps(uid,track,car,t,created) VALUES(?,?,?,?,?)`, s.uid, track, car, t, now);
+      if (holder && holder.uid !== s.uid && t < holder.t) this.notify(holder.uid, "record", `${s.username} beat your lap record on ${track} (${t.toFixed(3)}s)`, "#leaderboards");
       const rank = this.sql.exec(`SELECT COUNT(*)+1 AS r FROM laps WHERE track=? AND t<?`, track, Math.min(t, old ? old.t : t)).toArray()[0].r;
       return json({ ok: true, best: !old || t < old.t, rank });
     }
@@ -365,6 +391,11 @@ export class Accounts extends DurableObject {
       return json({ ok: true });
     }
     if (route === "review-del") { this.sql.exec(`DELETE FROM reviews WHERE car=? AND uid=?`, String(body.car || ""), s.uid); return json({ ok: true }); }
+    if (route === "notifs") {
+      const items = this.sql.exec(`SELECT id, kind, text, link, created, read FROM notifs WHERE uid=? ORDER BY id DESC LIMIT 30`, s.uid).toArray();
+      return json({ items, unread: items.filter(i => !i.read).length });
+    }
+    if (route === "notifs-read") { this.sql.exec(`UPDATE notifs SET read=1 WHERE uid=?`, s.uid); return json({ ok: true }); }
     if (route === "social") {
       this.sql.exec(`UPDATE users SET seen=? WHERE id=?`, now, s.uid);
       const fr = this.sql.exec(`SELECT u.username, u.seen FROM friends f JOIN users u ON u.id = CASE WHEN f.a=? THEN f.b ELSE f.a END WHERE (f.a=? OR f.b=?) AND f.status='ok' ORDER BY u.username`, s.uid, s.uid, s.uid).toArray();
@@ -372,7 +403,8 @@ export class Accounts extends DurableObject {
       const outgoing = this.sql.exec(`SELECT u.username FROM friends f JOIN users u ON u.id=f.b WHERE f.a=? AND f.status='pending'`, s.uid).toArray().map(r => r.username);
       this.sql.exec(`DELETE FROM invites WHERE created<?`, now - 15 * 60e3);
       const invites = this.sql.exec(`SELECT i.id, u.username AS "from", i.code, i.created FROM invites i JOIN users u ON u.id=i.from_uid WHERE i.to_uid=? ORDER BY i.created DESC LIMIT 5`, s.uid).toArray();
-      return json({ friends: fr.map(r => ({ username: r.username, online: !!r.seen && now - r.seen < 90e3, seen: r.seen || null })), incoming, outgoing, invites });
+      const unread = this.sql.exec(`SELECT COUNT(*) AS n FROM notifs WHERE uid=? AND read=0`, s.uid).toArray()[0].n;
+      return json({ friends: fr.map(r => ({ username: r.username, online: !!r.seen && now - r.seen < 90e3, seen: r.seen || null })), incoming, outgoing, invites, unread });
     }
     if (route === "friend-add") {
       if (!this.limit("fa:" + s.uid, 30, 3600e3)) return json({ error: "Slow down" }, 429);
@@ -380,6 +412,7 @@ export class Accounts extends DurableObject {
       const rev = this.sql.exec(`SELECT status FROM friends WHERE a=? AND b=?`, o.id, s.uid).toArray()[0];
       if (rev) { this.sql.exec(`UPDATE friends SET status='ok' WHERE a=? AND b=?`, o.id, s.uid); return json({ ok: true, now: "friends" }); }
       this.sql.exec(`INSERT OR IGNORE INTO friends(a,b,status,created) VALUES(?,?,'pending',?)`, s.uid, o.id, now);
+      this.notify(o.id, "friend", `${s.username} sent you a friend request`, "#friends");
       return json({ ok: true, now: "requested" });
     }
     if (route === "friend-respond") {
@@ -396,6 +429,7 @@ export class Accounts extends DurableObject {
       const ok = this.sql.exec(`SELECT 1 FROM friends WHERE ((a=? AND b=?) OR (a=? AND b=?)) AND status='ok'`, s.uid, o.id, o.id, s.uid).toArray().length;
       if (!ok) return json({ error: "You can only invite friends." }, 403);
       this.sql.exec(`INSERT INTO invites(to_uid,from_uid,code,created) VALUES(?,?,?,?)`, o.id, s.uid, code, now);
+      this.notify(o.id, "invite", `${s.username} invited you to room ${code}`, "#room-" + code);
       return json({ ok: true });
     }
     if (route === "invite-clear") { this.sql.exec(`DELETE FROM invites WHERE id=? AND to_uid=?`, +body.id, s.uid); return json({ ok: true }); }
