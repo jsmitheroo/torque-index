@@ -1484,6 +1484,7 @@ body.typing .tray,body.typing .totop{visibility:hidden}
 .upd{position:fixed;left:50%;transform:translateX(-50%);top:calc(12px + env(safe-area-inset-top,0px));z-index:120;display:flex;align-items:center;gap:12px;background:#fff;color:#101418;border:1px solid #DCE0DC;border-radius:12px;padding:10px 10px 10px 16px;box-shadow:0 18px 40px -18px rgba(16,20,24,.5);font-size:14px;font-weight:600;width:max-content;max-width:calc(100% - 24px)}
 .upd button{border:0;border-radius:8px;background:#0F4D3A;color:#fff;font-weight:700;padding:9px 14px;min-height:38px;white-space:nowrap}
 .sf-build{opacity:.6}
+.qz-photo .ph.qz-crop{transition:none}
 </style>
 
 </head>
@@ -1989,7 +1990,7 @@ function spin(){const box=$("#spinBox"),b=$("#spinBtn");if(!box)return;b.disable
     if(n<total)later(tick,40+n*n*1.1);else{box.innerHTML=`<a href="#car-${c.id}" class="spin-res">${ph(c)}<div class="spin-n"><b>${esc(c.make)} ${esc(c.model)}</b><span>${esc(c.years)} · ${c.bhp} bhp · ${acc(c.acc)} · open →</span></div></a>`;b.disabled=false;b.textContent="Spin again"}};tick()}
 
 /* ================= Guess the car ================= */
-const QZ={};
+const QZ={};let qzTime=()=>12;let TTNOISE=.08;
 const QZMODES={modern:{n:"Modern",d:"1995 onwards, different makers",f:c=>c.y0>=1995},classic:{n:"Classics",d:"Before 1990",f:c=>c.y0&&c.y0<1990},hard:{n:"Expert",d:"Any era, same-maker options",f:()=>true}};
 function quizPage(){return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#play">Play</a> / Guess the car</div><h1>Guess the car</h1><p>Name the car from the photo. Faster answers score more. Use keys 1–4.</p></div></div><div id="game" class="game"></div></div>`}
 function quizMenu(){const best=store.get("ti-best-quiz",{});$("#game").innerHTML=`<div class="modes">${Object.entries(QZMODES).map(([k,m])=>`<button class="mode" data-qm="${k}"><b>${m.n}</b><span>${m.d}</span>${best[k]?`<em>Best ${best[k]}</em>`:""}</button>`).join("")}</div>`}
@@ -1997,13 +1998,13 @@ function quizStart(mode){const pool=WITHPH.filter(QZMODES[mode].f);Object.assign
 function quizOpts(c){const pool=QZ.pool.filter(x=>x.fam!==c.fam);let cand=QZ.mode==="hard"?pool.filter(x=>x.make===c.make):pool.filter(x=>x.body===c.body&&x.make!==c.make);if(cand.length<3)cand=pool.filter(x=>x.body===c.body);if(cand.length<3)cand=pool;
   const opts=[c];for(const x of shuffle([...cand])){if(opts.length>=4)break;if(!opts.some(o=>o.fam===x.fam||(QZ.mode!=="hard"&&o.make===x.make)))opts.push(x)}
   for(const x of shuffle([...pool])){if(opts.length>=4)break;if(!opts.some(o=>o.fam===x.fam))opts.push(x)}return shuffle(opts)}
-function quizRound(){clearTimers();const c=QZ.rounds[QZ.i];QZ.cur=c;QZ.opts=quizOpts(c);QZ.done=false;QZ.t0=performance.now();const T=12000;
+function quizRound(){clearTimers();const c=QZ.rounds[QZ.i];QZ.cur=c;QZ.opts=quizOpts(c);QZ.done=false;QZ.t0=performance.now();const T=qzTime()*1000;
   $("#game").innerHTML=`<div class="qz"><div class="qz-top"><span>Round <b>${QZ.i+1}</b>/${QZ.total}</span><span>Score <b class="num">${QZ.score}</b></span><span>Streak <b class="num">${QZ.streak}</b></span></div>
   <div class="qz-timer"><i id="qzt"></i></div><div class="qz-photo">${ph(c)}</div>
   <div class="qz-opts">${QZ.opts.map((o,k)=>`<button data-qa="${o.id}"><kbd>${k+1}</kbd><span>${esc(o.make)} <b>${esc(o.model)}</b></span></button>`).join("")}</div><div class="qz-fb" id="qzfb" aria-live="polite"></div></div>`;
   requestAnimationFrame(()=>requestAnimationFrame(()=>{const t=$("#qzt");if(t){t.style.transition=`width ${T}ms linear`;t.style.width="0%"}}));
   later(()=>quizAnswer(null),T)}
-function quizAnswer(id){if(QZ.done)return;QZ.done=true;clearTimers();const c=QZ.cur,ok=id===c.id;const left=Math.max(0,12-(performance.now()-QZ.t0)/1000);
+function quizAnswer(id){if(QZ.done)return;QZ.done=true;clearTimers();const c=QZ.cur,ok=id===c.id;const left=Math.max(0,qzTime()-(performance.now()-QZ.t0)/1000);
   const t=$("#qzt");if(t){t.style.width=getComputedStyle(t).width;t.style.transition="none"}
   let pts=0;if(ok){QZ.streak++;QZ.right++;pts=100+Math.round(left*10)+(QZ.streak>=3?50:0);QZ.score+=pts}else QZ.streak=0;
   document.querySelectorAll("[data-qa]").forEach(b=>{b.disabled=true;if(b.dataset.qa===c.id)b.classList.add("right");else if(b.dataset.qa===id)b.classList.add("wrong")});
@@ -2050,7 +2051,7 @@ function ttDraw(){const {you,cpu,pot,phase,turn}=TT;
   <div class="tt-table">${ttCard(you[0],{pick:!reveal&&turn==="you",hi:reveal?TT.stat:null,res:reveal?TT.res:null})}<div class="vsdot">VS</div>${ttCard(cpu[0],{face:false,hi:reveal?TT.stat:null,res:reveal?(TT.res==="w"?"l":TT.res==="l"?"w":"d"):null,cls:"cpu"})}</div>
   <div class="tt-act">${reveal?`<button class="btn primary" data-ttnext="1">Next round <kbd>↵</kbd></button>`:""}</div>`;
   if(reveal)requestAnimationFrame(()=>requestAnimationFrame(()=>{const k=document.querySelector(".tt.cpu");if(k)k.classList.remove("down")}));
-  if(!reveal&&turn==="cpu")later(()=>{const c=cpu[0];let bi=0,bv=-1;TTS.forEach((s,i)=>{const v=TT.rank[s.k](c)+Math.random()*.08;if(v>bv){bv=v;bi=i}});ttPlay(bi)},1100)}
+  if(!reveal&&turn==="cpu")later(()=>{const c=cpu[0];let bi=0,bv=-1;TTS.forEach((s,i)=>{const v=TT.rank[s.k](c)+Math.random()*TTNOISE;if(v>bv){bv=v;bi=i}});ttPlay(bi)},1100)}
 function ttPlay(i){if(TT.phase!=="pick")return;const s=TTS[i],a=TT.you[0],b=TT.cpu[0];const va=a[s.k],vb=b[s.k];const r=va===vb?"d":((s.hi?va>vb:va<vb)?"w":"l");
   TT.stat=i;TT.res=r;TT.phase="result";TT.rounds++;
   TT.msg=r==="w"?`<b class="g">You win the round</b> · ${s.n}: ${s.f(va)} vs ${s.f(vb)}`:r==="l"?`<b class="r">Computer wins</b> · ${s.n}: ${s.f(vb)} vs ${s.f(va)}`:`<b>Draw</b> · both ${s.f(va)}. Cards go in the pot.`;ttDraw()}
@@ -2499,7 +2500,7 @@ function dailyPage(){return `<div class="wrap"><div class="phead gph"><div><div 
 function dailyStart(){const st=store.get("ti-daily",{});if(st.day===day)return dailyShow(st);
   const r=Math.random;Math.random=mulberry(day*9973);const pool=WITHPH.filter(QZMODES.daily.f);const rounds=shuffle(uniqFam(shuffle([...pool]))).slice(0,5);Math.random=r;
   Object.assign(QZ,{mode:"daily",pool,rounds,i:0,score:0,streak:0,right:0,total:5,seed:day*31,hist:[],done:false,cur:null});
-  $("#game").innerHTML=`<div class="result"><div class="eyebrow">${new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}</div><div class="big">Daily 5</div><p>Five photos, twelve seconds each. You get one go today.</p>${streakHtml()}<div class="actions" style="justify-content:center"><button class="btn primary big" type="button" data-dgo="1">Start today's challenge</button></div></div>`}
+  $("#game").innerHTML=`<div class="result"><div class="eyebrow">${new Date().toLocaleDateString("en-GB",{weekday:"long",day:"numeric",month:"long"})}</div><div class="big">Daily 5</div><p>Five photos, nine seconds each, with look-alike answers. You get one go today.</p>${streakHtml()}<div class="actions" style="justify-content:center"><button class="btn primary big" type="button" data-dgo="1">Start today's challenge</button></div></div>`}
 function dailyEnd(){const st={day,score:QZ.score,right:QZ.right,hist:QZ.hist||[]};store.set("ti-daily",st);const s=streakGet();if(s.last!==day){s.n=(s.last===day-1?s.n:0)+1;s.last=day;s.best=Math.max(s.best||0,s.n);store.set("ti-daily-streak",s)}dailyShow(st,true)}
 function dailyShow(st,fresh){const grid=(st.hist||[]).map(ok=>`<i class="${ok?"ok":"no"}"></i>`).join("");const ms=(day+1)*864e5-Date.now(),h=Math.floor(ms/36e5),m=Math.floor(ms%36e5/6e4);
   const share=`Torque Index Daily 5 — ${st.right}/5 · ${st.score} pts`;
@@ -2969,7 +2970,7 @@ const _pp10=playPage;playPage=function(){return _pp10().replace('<a class="bgpro
 /* ---------- Guess the price ---------- */
 const GP={};const gpMoney=v=>v>=1000?"£"+(v/1000).toFixed(v>=10000?1:2).replace(/\.?0+$/,"")+"m":"£"+Math.round(v)+"k";
 const gpFromSlider=s=>Math.round(Math.exp(Math.log(8)+(Math.log(3500)-Math.log(8))*s/1000));
-function pricePage(){return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#play">Play</a> / Guess the price</div><h1>Guess the price</h1><p>Ten cars. Slide to what you think each one cost new in the UK. The closer you are, the more you score: spot on is 100, within double or half still scores.</p></div></div><div id="game" class="game"></div></div>`}
+function pricePage(){return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#play">Play</a> / Guess the price</div><h1>Guess the price</h1><p>Ten cars. Slide to what you think each one cost new in the UK. The closer you are, the more you score: spot on is 100, and you only score if you are within 60% of the real price.</p></div></div><div id="game" class="game"></div></div>`}
 function gpMenu(){const best=store.get("ti-best-price",null);$("#game").innerHTML=`<div class="modes">${[["new","New cars","On sale now — from city cars to hypercars"],["all","Everything with a price","Every car in the index with a known new price"]].map(([k,n,d])=>`<button class="mode" data-gpm="${k}"><b>${n}</b><span>${d}</span>${best&&best[k]?`<em>Best ${best[k]}</em>`:""}</button>`).join("")}</div>`}
 function gpStart(m){const pool=WITHPH.filter(c=>c.price>0&&(m==="all"||c.cur));Object.assign(GP,{m,rounds:uniqFam(shuffle([...pool])).slice(0,10),i:0,score:0});gpRound()}
 function gpRound(){const c=GP.rounds[GP.i];GP.cur=c;GP.done=false;
@@ -2978,7 +2979,7 @@ function gpRound(){const c=GP.rounds[GP.i];GP.cur=c;GP.done=false;
   <div class="gp-slider"><output id="gpv" class="num">£40k</output><input type="range" id="gps" min="0" max="1000" value="${Math.round((Math.log(40)-Math.log(8))/(Math.log(3500)-Math.log(8))*1000)}" aria-label="Your price guess"><div class="gp-scale"><span>£8k</span><span>£50k</span><span>£250k</span><span>£1m</span><span>£3.5m</span></div></div>
   <div class="actions" style="justify-content:center;margin-top:14px"><button class="btn primary big" type="button" id="gpGo">Lock in guess <kbd>↵</kbd></button></div><div class="qz-fb" id="qzfb" aria-live="polite"></div></div>`;gpShow()}
 function gpShow(){const v=gpFromSlider(+$("#gps").value);$("#gpv").textContent=gpMoney(v);return v}
-function gpGuess(){if(GP.done)return;GP.done=true;const g=gpShow(),p=GP.cur.price;const off=Math.abs(Math.log(g/p));const pts=Math.round(100*Math.max(0,1-off/Math.log(2.2)));GP.score+=pts;
+function gpGuess(){if(GP.done)return;GP.done=true;const g=gpShow(),p=GP.cur.price;const off=Math.abs(Math.log(g/p));const pts=Math.round(100*Math.max(0,1-off/Math.log(1.6)));GP.score+=pts;
   const pctOff=Math.round(Math.abs(g-p)/p*100);$("#gpGo").disabled=true;$("#gps").disabled=true;
   $("#qzfb").innerHTML=`<div class="${pts>=50?"ok":"no"}"><b>${pts>=90?"Bang on!":pts>=60?"Close.":pts>0?"In the ballpark.":"Way off."} +${pts}</b> You said ${gpMoney(g)}; it cost about <b>${gpMoney(p)}</b> new${pctOff<1?"":` (${pctOff}% ${g>p?"too high":"too low"})`}. <a href="#car-${GP.cur.id}">View car</a></div><button class="btn primary" type="button" data-gpn="1">${GP.i>=9?"See results":"Next car"} <kbd>↵</kbd></button>`;
   document.querySelector(".qz-top").innerHTML=`<span>Car <b>${GP.i+1}</b>/10</span><span>Score <b class="num">${GP.score}</b></span><span></span>`}
@@ -3061,7 +3062,7 @@ HUB[2][2].splice(3,0,["match","Which car are you?","Six questions, your perfect 
 /* ---------- Car-dle ---------- */
 const CDMAKES=new Set(["Ferrari","Porsche","BMW","Audi","Mercedes-Benz","Volkswagen","Ford","Lamborghini","McLaren","Aston Martin","Toyota","Honda","Nissan","Mazda","Subaru","Mitsubishi","Jaguar","Land Rover","Mini","Fiat","Alfa Romeo","Peugeot","Renault","Tesla","Bugatti","Lotus","Volvo","Hyundai","Kia","Chevrolet","Dodge","Bentley","Rolls-Royce","Maserati","Vauxhall","SEAT","Škoda","Lexus","Citroën","Jeep"]);
 const CDPOOL=uniqFam(CARS.filter(c=>c.ph>=0&&c.y0>=1960&&CDMAKES.has(c.make)&&c.acc>0).sort((a,b)=>a.id<b.id?-1:1));
-const CD={};const CDMAX=8;
+const CD={};const CDMAX=6;
 function cdPage(){return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#play">Play</a> / Car-dle</div><h1>Car-dle</h1><p>Guess the mystery car in ${CDMAX} tries. Each guess tells you how close you are on maker, country, body, fuel, decade, power and drive. Green is a match, amber is close, arrows point the way.</p></div></div><div id="game" class="game"></div></div>`}
 function cdTarget(mode){if(mode==="daily"){const r=mulberry(day*7331+17);return CDPOOL[Math.floor(r()*CDPOOL.length)]}return CDPOOL[rnd(CDPOOL.length)]}
 function cdMenu(){const st=store.get("ti-cdl",{}),s=store.get("ti-cdl-stats",{played:0,won:0,streak:0,best:0,last:null});const doneToday=st.day===day;
@@ -3135,8 +3136,8 @@ ACH.push(["cdl","Detective","Play a game of Car-dle",()=>ST.cdl>=1],["cdlw","Cas
 const _ar12=afterRender;afterRender=function(r){_ar12(r);if(r.name==="cardle"){cdMenu();document.querySelectorAll('#links a[data-r="play"],.tabbar a[data-r="play"]').forEach(a=>a.setAttribute("aria-current","page"))}if(r.name==="insights")document.querySelectorAll('#links a[data-r="explore"],.tabbar a[data-r="explore"]').forEach(a=>a.setAttribute("aria-current","page"))};
 TOOLS.splice(2,0,["insights","Insights","How power, speed and fuel have changed from the 1950s to today, in charts.",IC2.chart]);
 HUB[0][2].splice(4,0,["insights","Insights","How motoring has changed, in charts","chart"]);
-HUB[2][2].splice(1,0,["cardle","Car-dle","Guess the mystery car in 8 tries","search"]);
-const _pp12=playPage;playPage=function(){const s=store.get("ti-cdl-stats",{streak:0});return _pp12().replace("Ten ways","Eleven ways").replace('<a class="hlpromo"',`<a class="cdpromo" href="#cardle"><div class="cdmini">${["hit","near","","hit","hit","near","hit"].map(k=>`<i class="${k}"></i>`).join("")}</div><div><div class="eyebrow">New · Daily</div><b>Car-dle</b><p>Guess the mystery car in 8 tries. Every guess shows how close you are on maker, body, decade, power and more.</p></div><span class="go2">${s.streak?s.streak+"-day streak · ":""}Play →</span></a><a class="hlpromo"`)};
+HUB[2][2].splice(1,0,["cardle","Car-dle","Guess the mystery car in 6 tries","search"]);
+const _pp12=playPage;playPage=function(){const s=store.get("ti-cdl-stats",{streak:0});return _pp12().replace("Ten ways","Eleven ways").replace('<a class="hlpromo"',`<a class="cdpromo" href="#cardle"><div class="cdmini">${["hit","near","","hit","hit","near","hit"].map(k=>`<i class="${k}"></i>`).join("")}</div><div><div class="eyebrow">New · Daily</div><b>Car-dle</b><p>Guess the mystery car in 6 tries. Every guess shows how close you are on maker, body, decade, power and more.</p></div><span class="go2">${s.streak?s.streak+"-day streak · ":""}Play →</span></a><a class="hlpromo"`)};
 
 /* ================= v14: online battles with room codes ================= */
 const NET={ws:null,code:null,seat:null,players:[],S:null,ok:null,want:false,retry:0,err:null,hb:null,runSeen:{},gpPending:null};
@@ -3305,7 +3306,7 @@ function homeV3(){const H=D.hero,hs=heroSlides();const nMakes=Object.keys(MAKES)
   const c7=cotw(),s=streakGet(),st=store.get("ti-daily",{}),cd=store.get("ti-cdl",{}),done=ACH.filter(a=>ACHD[a[0]]).length;
   const chips=["Golf GTI","911","Supra","Defender","V12","Electric"];
   const today=[["#daily","cal","Daily 5",st.day===day?`You scored ${st.right}/5`:"Five cars, same for everyone",s.n?`${s.n}-day streak`:"Play today"],
-    ["#cardle","search","Car-dle",cd.day===day?(cd.won?`Solved in ${cd.n}`:"Better luck tomorrow"):"Guess the mystery car in 8",cd.day===day?"See your result":"Play today"],
+    ["#cardle","search","Car-dle",cd.day===day?(cd.won?`Solved in ${cd.n}`:"Better luck tomorrow"):"Guess the mystery car in 6",cd.day===day?"See your result":"Play today"],
     ["#online","users","Online battles","Top Trumps, drag race or Grand Prix","Create a room"]];
   return `<section class="hero h3-hero"><div class="h3-bg">${hs.html}</div><div class="h3-shade" aria-hidden="true"></div>
    <div class="wrap h3-in"><div class="h3-copy"><div class="eyebrow">The car encyclopedia · ${y0} to ${YNOW}</div>
@@ -3503,11 +3504,63 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202609251534";
+const BUILD="202609280829";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
   setTimeout(check,4000);setInterval(check,5*60e3);document.addEventListener("visibilitychange",check)})();
+
+/* ================= v25: tougher games ================= */
+/* Wrong answers are now look-alikes: other cars from the same maker plus direct rivals
+   of the same body style, era and price, so recognising the badge is no longer enough. */
+const near=(a,b,yrs)=>Math.abs((a.y0||0)-(b.y0||0))<=yrs;
+const pricey=(a,b)=>!(a.price>0&&b.price>0)||(b.price>a.price*.55&&b.price<a.price*1.8);
+function toughOpts(c,pool,nSame){pool=pool.filter(x=>x.fam!==c.fam&&x.id!==c.id&&!(x.make===c.make&&x.body===c.body&&near(x,c,2)));const o=[c];
+  const add=list=>{for(const x of shuffle([...list])){if(o.length>=4)return;if(!o.some(y=>y.fam===x.fam||y.id===x.id||(y.make===x.make&&y.model===x.model)))o.push(x)}};
+  const sameMk=pool.filter(x=>x.make===c.make);
+  const sm=[sameMk.filter(x=>x.body===c.body&&near(x,c,10)),sameMk.filter(x=>near(x,c,14)),sameMk];
+  for(const L of sm){if(o.length>=1+nSame)break;const keep=o.length;for(const x of shuffle([...L])){if(o.length>=1+nSame)break;if(!o.some(y=>y.fam===x.fam))o.push(x)}if(o.length===keep)continue}
+  add(pool.filter(x=>x.make!==c.make&&x.body===c.body&&near(x,c,6)&&pricey(c,x)));
+  add(pool.filter(x=>x.body===c.body&&near(x,c,10)));
+  add(pool.filter(x=>near(x,c,15)));add(pool);return shuffle(o)}
+const QZTIME={modern:9,classic:9,daily:9,hard:7,close:8,make:8,decade:8,spec:14};
+qzTime=()=>QZTIME[QZ.mode]||9;
+const _qo17=quizOpts;quizOpts=function(c){const M=QZMODES[QZ.mode]||{},T=M.type,pool=QZ.pool;
+  const seeded=QZ.mode==="daily",r=Math.random;if(seeded)Math.random=mulberry(QZ.seed+QZ.i*7919);
+  try{
+    if(T==="make"){ // four makers from the same country
+      const cc=COUNTRY[c.make];let mk=[...new Set(CARS.filter(x=>COUNTRY[x.make]===cc&&x.make!==c.make).map(x=>x.make))];
+      if(mk.length<3)mk=[...new Set(CARS.filter(x=>x.make!==c.make).map(x=>x.make))];
+      const o=[c];for(const m of shuffle(mk)){if(o.length>=4)break;const x=CARS.find(y=>y.make===m);if(x)o.push(x)}return shuffle(o)}
+    if(T==="decade"){ // four decades in a row, the right one somewhere inside
+      const off=rnd(4),start=c.dec-off*10,o=[];for(let k=0;k<4;k++){const d=start+k*10;if(d===c.dec){o.push(c);continue}const x=pool.find(y=>y.dec===d)||CARS.find(y=>y.dec===d);if(x)o.push(x)}
+      if(o.length<4)return _qo17(c);return o.sort((a,b)=>a.dec-b.dec)}
+    if(T==="spec")return toughOpts(c,pool,1);
+    if(QZ.mode==="hard"||QZ.mode==="close")return toughOpts(c,pool,3);
+    return toughOpts(c,pool,2)
+  }finally{Math.random=r}};
+/* new mode: a zoomed-in crop of the photo */
+QZMODES.close={n:"Close-up",d:"A zoomed-in slice of the photo, 8 seconds, same-maker answers",f:c=>c.y0>=1960};
+QZMODES.modern.d="1995 onwards · same-maker and rival answers · 9 seconds";
+QZMODES.classic.d="Before 1990 · same-maker and rival answers · 9 seconds";
+QZMODES.hard.d="Any era · all four answers from the same maker · 7 seconds";
+if(QZMODES.make)QZMODES.make.d="Four makers from the same country · 8 seconds";
+if(QZMODES.decade)QZMODES.decade.d="Four decades in a row · 8 seconds";
+if(QZMODES.spec)QZMODES.spec.d="Just the numbers · same-maker and rival answers";
+const _qr17=quizRound;quizRound=function(){_qr17();if(QZ.mode!=="close")return;const c=QZ.cur,p=document.querySelector(".qz-photo .ph");if(!p||c.ph<0||typeof hlStyle!=="function")return;
+  const fx=.3+Math.random()*.4,fy=.42+Math.random()*.2;p.setAttribute("style",hlStyle(c,fx,fy,.42));p.classList.add("qz-crop");
+  const h=document.querySelector(".qz-top");if(h)h.insertAdjacentHTML("afterend",`<p class="qz-q">Zoomed in: which car is this?</p>`)};
+const _qa17=quizAnswer;quizAnswer=function(id){_qa17(id);if(QZ.mode==="close"){const p=document.querySelector(".qz-photo .ph");if(p&&QZ.cur){p.setAttribute("style",phStyle(QZ.cur));p.classList.remove("qz-crop")}}};
+/* Headlight challenge: two same-maker answers, tighter era, less time */
+HLM.hard.t=11;HLM.hard.d="Colour close-up, 11 seconds. Zooming out costs points.";
+HLM.insane.t=6;HLM.insane.d="Black and white, tighter crop, 6 seconds, no zoom-outs.";
+hgOpts=function(c){return toughOpts(c,CARS.filter(x=>x.ph>=0),2)};
+/* Higher or lower: the second car is much closer to the first */
+hlPickB=function(a,s){const v=a[s.k],base=WITHPH.filter(x=>x.fam!==a.fam&&x[s.k]>0&&x[s.k]!==v);
+  for(const [lo,hi] of [[.85,1.18],[.75,1.33],[.6,1.6]]){const L=base.filter(x=>x[s.k]>v*lo&&x[s.k]<v*hi&&(x.body===a.body||Math.random()<.5));if(L.length>=4)return L[rnd(L.length)]}
+  return base[rnd(base.length)]};
+/* Top Trumps: the computer always plays its strongest stat */
+TTNOISE=0;
 
 render();syncCmp();
 </script>
