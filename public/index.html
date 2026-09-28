@@ -1558,6 +1558,26 @@ body.typing .tray,body.typing .totop{visibility:hidden}
   .bb-table{font-size:12.5px}.bb-table th,.bb-table td{padding:7px 6px}
 }
 .bb-tip{grid-column:1/-1;margin:4px 2px 0;font-size:13px;color:var(--muted)}
+/* Budget battle: drag-strip lights and launch buttons */
+.bbt{display:flex;align-items:center;justify-content:center;gap:10px;margin:14px auto 10px;padding:10px 16px;width:max-content;max-width:100%;background:#15191D;border-radius:999px;box-shadow:inset 0 0 0 2px #2A3036}
+.bbt i{width:26px;height:26px;border-radius:50%;background:#2B3136;box-shadow:inset 0 -3px 0 rgba(0,0,0,.35);transition:background .08s,box-shadow .08s}
+.bbt i.st.on{background:#F4F4F4;box-shadow:0 0 12px #fff}
+.bbt i.am.on{background:#FFB21A;box-shadow:0 0 16px #FFB21A}
+.bbt i.am.off{background:#5A4410;box-shadow:none}
+.bbt i.gr.on{background:#22D36B;box-shadow:0 0 22px #22D36B}
+.bbt i.rd{display:none}.bbt i.rd.on{display:block;background:#FF3B30;box-shadow:0 0 18px #FF3B30}
+.bbt.done{opacity:.5}
+.bb-ctl{display:flex;justify-content:center;gap:12px;margin:6px 0 4px}
+.bb-ctl.two .bb-launch{flex:1 1 0;max-width:280px}
+.bb-launch{min-width:220px;min-height:64px;border:0;border-radius:14px;font-family:var(--display);font-weight:800;font-size:22px;letter-spacing:.04em;text-transform:uppercase;color:#fff;background:#1F8F55;box-shadow:0 6px 0 #146239;cursor:pointer;touch-action:manipulation;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px}
+.bb-launch.b{background:#2E6FD8;box-shadow:0 6px 0 #1D4C99}
+.bb-launch small{font-family:var(--body);font-size:11.5px;font-weight:600;letter-spacing:0;text-transform:none;opacity:.8}
+.bb-launch:active:not(:disabled){transform:translateY(4px);box-shadow:0 2px 0 #146239}
+.bb-launch:disabled{opacity:.45;cursor:default}
+.bb-launch.done{opacity:1;font-size:16px;background:#3A424A;box-shadow:0 6px 0 #22282D}
+.bb-rt{display:block;font-size:12px;color:var(--muted)}.bb-rt.foul{color:#C0362C;font-weight:700}
+@media (max-width:760px){.bb-launch{min-width:0;width:100%;font-size:20px}.bb-ctl{padding:0 2px}.bbt i{width:22px;height:22px}}
+#bbNext[hidden]{display:none!important}
 </style>
 
 </head>
@@ -3580,7 +3600,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202609280850";
+const BUILD="202609280910";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -3656,15 +3676,34 @@ const BB_POOL=()=>WITHPH.filter(c=>c.price>0&&raceable(c)&&c.y0>=1985);
 function bbDraw(rng=Math.random){const budget=BB_BUDGETS[Math.floor(rng()*BB_BUDGETS.length)];const pat=[[.125,.25,.25,.5,1],[.25,.125,.5,.25,1],[.125,.25,.5,1,.25],[.25,.5,.125,.25,1]][Math.floor(rng()*4)];return {budget,dists:pat}}
 const bbTime=(c,d)=>{try{return dsimBase(c).tAt(d)}catch(e){return 99}};
 const bbCost=ids=>ids.reduce((t,id)=>t+(BY[id]?BY[id].price:0),0);
-function bbValid(ids,budget){return Array.isArray(ids)&&ids.length===5&&new Set(ids).size===5&&ids.every(id=>BY[id]&&BY[id].price>0&&raceable(BY[id]))&&bbCost(ids)<=budget}
+function bbValid(ids,budget,market){return Array.isArray(ids)&&ids.length===5&&new Set(ids).size===5&&(!market||ids.every(id=>market.includes(id)))&&ids.every(id=>BY[id]&&BY[id].price>0&&raceable(BY[id]))&&bbCost(ids)<=budget}
 function bbResults(A,B,dists){return dists.map((d,i)=>{const a=BY[A[i]],b=BY[B[i]],ta=bbTime(a,d),tb=bbTime(b,d);return {d,ta:+ta.toFixed(3),tb:+tb.toFixed(3),win:Math.abs(ta-tb)<.0005?"d":ta<tb?"a":"b"}})}
 function bbTally(R){const w={a:0,b:0};R.forEach(r=>{if(r.win!=="d")w[r.win]++});const st={a:R.reduce((t,r)=>t+r.ta,0),b:R.reduce((t,r)=>t+r.tb,0)};return {w,winner:w.a!==w.b?(w.a>w.b?"a":"b"):Math.abs(st.a-st.b)<.001?"d":(st.a<st.b?"a":"b"),st}}
 /* computer: for each race, the quickest car it can afford while leaving enough for the rest */
-function bbAi(budget,dists,level=1){const pool=BB_POOL(),cheap=[...pool].sort((a,b)=>a.price-b.price);const ids=[];let left=budget;
-  dists.forEach((d,i)=>{const slots=4-i,reserve=cheap.filter(c=>!ids.includes(c.id)).slice(0,slots).reduce((t,c)=>t+c.price,0);
-    const ok=pool.filter(c=>!ids.includes(c.id)&&c.price<=left-reserve&&c.price<=(left-reserve)*(level?1:.7)+1);
-    const ranked=ok.map(c=>[c,bbTime(c,d)+(level?0:Math.random()*.8)]).sort((x,y)=>x[1]-y[1]);const k=level?Math.min(ranked.length-1,Math.floor(Math.random()*Math.random()*4)):Math.floor(Math.random()*Math.min(6,ranked.length));
-    const c=(ranked[k]||[cheap.find(x=>!ids.includes(x.id))])[0];ids.push(c.id);left-=c.price});return ids}
+/* each game gets its own showroom: a fresh mix of cheap, mid and pricey cars (same for both players) */
+function bbMarket(budget){const P=uniqFam(shuffle([...BB_POOL()]));const out=[],seen=new Set();
+  const bands=[[0,budget/9,12],[budget/9,budget/5,14],[budget/5,budget/3,12],[budget/3,budget/1.8,9],[budget/1.8,budget*.8,5]];
+  bands.forEach(([lo,hi,n])=>{let k=0;for(const c of P){if(k>=n)break;if(!seen.has(c.id)&&c.price>lo&&c.price<=hi){out.push(c.id);seen.add(c.id);k++}}});
+  const cheap=out.map(id=>BY[id]).sort((a,b)=>a.price-b.price).slice(0,5).reduce((t,c)=>t+c.price,0);
+  if(cheap>budget*.6){for(const c of [...BB_POOL()].sort((a,b)=>a.price-b.price).slice(0,20)){if(!seen.has(c.id)){out.push(c.id);seen.add(c.id)}if(out.length>=60)break}}
+  return out.sort((a,b)=>BY[b].price-BY[a].price)}
+/* the computer spreads its money: it searches for the lineup with the best overall times
+   (each car measured against the showroom at that race's distance), within budget */
+function bbAi(budget,dists,market,level){level=level||store.get("ti-bb-level","normal");const HARD=level==="hard";const M=(market||bbMarket(budget)).map(id=>BY[id]).filter(Boolean);const T=new Map();
+  const t=(c,d)=>{const k=c.id+"@"+d;if(!T.has(k))T.set(k,bbTime(c,d));return T.get(k)};
+  const ref=dists.map(d=>{const v=M.map(c=>t(c,d)).sort((a,b)=>a-b);return v[Math.floor(v.length*.35)]||1});
+  const J=new Map(),jit=c=>{if(HARD)return 1;if(!J.has(c.id))J.set(c.id,.88+Math.random()*.24);return J.get(c.id)};const score=L=>L.reduce((s,c,i)=>s+Math.min(2.5,t(c,dists[i])*jit(c)/ref[i]),0),cost=L=>L.reduce((s,c)=>s+c.price,0);
+  let best=null,bestS=1e9;
+  for(let run=0;run<(HARD?4:1);run++){ // a few fresh starts so its lineups vary game to game
+    const L=[];const even=budget/5*(0.7+Math.random()*.5);
+    dists.forEach((d,i)=>{const left=budget-cost(L)-(4-i)*Math.min(...M.map(c=>c.price));const cap=Math.min(left,Math.max(even,Math.min(...M.map(c=>c.price))));
+      const ok=M.filter(c=>!L.includes(c)&&c.price<=cap).sort((a,b)=>t(a,d)-t(b,d));L.push(ok[Math.floor(Math.random()*Math.min(3,ok.length))]||M.filter(c=>!L.includes(c)).sort((a,b)=>a.price-b.price)[0])});
+    let S=score(L);
+    for(let it=0;it<(HARD?700:60);it++){const i=Math.floor(Math.random()*5);
+      if(Math.random()<.25){const j=Math.floor(Math.random()*5);if(i===j)continue;[L[i],L[j]]=[L[j],L[i]];const S2=score(L);if(S2<=S)S=S2;else[L[i],L[j]]=[L[j],L[i]];continue}
+      const c=M[Math.floor(Math.random()*M.length)];if(L.includes(c))continue;const old=L[i];if(cost(L)-old.price+c.price>budget)continue;L[i]=c;const S2=score(L);if(S2<S)S=S2;else L[i]=old}
+    if(S<bestS){bestS=S;best=[...L]}}
+  return best.map(c=>c.id)}
 
 /* ---------- shared picker ---------- */
 const BBQ={q:"",sort:"price"};
@@ -3673,17 +3712,18 @@ function bbPickerHtml(ctx){const {budget,dists,ids,who,lockLabel}=ctx;const spen
   return `<div class="bb-pick" id="bbPick"><div class="bb-bud"><div><span class="eyebrow">${who==="Your"?"Your":who+"'s"} budget</span><b class="num">${money(budget)}</b></div><div><span class="eyebrow">Left to spend</span><b class="num ${left<0?"neg":""}">${money(Math.max(0,left))||"£0k"}</b></div><div class="bb-meter"><i style="width:${Math.min(100,spent/budget*100)}%"></i></div></div>
    <ol class="bb-slots">${slots}</ol>
    <div class="bb-lock"><button class="btn big primary" type="button" id="bbLock" ${ids.length===5&&left>=0?"":"disabled"}>${lockLabel}</button><span class="note">${ids.length<5?`Pick ${5-ids.length} more car${5-ids.length>1?"s":""}. The order is the race order.`:"Use ↑ ↓ to set which car runs which race."}</span></div>
-   <div class="bb-shop"><div class="bb-tools"><input type="search" id="bbQ" placeholder="Search cars you can afford…" value="${esc(BBQ.q)}" autocomplete="off" aria-label="Search cars"><div class="seg" role="group" aria-label="Sort">${[["price","Price"],["bhp","Power"],["acc","0–62"],["top","Top speed"]].map(([k,n])=>`<button type="button" data-bbsort="${k}" aria-pressed="${BBQ.sort===k}">${n}</button>`).join("")}</div></div><div class="bb-list" id="bbList">${bbListHtml(ids,left)}</div></div></div>`}
-function bbReserve(ids,n){return [...BB_POOL()].filter(c=>!ids.includes(c.id)).sort((a,b)=>a.price-b.price).slice(0,Math.max(0,n)).reduce((t,c)=>t+c.price,0)}
+   <div class="bb-shop"><div class="bb-tools"><input type="search" id="bbQ" placeholder="Search this showroom…" value="${esc(BBQ.q)}" autocomplete="off" aria-label="Search cars"><div class="seg" role="group" aria-label="Sort">${[["price","Price"],["bhp","Power"],["acc","0–62"],["top","Top speed"]].map(([k,n])=>`<button type="button" data-bbsort="${k}" aria-pressed="${BBQ.sort===k}">${n}</button>`).join("")}</div></div><div class="bb-list" id="bbList">${bbListHtml(ids,left)}</div></div></div>`}
+let BBM=null;const bbPoolNow=()=>BBM?BBM.map(id=>BY[id]).filter(Boolean):BB_POOL();
+function bbReserve(ids,n){return [...bbPoolNow()].filter(c=>!ids.includes(c.id)).sort((a,b)=>a.price-b.price).slice(0,Math.max(0,n)).reduce((t,c)=>t+c.price,0)}
 function bbListHtml(ids,left){const q=BBQ.q.trim().toLowerCase();const full=ids.length>=5;const cap=left-bbReserve(ids,4-ids.length);
-  let L=BB_POOL().filter(c=>!ids.includes(c.id)&&c.price<=cap&&(!q||(c.make+" "+c.model).toLowerCase().includes(q)));
+  let L=bbPoolNow().filter(c=>!ids.includes(c.id)&&c.price<=cap&&(!q||(c.make+" "+c.model).toLowerCase().includes(q)));
   const k=BBQ.sort;L.sort((a,b)=>k==="acc"?a.acc-b.acc:b[k]-a[k]);L=L.slice(0,40);
   if(!L.length)return `<p class="note c">${full?"Lineup full.":cap<=0?"Not enough left for the rest of your lineup. Remove a pricey car to free up budget.":"Nothing matches that search within your budget."}</p>`;
   const tip=ids.length<5&&ids.length>0?`<p class="bb-tip">You can spend up to <b>${money(cap)}</b> on your next car and still afford the rest.</p>`:"";
   return L.map(c=>`<button type="button" class="bb-car" data-bbadd="${c.id}" ${full?"disabled":""}>${ph(c)}<span><b>${esc(c.make)} ${esc(c.model)}</b><small>${c.bhp} bhp · ${acc(c.acc)} · ${c.top} mph</small></span><em class="num">${money(c.price)}</em></button>`).join("")+tip}
 /* which lineup is being edited right now */
-function bbCtx(){if(route().name==="room"&&NET.S&&NET.S.phase==="bb"){const B=NET.S.bb;NET.bbIds=NET.bbIds&&NET.bbRun===B.run?NET.bbIds:[];NET.bbRun=B.run;return {budget:B.budget,dists:B.dists,ids:NET.bbIds,who:"Your",lockLabel:"Lock in my lineup",redraw:()=>bbRefreshPick()}}
-  if(route().name==="bbattle"&&BB.phase==="pick"){return {budget:BB.budget,dists:BB.dists,ids:BB.ids[BB.turn],who:BB.mode==="pvp"?PN(BB.turn==="a"?1:2):"Your",lockLabel:BB.mode==="pvp"&&BB.turn==="a"?"Lock in & pass to "+PN(2):"Lock in & race",redraw:()=>bbRefreshPick()}}return null}
+function bbCtx(){if(route().name==="room"&&NET.S&&NET.S.phase==="bb"){const B=NET.S.bb;NET.bbIds=NET.bbIds&&NET.bbRun===B.run?NET.bbIds:[];NET.bbRun=B.run;BBM=B.market||null;return {budget:B.budget,dists:B.dists,ids:NET.bbIds,who:"Your",lockLabel:"Lock in my lineup",redraw:()=>bbRefreshPick()}}
+  if(route().name==="bbattle"&&BB.phase==="pick"){BBM=BB.market;return {budget:BB.budget,dists:BB.dists,ids:BB.ids[BB.turn],who:BB.mode==="pvp"?PN(BB.turn==="a"?1:2):"Your",lockLabel:BB.mode==="pvp"&&BB.turn==="a"?"Lock in & pass to "+PN(2):"Lock in & race",redraw:()=>bbRefreshPick()}}return null}
 function bbRefreshPick(){const c=bbCtx(),el=$("#bbPick");if(!c||!el)return;const y=scrollY;el.outerHTML=bbPickerHtml(c);scrollTo(0,y);const q=$("#bbQ");if(q&&BBQ.focus){q.focus();q.setSelectionRange(q.value.length,q.value.length)}}
 document.addEventListener("input",e=>{if(e.target.id!=="bbQ")return;BBQ.q=e.target.value;const c=bbCtx();if(c)$("#bbList").innerHTML=bbListHtml(c.ids,c.budget-bbCost(c.ids))});
 document.addEventListener("focusin",e=>{if(e.target.id==="bbQ")BBQ.focus=true});document.addEventListener("focusout",e=>{if(e.target.id==="bbQ")BBQ.focus=false});
@@ -3693,7 +3733,7 @@ document.addEventListener("click",e=>{const t=e.target.closest("[data-bbadd],[da
   else if(d.bbup!=null){const i=+d.bbup;[ids[i-1],ids[i]]=[ids[i],ids[i-1]]}
   else if(d.bbdn!=null){const i=+d.bbdn;[ids[i+1],ids[i]]=[ids[i],ids[i+1]]}
   else if(d.bbsort)BBQ.sort=d.bbsort;
-  else if(t.id==="bbLock"){if(!bbValid(ids,c.budget))return toast("You need 5 different cars within budget.");return bbLocked(ids)}
+  else if(t.id==="bbLock"){if(!bbValid(ids,c.budget,BBM))return toast("You need 5 different cars within budget.");return bbLocked(ids)}
   c.redraw()});
 function bbLocked(ids){if(route().name==="room"){act({k:"bblock",ids:[...ids]});NET.bbSent=NET.S.bb.run;return roomDraw()}
   if(BB.mode==="pvp"&&BB.turn==="a"){BB.turn="b";BB.phase="gate";BBQ.q="";return bbRender()}
@@ -3721,11 +3761,11 @@ function bbMenu(){BB.phase="menu";const s=store.get("ti-bb-stats",{w:0,l:0});$("
   <button class="mode" data-bbm="ai"><b>vs Computer</b><span>The computer shops smart. Beat its lineup.</span>${s.w||s.l?`<em>${s.w} won · ${s.l} lost</em>`:""}</button>
   <button class="mode" data-bbm="pvp"><b>2 players · same device</b><span>Pick in secret, pass the phone, then race.</span></button>
   <a class="mode" href="#online"><b>Online with a friend</b><span>Create a room and choose Budget battle.</span></a></div>
-  <div class="bb-how"><div><b>1</b><span>Same random budget for both</span></div><div><b>2</b><span>Pick 5 cars and set the order</span></div><div><b>3</b><span>Five drags: ⅛ mile to 1 mile</span></div><div><b>4</b><span>Most wins takes it</span></div></div>`}
-function bbStart(mode){const D=bbDraw();Object.assign(BB,{mode,budget:D.budget,dists:D.dists,ids:{a:[],b:[]},turn:"a",phase:"intro",R:null,race:0});BBQ.q="";if(mode==="ai")BB.ids.b=bbAi(BB.budget,BB.dists);bbRender()}
+  ${(()=>{const l=store.get("ti-bb-level","normal");return `<div class="ttdiff"><span>Computer</span><div class="seg" role="group" aria-label="Computer difficulty">${[["normal","Normal"],["hard","Hard"]].map(([k,n])=>`<button type="button" data-bblv="${k}" aria-pressed="${k===l}">${n}</button>`).join("")}</div><small>${l==="hard"?"Hard: the computer finds close to the best lineup the showroom allows.":"Normal: the computer shops sensibly and spreads its budget, but it can be beaten."}</small></div>`})()}<div class="bb-how"><div><b>1</b><span>Same budget and showroom — new every game</span></div><div><b>2</b><span>Pick 5 cars and set the order</span></div><div><b>3</b><span>Five drags: ⅛ mile to 1 mile</span></div><div><b>4</b><span>Most wins takes it</span></div></div>`}
+function bbStart(mode){const D=bbDraw();Object.assign(BB,{mode,budget:D.budget,dists:D.dists,market:bbMarket(D.budget),ids:{a:[],b:[]},turn:"a",phase:"intro",R:null,race:0});BBQ.q="";if(mode==="ai")BB.ids.b=bbAi(BB.budget,BB.dists,BB.market);bbRender()}
 function bbNames(){return BB.mode==="pvp"?{a:PN(1),b:PN(2)}:{a:"You",b:"Computer"}}
 function bbRender(){const g=$("#game");if(!g)return;const N=bbNames();
-  if(BB.phase==="intro"){g.innerHTML=`<div class="bb-intro"><span class="eyebrow">Your budget</span><div class="bb-big num">${money(BB.budget)}</div><p>Five drag races: ${BB.dists.map(d=>DOPT.find(x=>x[0]===d)[1]).join(" · ")}</p><button class="btn big primary" type="button" id="bbGo">${BB.mode==="pvp"?`${PN(1)}: start picking`:"Start picking"}</button>${BB.mode==="pvp"?`<p class="note">${PN(2)}, look away while ${PN(1)} picks.</p>`:""}</div>`;return}
+  if(BB.phase==="intro"){g.innerHTML=`<div class="bb-intro"><span class="eyebrow">Your budget</span><div class="bb-big num">${money(BB.budget)}</div><p>Five drag races: ${BB.dists.map(d=>DOPT.find(x=>x[0]===d)[1]).join(" · ")}</p><p>This game's showroom: <b>${BB.market.length} cars</b>, from ${money(Math.min(...BB.market.map(id=>BY[id].price)))} to ${money(Math.max(...BB.market.map(id=>BY[id].price)))}. New cars every game.</p><button class="btn big primary" type="button" id="bbGo">${BB.mode==="pvp"?`${PN(1)}: start picking`:"Start picking"}</button>${BB.mode==="pvp"?`<p class="note">${PN(2)}, look away while ${PN(1)} picks.</p>`:""}</div>`;return}
   if(BB.phase==="gate"){g.innerHTML=`<div class="bb-intro"><span class="eyebrow">${PN(1)} is locked in</span><div class="bb-big">Pass to ${PN(2)}</div><p>Same budget: ${money(BB.budget)}. No peeking at ${PN(1)}'s lineup.</p><button class="btn big primary" type="button" id="bbGo">${PN(2)}: start picking</button></div>`;return}
   if(BB.phase==="pick"){g.innerHTML=bbPickerHtml(bbCtx());return}
   if(["race","pick","intro","gate","done"].includes(BB.phase)&&BB.lastPhase!==BB.phase+BB.race){BB.lastPhase=BB.phase+BB.race;const gt=g.getBoundingClientRect().top+scrollY-120;if(scrollY>gt)scrollTo(0,Math.max(0,gt))}
@@ -3739,9 +3779,9 @@ document.addEventListener("click",e=>{const t=e.target.closest("[data-bbm],#bbGo
   if(t.id==="bbNextBtn"){if(BB.race>=4){BB.phase="done";bump("bb")}else BB.race++;bbRender();scrollTo({top:$("#game").offsetTop-90,behavior:"smooth"})}});
 
 /* ---------- online (host keeps the truth) ---------- */
-function bbHostStart(){const S=NET.S,D=bbDraw();S.bb={run:Date.now(),budget:D.budget,dists:D.dists,ids:{a:null,b:null},phase:"pick",race:0,R:null};S.phase="bb";pushState()}
+function bbHostStart(){const S=NET.S,D=bbDraw();S.bb={run:Date.now(),budget:D.budget,dists:D.dists,market:bbMarket(D.budget),ids:{a:null,b:null},phase:"pick",race:0,R:null};S.phase="bb";pushState()}
 function bbHostAct(from,d){const S=NET.S,B=S.bb;if(!B)return;
-  if(d.k==="bblock"&&B.phase==="pick"&&!B.ids[from]&&bbValid(d.ids,B.budget)){B.ids[from]=d.ids;
+  if(d.k==="bblock"&&B.phase==="pick"&&!B.ids[from]&&bbValid(d.ids,B.budget,B.market)){B.ids[from]=d.ids;
     if(B.ids.a&&B.ids.b){B.R=bbResults(B.ids.a,B.ids.b,B.dists);B.phase="race";B.race=0}return pushState()}
   if(d.k==="bbnext"&&from==="a"&&B.phase==="race"){if(B.race>=4){B.phase="done";const T=bbTally(B.R);if(T.winner!=="d")S.score[T.winner]++}else B.race++;return pushState()}}
 function bbRoomHtml(){const S=NET.S,B=S.bb,me=NET.seat,op=other(me);const names={a:pName("a"),b:pName("b")};
@@ -3766,6 +3806,73 @@ if(typeof ACH!=="undefined")ACH.push(["bb","Big spender","Finish a Budget battle
 const _pp18=playPage;playPage=function(){return _pp18().replace('<a class="bgpromo"',`<a class="bgpromo" href="#bbattle"><span class="ti">${ic2("flag",26)}</span><div><b>Budget battle</b><p>Same random budget for both of you. Buy five cars, set the order, race five drags. Play the computer, a friend on the same device, or online.</p></div><span class="go2">Play →</span></a><a class="bgpromo"`)};
 const _ttp18=ttPlay;ttPlay=function(i){if(!TT.you||!TT.you[0]||!TT.cpu||!TT.cpu[0]||!TTS[i])return;_ttp18(i)};
 const _tts18=ttStart;ttStart=function(d){_tts18(d);if(TT.rank)Object.keys(TT.rank).forEach(k=>{const f=TT.rank[k];TT.rank[k]=c=>c?f(c):0})};
+
+document.addEventListener("click",e=>{const b=e.target.closest("[data-bblv]");if(!b)return;store.set("ti-bb-level",b.dataset.bblv);bbMenu()});
+
+/* ================= v27: Budget battle launches — drag-strip lights, your reaction, computer reactions ================= */
+const BBL={};
+const bbEff=x=>x.foul?1:x.rt; // a jump start costs a flat second
+function bbApplyRT(r,A,B){r.rta=A;r.rtb=B;r.ta=+(r.ca+bbEff(A)).toFixed(3);r.tb=+(r.cb+bbEff(B)).toFixed(3);r.win=Math.abs(r.ta-r.tb)<.0005?"d":r.ta<r.tb?"a":"b";r.done=true}
+const _bbRes19=bbResults;bbResults=function(A,B,d){return _bbRes19(A,B,d).map(r=>({...r,ca:r.ta,cb:r.tb,done:false}))};
+function bbAiRT(){const hard=store.get("ti-bb-level","normal")==="hard",x=Math.random();
+  if(x<(hard?.02:.05))return {rt:1,foul:true};                       // occasionally jumps the lights
+  if(x>(hard?.96:.9))return {rt:+(.45+Math.random()*.35).toFixed(3),foul:false}; // sometimes asleep
+  return {rt:+((hard?.13:.18)+Math.random()*(hard?.17:.24)).toFixed(3),foul:false}}
+function bbTreeHtml(){return `<div class="bbt" id="bbTree" aria-hidden="true"><i class="st"></i><i class="am"></i><i class="am"></i><i class="am"></i><i class="gr"></i><i class="rd"></i></div>`}
+function bbCtl(i){const rn=route().name;
+  if(rn==="room"){const s=NET.seat;return `<div class="bb-ctl"><button class="bb-launch ${s}" type="button" data-bbl="${s}" disabled>Launch</button></div><p class="note c" id="bbHint">Hit LAUNCH the moment the light turns green. Too early costs you a second. Space bar works too.</p>`}
+  if(BB.mode==="pvp")return `<div class="bb-ctl two"><button class="bb-launch a" type="button" data-bbl="a" disabled>${PN(1)} launch<small>key A</small></button><button class="bb-launch b" type="button" data-bbl="b" disabled>${PN(2)} launch<small>key L</small></button></div><p class="note c" id="bbHint">Both tap your own button on green. Too early costs a second.</p>`;
+  return `<div class="bb-ctl"><button class="bb-launch a" type="button" data-bbl="a" disabled>Launch</button></div><p class="note c" id="bbHint">Hit LAUNCH the moment the light turns green. Too early costs you a second. Space bar works too.</p>`}
+const _bbRH19=bbRaceHtml;bbRaceHtml=function(o){let h=_bbRH19(o);const r=o.R[o.i];
+  h=h.replace('<p class="bb-verdict"',`${r.done?"":bbTreeHtml()+bbCtl(o.i)}<p class="bb-verdict"`);
+  return h.replace(/<span class="num">[\d.]+s<\/span>/g,'<span class="num"></span>')};
+/* the lights: pre-stage, three ambers at random-ish gaps, then green */
+bbAnimate=function(R,i,names){const r=R[i];if(r.done)return bbRun(R,i,names);
+  const key=(route().name==="room"?NET.S.bb.run:BB.run||0)+":"+i;if(BBL.key===key&&BBL.running)return;
+  Object.assign(BBL,{key,R,i,names,green:null,got:{},running:true,sent:false});
+  const lamps=[...document.querySelectorAll("#bbTree i")];const on=k=>{if(BBL.key===key&&lamps[k])lamps[k].classList.add("on")};
+  document.querySelectorAll("[data-bbl]").forEach(b=>{b.disabled=false});
+  let t=700;later(()=>on(0),t);[0,1,2].forEach(k=>{t+=380+Math.random()*320;later(()=>on(k+1),t)});t+=380+Math.random()*420;
+  later(()=>{if(BBL.key!==key)return;BBL.green=performance.now();on(4);document.querySelectorAll(".bbt .am").forEach(x=>x.classList.add("off"));
+    if(route().name==="bbattle"&&BB.mode==="ai"){const a=bbAiRT();if(a.foul)bbPress("b",true,a);else later(()=>{if(BBL.key===key)bbPress("b",false,a)},a.rt*1000)}
+    later(()=>BBL.key===key&&["a","b"].forEach(s=>{if(!BBL.got[s]&&bbHuman(s))bbPress(s,false,{rt:4,foul:false,late:true})}),4000)},t)};
+function bbHuman(s){const rn=route().name;if(rn==="room")return s===NET.seat;return BB.mode==="pvp"||s==="a"}
+function bbPress(s,cpuFoul,given){if(!BBL.running||BBL.got[s])return;let x=given;
+  if(!x){if(!BBL.green){x={rt:1,foul:true}}else x={rt:+((performance.now()-BBL.green)/1000).toFixed(3),foul:false}}
+  if(x.foul&&!BBL.green){const rd=document.querySelector("#bbTree .rd");if(rd)rd.classList.add("on")}
+  BBL.got[s]=x;const b=document.querySelector(`[data-bbl="${s}"]`);if(b){b.disabled=true;b.classList.add("done");b.innerHTML=x.foul?"Jump start! +1.000s":x.late?"Too slow":`Reaction ${x.rt.toFixed(3)}s`}
+  if(bbHuman(s)&&!x.foul&&!x.late&&x.rt<1.5&&typeof setMin==="function")setMin("bestrt",x.rt);
+  if(route().name==="room"){act({k:"bbrt",race:BBL.i,rt:x.rt,foul:!!x.foul});const h=$("#bbHint");if(h)h.textContent=`Waiting for ${pName(other(NET.seat))}…`;return}
+  if(BBL.got.a&&BBL.got.b){BBL.running=false;const r=BBL.R[BBL.i];bbApplyRT(r,BBL.got.a,BBL.got.b);later(()=>bbRun(BBL.R,BBL.i,BBL.names),250)}}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-bbl]");if(b&&!b.disabled)bbPress(b.dataset.bbl)});
+document.addEventListener("keydown",e=>{if(!BBL.running||e.target.closest("input,textarea,select"))return;const rn=route().name;
+  if(e.key===" "){e.preventDefault();bbPress(rn==="room"?NET.seat:"a")}
+  if(rn==="bbattle"&&BB.mode==="pvp"){if(e.key.toLowerCase()==="a")bbPress("a");if(e.key.toLowerCase()==="l")bbPress("b")}});
+/* the run itself: each car leaves after its driver's reaction */
+function bbRun(R,i,names){const el=$("#bbRace");if(!el)return;const r=R[i];BBL.running=false;
+  const tree=el.querySelector(".bbt"),ctl=el.querySelector(".bb-ctl"),hint=$("#bbHint");if(hint)hint.remove();
+  const slow=Math.max(r.ta,r.tb),scale=Math.min(4.6,Math.max(2.4,slow/3.2))/slow,red=matchMedia("(prefers-reduced-motion:reduce)").matches||(store.get("ti-set",{}).motion==="reduced");
+  [["a",r.rta,r.ca],["b",r.rtb,r.cb]].forEach(([s,x,ct])=>{const c=el.querySelector(`.bb-lane.${s} .bb-car-r`);if(!c)return;c.style.transition=red?"none":`left ${(ct*scale).toFixed(2)}s cubic-bezier(.45,.05,.55,1) ${(bbEff(x)*scale).toFixed(2)}s`;requestAnimationFrame(()=>requestAnimationFrame(()=>c.classList.add("go")))});
+  later(()=>{[["a",r.rta,r.ta],["b",r.rtb,r.tb]].forEach(([s,x,t])=>{const box=el.querySelector(`[data-res="${s}"]`);if(!box)return;const sp=box.querySelector(".num");if(sp)sp.textContent=t.toFixed(3)+"s";box.insertAdjacentHTML("beforeend",`<small class="bb-rt ${x.foul?"foul":""}">${x.foul?"Jump start +1.000s":"Reaction "+x.rt.toFixed(3)+"s"}</small>`);box.classList.add("show")});
+    const v=$("#bbVerdict");if(v)v.innerHTML=r.win==="d"?"<b>Dead heat!</b>":`<b>${names[r.win]}</b> ${names[r.win]==="You"?"win":"wins"} by ${Math.abs(r.ta-r.tb).toFixed(3)}s`;
+    const lw=el.querySelector(`.bb-lane.${r.win}`);if(lw)lw.classList.add("won");
+    const sc=el.querySelector(".bb-score");if(sc){const w={a:0,b:0};R.slice(0,i+1).forEach(x=>{if(x.done&&x.win!=="d")w[x.win]++});sc.innerHTML=`<b class="num">${w.a}</b><span>–</span><b class="num">${w.b}</b>`}
+    const dot=el.querySelectorAll(".bb-dots i")[i];if(dot){dot.className=r.win}
+    if(ctl)ctl.remove();if(tree)tree.classList.add("done");const n=$("#bbNext");if(n)n.hidden=false},red?60:slow*scale*1000+250)}
+/* the score shown during a race only counts finished races */
+const _bbRH19b=bbRaceHtml;bbRaceHtml=function(o){const R=o.R.map((r,k)=>k===o.i&&!r.done?{...r,win:"x"}:r);return _bbRH19b({...o,R})};
+/* ---------- online: the host collects both reactions, then everyone watches the same result ---------- */
+const _bbHA19=bbHostAct;bbHostAct=function(from,d){const S=NET.S,B=S.bb;
+  if(d.k==="bbrt"&&B&&B.phase==="race"&&d.race===B.race){const r=B.R[B.race];if(r.done)return;B.RT=B.RT||{};const k=String(B.race);B.RT[k]=B.RT[k]||{};if(B.RT[k][from])return;
+    const rt=Math.max(0,Math.min(4,+d.rt||4));B.RT[k][from]={rt:d.foul?1:+rt.toFixed(3),foul:!!d.foul};if(B.RT[k].a&&B.RT[k].b)bbApplyRT(r,B.RT[k].a,B.RT[k].b);return pushState()}
+  if(d.k==="bbnext"&&B&&B.phase==="race"&&!B.R[B.race].done)return;
+  return _bbHA19(from,d)};
+const _ra19=roomApply;roomApply=function(){const S=NET.S;
+  if(route().name==="room"&&S&&S.phase==="bb"&&S.bb.phase==="race"&&$("#bbRace")&&NET.bbShown===S.bb.run+":"+S.bb.race){const B=S.bb,r=B.R[B.race],key=B.run+":"+B.race;
+    const h=document.querySelector(".rhead");if(h)h.outerHTML=roomHeader().split('<div class="remotes">')[0];
+    if(r.done&&NET.bbRev!==key){NET.bbRev=key;bbRun(B.R,B.race,{a:pName("a"),b:pName("b")})}return}
+  _ra19()};
+const _bbS19=bbStart;bbStart=function(m){BB.run=Date.now();BBL.running=false;_bbS19(m)};
 
 render();syncCmp();
 </script>
