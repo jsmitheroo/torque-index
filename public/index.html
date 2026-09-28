@@ -3654,7 +3654,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202609281053";
+const BUILD="202609281100";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -4059,7 +4059,7 @@ function dzOverlay(o){document.querySelector(".cd-ov")?.remove();document.body.i
   <button type="button" class="cd-quit" id="dzQuit" aria-label="Leave race">✕</button><p class="cd-keys">Keys: W A S D or arrow keys · W gas · S brake · A D steer</p></div>`);
   document.documentElement.classList.add("cd-lock")}
 function dzRaceStart(o){ // o: {track,laps,mine:{car,name},rival:{car,name,ai,skill}|null,online}
-  dzOverlay(o);const G=dzGeom(o.track),cv=$("#dzCv"),mm=$("#dzMm");const dpr=Math.min(2,devicePixelRatio||1);
+  dzOverlay(o);const G=dzGeom(o.track),cv=$("#dzCv"),mm=$("#dzMm");const dpr=typeof dzDpr==="function"?dzDpr():Math.min(2,devicePixelRatio||1);
   const me=dzCar(o.mine.car,G,o.mySeat==="b"?1:0);me.col=DZCOL[o.mySeat||"a"];me.name=o.mine.name;const cars=[me];let rival=null;
   if(o.rival){rival=dzCar(o.rival.car,G,o.mySeat==="b"?0:1);rival.col=DZCOL[o.mySeat==="b"?"a":"b"];rival.name=o.rival.name;if(o.online)rival.remote=true;else dzAiPlan(rival,G,o.rival.skill);cars.push(rival)}
   const S=DZ2.S={o,G,cv,ctx:cv.getContext("2d"),mm,mmx:mm.getContext("2d"),dpr,me,rival,cars,t:-1,go:false,laps:o.laps,done:false,shake:0,last:performance.now(),acc:0,sendT:0};
@@ -4284,6 +4284,57 @@ dzAiPick=function(B,market,track,hard){const cur=CR.track;setTrack(track);
   let L=market.map(id=>BY[id]).filter(c=>c.price<=cap);if(L.length<3)L=market.map(id=>BY[id]);
   const R=L.map(c=>[c.id,raceSim(c).s.T]).sort((a,b)=>a[1]-b[1]);setTrack(cur);
   return R[hard?0:Math.min(R.length-1,Math.floor(Math.random()*Math.min(4,R.length)))][0]};
+
+/* ================= v30: Circuit duel runs smoother ================= */
+/* The circuit is built once into small pre-made pieces (Path2D), so each frame only draws the few pieces on screen
+   instead of rebuilding every kerb block and edge line. The canvas also renders at a sensible resolution. */
+const DZCH=50;
+function dzCache(G){if(G.cache)return G.cache;const N=G.N,Dr=dzDress(G),n=Math.ceil(N/DZCH),C=[];
+  const mk=()=>({tar:new Path2D(),edge:new Path2D(),bar:new Path2D(),kr:new Path2D(),kw:new Path2D(),gr:new Path2D(),tw:new Path2D(),rl:new Path2D()});
+  for(let c=0;c<n;c++)C.push(mk());
+  const E=(j,f)=>dzEdge(G,j,f);
+  for(let c=0;c<n;c++){const a=c*DZCH,b=Math.min(N,a+DZCH)+1,P=C[c];
+    // tarmac strip
+    for(let j=a;j<=b;j++){const e=E(j,k=>G.HW[k]);j===a?P.tar.moveTo(e[0],e[1]):P.tar.lineTo(e[0],e[1])}for(let j=b;j>=a;j--){const e=E(j,k=>-G.HW[k]);P.tar.lineTo(e[0],e[1])}P.tar.closePath();
+    // centre (darker racing groove)
+    for(let j=a;j<=b;j++){const p=G.P[j%N];j===a?P.rl.moveTo(p[0],p[1]):P.rl.lineTo(p[0],p[1])}
+    // edge lines and barriers (skip the inside of very tight bends so lines never fold over)
+    const line=(path,f)=>{let pen=false;for(let j=a;j<=b;j++){const k=j%N,o=f(k);if(G.side[k]*Math.sign(o)>0&&G.Rs[k]<Math.abs(o)+4){pen=false;continue}const e=E(j,o);pen?path.lineTo(e[0],e[1]):path.moveTo(e[0],e[1]);pen=true}};
+    line(P.edge,k=>G.HW[k]-.35);line(P.edge,k=>-(G.HW[k]-.35));line(P.bar,k=>G.HW[k]+G.RUN);line(P.bar,k=>-(G.HW[k]+G.RUN))}
+  const norm=j=>((j%N)+N)%N;
+  // kerbs: one quad per track point, alternating colours
+  Dr.K.forEach(k=>{for(let j=k.a;j<k.b;j++){const q=norm(j),P=C[Math.floor(q/DZCH)],path=((q%2)?P.kr:P.kw);const o1=i=>k.sgn*(G.HW[i]-.6),o2=i=>k.sgn*(G.HW[i]+.9);const e1=E(j,o1),e2=E(j+1,o1),e3=E(j+1,o2),e4=E(j,o2);path.moveTo(e1[0],e1[1]);path.lineTo(e2[0],e2[1]);path.lineTo(e3[0],e3[1]);path.lineTo(e4[0],e4[1]);path.closePath()}});
+  // gravel traps and tyre walls, cut into the same pieces
+  Dr.GR.forEach(g=>{for(let j=g.a;j<g.b;j++){const q=norm(j),P=C[Math.floor(q/DZCH)];const o1=i=>g.sgn*(G.HW[i]+.5),o2=i=>g.sgn*(G.HW[i]+G.RUN-1.5),o3=i=>g.sgn*(G.HW[i]+G.RUN-.6);
+    const e1=E(j,o1),e2=E(j+1,o1),e3=E(j+1,o2),e4=E(j,o2);P.gr.moveTo(e1[0],e1[1]);P.gr.lineTo(e2[0],e2[1]);P.gr.lineTo(e3[0],e3[1]);P.gr.lineTo(e4[0],e4[1]);P.gr.closePath();
+    const t1=E(j,o3),t2=E(j+1,o3);P.tw.moveTo(t1[0],t1[1]);P.tw.lineTo(t2[0],t2[1])}});
+  return G.cache={C,n}}
+const _dzDraw21=dzDraw;
+dzDraw=function(S){const cv=S.cv,x=S.ctx,Wd=cv.width,Hd=cv.height,dpr=S.dpr,G=S.G,me=S.me;if(!Wd)return;const {C,n}=dzCache(G);
+  const v=Math.hypot(me.vx,me.vy),sc=dpr*Math.min(Wd/dpr,Hd/dpr)/40/(1+v/80);S.cam=S.cam==null?me.h:S.cam+(((me.h-S.cam+Math.PI*3)%(Math.PI*2))-Math.PI)*.12;
+  const shake=S.shake>0?(Math.random()-.5)*S.shake*18*dpr:0;x.setTransform(1,0,0,1,0,0);
+  x.setTransform(1,0,0,1,Wd/2+shake,Hd*.66);x.rotate(-S.cam-Math.PI/2);x.scale(sc,sc);x.translate(-me.x,-me.y);
+  const R=Math.hypot(Wd,Hd)/sc;x.fillStyle="#3F7F3A";x.fillRect(me.x-R,me.y-R,R*2,R*2);x.fillStyle="#468A40";const st=24,gx0=Math.floor((me.x-R)/(st*2))*st*2;for(let gx=gx0;gx<me.x+R;gx+=st*2)x.fillRect(gx,me.y-R,st,R*2); /* mown stripes: a few solid bands, far cheaper than a texture */
+  const c0=Math.floor(((me.idx-Math.round(R/G.ds))%G.N+G.N)%G.N/DZCH),span=Math.ceil(2*R/G.ds/DZCH)+2,vis=[];for(let k=0;k<=Math.min(n-1,span);k++)vis.push(C[(c0+k)%n]);
+  x.fillStyle="#D8C38C";vis.forEach(P=>x.fill(P.gr));
+  x.lineJoin="round";x.strokeStyle="#B9BEC2";x.lineWidth=.6;vis.forEach(P=>x.stroke(P.bar));
+  x.setLineDash([.7,.7]);x.lineWidth=1.2;x.strokeStyle="#222";vis.forEach(P=>x.stroke(P.tw));x.strokeStyle="#E23A2E";x.lineDashOffset=.7;vis.forEach(P=>x.stroke(P.tw));x.setLineDash([]);x.lineDashOffset=0;
+  x.fillStyle="#4A4F54";x.strokeStyle="#4A4F54";x.lineWidth=.35;vis.forEach(P=>{x.fill(P.tar);x.stroke(P.tar)});x.strokeStyle="rgba(0,0,0,.08)";x.lineWidth=4.5;vis.forEach(P=>x.stroke(P.rl));
+  x.strokeStyle="rgba(255,255,255,.9)";x.lineWidth=.3;vis.forEach(P=>x.stroke(P.edge));
+  x.fillStyle="#E7372C";vis.forEach(P=>x.fill(P.kr));x.fillStyle="#F4F4F4";vis.forEach(P=>x.fill(P.kw));
+  if(S.marks&&S.marks.length){x.strokeStyle="rgba(15,15,15,.32)";x.lineWidth=.3;x.beginPath();S.marks.forEach(m=>{x.moveTo(m[0],m[1]);x.lineTo(m[2],m[3])});x.stroke()}
+  const s0=G.P[0],t0=G.tan[0];x.save();x.translate(s0[0],s0[1]);x.rotate(Math.atan2(t0[1],t0[0]));for(let a=-G.HW[0];a<G.HW[0];a+=1.2)for(let b=0;b<2;b++){x.fillStyle=((Math.round(a/1.2)+b)%2+2)%2?"#111":"#fff";x.fillRect(b*1.2-1.2,a,1.2,1.2)}x.restore();
+  S.cars.forEach(c=>{if(!c.paint){c.paint=c.col;dzPaint(c.c,p=>c.paint=p)}x.save();x.translate(c.x,c.y);x.rotate(c.h);dzCarShape(x,c,c.paint,c.col);x.restore();
+    if(c!==me){x.save();x.translate(c.x,c.y);x.rotate(S.cam+Math.PI/2);x.font="bold 1.5px system-ui,sans-serif";x.textAlign="center";const tw=x.measureText(c.name).width+1.2;x.fillStyle="rgba(0,0,0,.6)";x.fillRect(-tw/2,-4.6,tw,2);x.fillStyle="#fff";x.fillText(c.name,0,-3.1);x.restore()}});
+  /* the mini-map only needs refreshing a few times a second */
+  S.mmT=(S.mmT||0)+1;if(S.mmT%4===0){const mm=S.mm,mw=mm.width,mh=mm.height,mc=S.mmx;mc.clearRect(0,0,mw,mh);mc.drawImage(S.mmBase,0,0);const [x0,y0,x1,y1]=G.bb,ms=Math.min((mw-16)/(x1-x0),(mh-16)/(y1-y0));
+    S.cars.forEach(c=>{mc.fillStyle=c.col;mc.beginPath();mc.arc(8+(c.x-x0)*ms,8+(c.y-y0)*ms,c===me?4.5*S.dpr/1.5:3.5*S.dpr/1.5,0,7);mc.fill();mc.strokeStyle="#fff";mc.lineWidth=1.2;mc.stroke()})}};
+/* HUD text only changes ~12 times a second; the wheel still turns every frame */
+const _hud22=dzHud;let DZHT=0;dzHud=function(S){const now=performance.now();if(now-DZHT>80||S.me.msg){DZHT=now;return _hud22(S)}const w=document.querySelector("#dzWheel svg");if(w)w.style.transform=`rotate(${((S.me.steer||0)*120).toFixed(1)}deg)`;
+  if(S.marks)S.cars.forEach(c=>{const v=Math.hypot(c.vx,c.vy);if((c.skid>.35||c.brk>.8&&v>25)&&v>6&&!c.remote){const f=[Math.cos(c.h),Math.sin(c.h)],r=[-f[1],f[0]];[-.8,.8].forEach(s=>{const px=c.x-f[0]*1.4+r[0]*s,py=c.y-f[1]*1.4+r[1]*s,k=c._m&&c._m[s>0?1:0];if(k&&Math.hypot(px-k[0],py-k[1])<3)S.marks.push([k[0],k[1],px,py]);c._m=c._m||[];c._m[s>0?1:0]=[px,py]})}else c._m=null})};
+/* render resolution: sharp enough, but not 4x the pixels on big retina screens */
+function dzDpr(){const px=innerWidth*innerHeight,cap=px>900000?1.1:px>500000?1.3:1.6;return Math.min(window.devicePixelRatio||1,cap)}
+const _rs22=dzRaceStart;dzRaceStart=function(o){_rs22(o);const S=DZ2.S;if(S)dzCache(S.G)};
 
 render();syncCmp();
 </script>
