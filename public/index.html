@@ -1599,7 +1599,7 @@ body.typing .tray,body.typing .totop{visibility:hidden}
 /* the race overlay */
 html.cd-lock,html.cd-lock body{overflow:hidden;overscroll-behavior:none}
 .cd-ov{position:fixed;inset:0;z-index:200;background:#3E7B3A;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
-.cd-ov canvas#cdCv{position:absolute;inset:0;width:100%;height:100%;display:block}
+.cd-ov canvas#dzCv{position:absolute;inset:0;width:100%;height:100%;display:block}
 .cd-hud{position:absolute;left:0;right:0;top:0;display:flex;justify-content:space-between;align-items:flex-start;padding:calc(10px + env(safe-area-inset-top,0px)) 12px 0 calc(12px + env(safe-area-inset-left,0px));pointer-events:none}
 .cd-hl{display:flex;gap:10px;align-items:center;background:rgba(10,12,14,.72);color:#fff;border-radius:12px;padding:8px 12px;backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px)}
 .cd-hl b{display:block;font-size:14px}.cd-hl span{display:block;font-family:var(--mono,monospace);font-size:13px;opacity:.9}
@@ -3651,7 +3651,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202609280923";
+const BUILD="202609281025";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -3926,32 +3926,32 @@ const _ra19=roomApply;roomApply=function(){const S=NET.S;
 const _bbS19=bbStart;bbStart=function(m){BB.run=Date.now();BBL.running=false;_bbS19(m)};
 
 /* ================= v28: Circuit duel — drive a real track yourself ================= */
-const CDT=["spa","monza","monaco","silverstone","suzuka"];
-const CDW=22,CDRUN=13,CDSCALE=1,CDGRIP=1.8; // track width, grass run-off each side (m), stretch so corners feel real
-const CDBUD=[40,70,110,170,260,400];
-const CDCOL={a:"#E0412F",b:"#2E6FD8"};
+const DZT=["spa","monza","monaco","silverstone","suzuka"];
+const DZW=22,DZRUN=13,DZSCALE=1,DZGRIP=1.8; // track width, grass run-off each side (m), stretch so corners feel real
+const DZBUD=[40,70,110,170,260,400];
+const DZCOL={a:"#E0412F",b:"#2E6FD8"};
 
 /* ---------- track geometry in metres ---------- */
-const CDG={};
-function cdGeom(k){if(CDG[k])return CDG[k];const T=TRKS[k],N=T.N;let px=0;for(let i=0;i<N;i++){const a=T.pts[i],b=T.pts[(i+1)%N];px+=Math.hypot(b[0]-a[0],b[1]-a[1])}
-  const m=T.len/px*CDSCALE,P=T.pts.map(p=>[p[0]*m,p[1]*m]),ds=T.len*CDSCALE/N;
+const DZG={};
+function dzGeom(k){if(DZG[k])return DZG[k];const T=TRKS[k],N=T.N;let px=0;for(let i=0;i<N;i++){const a=T.pts[i],b=T.pts[(i+1)%N];px+=Math.hypot(b[0]-a[0],b[1]-a[1])}
+  const m=T.len/px*DZSCALE,P=T.pts.map(p=>[p[0]*m,p[1]*m]),ds=T.len*DZSCALE/N;
   const tan=P.map((p,i)=>{const a=P[(i-2+N)%N],b=P[(i+2)%N];const l=Math.hypot(b[0]-a[0],b[1]-a[1])||1;return [(b[0]-a[0])/l,(b[1]-a[1])/l]});
   const R=P.map((b,i)=>{const K=6,a=P[(i-K+N)%N],c=P[(i+K)%N];const A=Math.hypot(b[0]-a[0],b[1]-a[1]),B=Math.hypot(c[0]-b[0],c[1]-b[1]),C=Math.hypot(c[0]-a[0],c[1]-a[1]);const ar=Math.abs((b[0]-a[0])*(c[1]-a[1])-(b[1]-a[1])*(c[0]-a[0]))/2;return ar<1e-6?1e5:A*B*C/(4*ar)});
   const Rs=R.map((_,i)=>{let mn=1e9;for(let k=-5;k<=5;k++)mn=Math.min(mn,R[(i+k+N)%N]);return mn});
   const side=P.map((b,i)=>{const a=P[(i-6+N)%N],c=P[(i+6)%N];return Math.sign((b[0]-a[0])*(c[1]-b[1])-(b[1]-a[1])*(c[0]-b[0]))||1});
   let x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;P.forEach(p=>{x0=Math.min(x0,p[0]);y0=Math.min(y0,p[1]);x1=Math.max(x1,p[0]);y1=Math.max(y1,p[1])});
-  return CDG[k]={k,N,P,tan,Rs,side,ds,len:T.len*CDSCALE,bb:[x0,y0,x1,y1],name:T.name}}
-function cdNearest(G,x,y,hint){const N=G.N;let best=hint,bd=1e18;const scan=(from,to)=>{for(let j=from;j<=to;j++){const i=((j%N)+N)%N,p=G.P[i],d=(p[0]-x)**2+(p[1]-y)**2;if(d<bd){bd=d;best=i}}};
+  return DZG[k]={k,N,P,tan,Rs,side,ds,len:T.len*DZSCALE,bb:[x0,y0,x1,y1],name:T.name}}
+function dzNearest(G,x,y,hint){const N=G.N;let best=hint,bd=1e18;const scan=(from,to)=>{for(let j=from;j<=to;j++){const i=((j%N)+N)%N,p=G.P[i],d=(p[0]-x)**2+(p[1]-y)**2;if(d<bd){bd=d;best=i}}};
   if(hint==null)scan(0,N-1);else{scan(hint-25,hint+45);if(bd>3600)scan(0,N-1)}
   const p=G.P[best],t=G.tan[best];const off=(x-p[0])*(-t[1])+(y-p[1])*t[0];return {i:best,off,dist:Math.sqrt(bd)}}
 
 /* ---------- physics ---------- */
-function cdCar(c,G,slot){const M=carModel(c);const i0=(G.N-8-(slot?4:0))%G.N,p=G.P[i0],t=G.tan[i0],lat=slot?4.5:-4.5;
+function dzCar(c,G,slot){const M=carModel(c);const i0=(G.N-8-(slot?4:0))%G.N,p=G.P[i0],t=G.tan[i0],lat=slot?4.5:-4.5;
   return {c,M,x:p[0]-t[1]*lat,y:p[1]+t[0]*lat,h:Math.atan2(t[1],t[0]),vx:0,vy:0,steer:0,thr:0,brk:0,idx:i0,prog:-8-(slot?4:0),lap:-1,lapStart:0,best:null,laps:[],off:0,crash:0,spin:0,msg:null,fin:null,skid:0}}
-function cdStep(S,car,dt,G){const M=car.M,f=[Math.cos(car.h),Math.sin(car.h)],r=[-f[1],f[0]];
+function dzStep(S,car,dt,G){const M=car.M,f=[Math.cos(car.h),Math.sin(car.h)],r=[-f[1],f[0]];
   let vL=car.vx*f[0]+car.vy*f[1],vT=car.vx*r[0]+car.vy*r[1];const v=Math.hypot(car.vx,car.vy);
-  if(car.crash>0){car.crash-=dt;car.vx*=.9;car.vy*=.9;if(car.crash<=0)cdRespawn(car,G);return}
-  const n=cdNearest(G,car.x,car.y,car.idx);const grass=Math.abs(n.off)>CDW/2,wall=Math.abs(n.off)>CDW/2+CDRUN;
+  if(car.crash>0){car.crash-=dt;car.vx*=.9;car.vy*=.9;if(car.crash<=0)dzRespawn(car,G);return}
+  const n=dzNearest(G,car.x,car.y,car.idx);const grass=Math.abs(n.off)>DZW/2,wall=Math.abs(n.off)>DZW/2+DZRUN;
   const surf=grass?.5:1,downforce=1+M.aero*Math.min(2.5,(v/55)**2);const aMax=G_*M.mu*surf*downforce;
   /* longitudinal: engine (fades toward top speed), brakes, drag */
   let aL=0;if(S.go){if(car.thr>0&&vL>-1)aL+=car.thr*Math.min(Math.max(0,(M.vmax-vL)/M.tau),M.trac*surf);
@@ -3961,7 +3961,7 @@ function cdStep(S,car,dt,G){const M=car.M,f=[Math.cos(car.h),Math.sin(car.h)],r=
   const aLc=Math.max(-aMax*1.02,Math.min(aMax*1.02,aL));
   /* steering: less lock at speed, like a real car */
   const lock=.55/(1+Math.abs(vL)/16),yawWant=vL*Math.tan(car.steer*lock)/2.7;
-  const latAvail=aMax*CDGRIP*Math.sqrt(Math.max(0,1-(aLc/aMax)**2));const yawMax=(latAvail*1.12)/Math.max(3,Math.abs(vL));
+  const latAvail=aMax*DZGRIP*Math.sqrt(Math.max(0,1-(aLc/aMax)**2));const yawMax=(latAvail*1.12)/Math.max(3,Math.abs(vL));
   const yaw=Math.max(-yawMax,Math.min(yawMax,yawWant));const under=Math.abs(yawWant)>yawMax*1.02;
   car.h+=yaw*dt*(car.spin>0?.3:1)+(car.spin>0?car.spinDir*2.6*dt:0);
   /* tyres pull the velocity toward where the car points, up to the grip left over */
@@ -3973,47 +3973,47 @@ function cdStep(S,car,dt,G){const M=car.M,f=[Math.cos(car.h),Math.sin(car.h)],r=
   if(car.spin>0){car.spin-=dt;car.vx*=1-1.6*dt;car.vy*=1-1.6*dt}
   car.x+=car.vx*dt;car.y+=car.vy*dt;
   /* the barrier */
-  if(wall){const m2=cdNearest(G,car.x,car.y,n.i),p=G.P[m2.i],t=G.tan[m2.i],sgn=Math.sign(m2.off),nx=-t[1]*sgn,ny=t[0]*sgn;const into=car.vx*nx+car.vy*ny;
-    if(v>19&&into>7){car.crash=2;car.crashes=(car.crashes||0)+1;car.msg=["CRASH!",2];car.vx=car.vy=0;S.shake=.6;if(car===S.me)cdBuzz(120)}
-    else{car.vx-=1.6*into*nx;car.vy-=1.6*into*ny;car.vx*=.7;car.vy*=.7;const lim=CDW/2+CDRUN-.5;car.x=p[0]+nx*lim;car.y=p[1]+ny*lim;if(car===S.me)cdBuzz(40)}}
+  if(wall){const m2=dzNearest(G,car.x,car.y,n.i),p=G.P[m2.i],t=G.tan[m2.i],sgn=Math.sign(m2.off),nx=-t[1]*sgn,ny=t[0]*sgn;const into=car.vx*nx+car.vy*ny;
+    if(v>19&&into>7){car.crash=2;car.crashes=(car.crashes||0)+1;car.msg=["CRASH!",2];car.vx=car.vy=0;S.shake=.6;if(car===S.me)dzBuzz(120)}
+    else{car.vx-=1.6*into*nx;car.vy-=1.6*into*ny;car.vx*=.7;car.vy*=.7;const lim=DZW/2+DZRUN-.5;car.x=p[0]+nx*lim;car.y=p[1]+ny*lim;if(car===S.me)dzBuzz(40)}}
   /* lap counting from progress along the lap */
-  const m3=cdNearest(G,car.x,car.y,n.i);let d=m3.i-car.idx;if(d>G.N/2)d-=G.N;if(d<-G.N/2)d+=G.N;car.idx=m3.i;car.prog+=d;car.off=m3.off;car.grass=grass;
+  const m3=dzNearest(G,car.x,car.y,n.i);let d=m3.i-car.idx;if(d>G.N/2)d-=G.N;if(d<-G.N/2)d+=G.N;car.idx=m3.i;car.prog+=d;car.off=m3.off;car.grass=grass;
   const lapNow=Math.floor(car.prog/G.N);if(lapNow>car.lap){if(lapNow>=1&&S.go){const lt=S.t-car.lapStart;car.laps.push(lt);car.best=car.best==null?lt:Math.min(car.best,lt)}car.lap=lapNow;car.lapStart=Math.max(0,S.t);
-    if(car.lap>=S.laps&&car.fin==null){car.fin=S.t;cdFinished(S,car)}}}
+    if(car.lap>=S.laps&&car.fin==null){car.fin=S.t;dzFinished(S,car)}}}
 const G_=9.81;
-function cdRespawn(car,G){const i=car.idx,p=G.P[i],t=G.tan[i];car.x=p[0];car.y=p[1];car.h=Math.atan2(t[1],t[0]);car.vx=car.vy=0;car.spin=0;car.msg=["Back on track",1]}
-function cdCollide(A,B){const dx=B.x-A.x,dy=B.y-A.y,d=Math.hypot(dx,dy),R=2.3*2;if(d>=R||d<.01)return;const nx=dx/d,ny=dy/d,push=(R-d)/2;
+function dzRespawn(car,G){const i=car.idx,p=G.P[i],t=G.tan[i];car.x=p[0];car.y=p[1];car.h=Math.atan2(t[1],t[0]);car.vx=car.vy=0;car.spin=0;car.msg=["Back on track",1]}
+function dzCollide(A,B){const dx=B.x-A.x,dy=B.y-A.y,d=Math.hypot(dx,dy),R=2.3*2;if(d>=R||d<.01)return;const nx=dx/d,ny=dy/d,push=(R-d)/2;
   if(!B.remote){B.x+=nx*push;B.y+=ny*push}A.x-=nx*push;A.y-=ny*push;const rv=(B.vx-A.vx)*nx+(B.vy-A.vy)*ny;if(rv<0){const j=-rv*.9/2;A.vx-=j*nx;A.vy-=j*ny;if(!B.remote){B.vx+=j*nx;B.vy+=j*ny}}}
-function cdBuzz(ms){try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}}
+function dzBuzz(ms){try{navigator.vibrate&&navigator.vibrate(ms)}catch(e){}}
 
 /* ---------- computer driver ---------- */
-function cdAiPlan(car,G,skill){const M=car.M,N=G.N,vl=new Float64Array(N);for(let i=0;i<N;i++){const R=G.Rs[i],k=M.aero/3025,den=1-M.mu*G_*k*R;vl[i]=Math.min(M.vmax*.99,den<=0?1e9:Math.sqrt(M.mu*CDGRIP*G_*R*.95/den))}
+function dzAiPlan(car,G,skill){const M=car.M,N=G.N,vl=new Float64Array(N);for(let i=0;i<N;i++){const R=G.Rs[i],k=M.aero/3025,den=1-M.mu*G_*k*R;vl[i]=Math.min(M.vmax*.99,den<=0?1e9:Math.sqrt(M.mu*DZGRIP*G_*R*.95/den))}
   for(let pass=0;pass<2;pass++)for(let j=2*N;j>0;j--){const i=j%N,ip=(i+1)%N;const b=G_*M.mu*M.brake*.9;vl[i]=Math.min(vl[i],Math.sqrt(vl[ip]*vl[ip]+2*b*G.ds))}
   car.plan=vl.map(v=>v*skill);car.lane=0}
-function cdAi(S,car,G,other){const N=G.N,v=Math.hypot(car.vx,car.vy);const look=Math.max(10,v*.55),k=Math.round(look/G.ds);const ti=(car.idx+k)%N,p=G.P[ti],t=G.tan[ti];
+function dzAi(S,car,G,other){const N=G.N,v=Math.hypot(car.vx,car.vy);const look=Math.max(10,v*.55),k=Math.round(look/G.ds);const ti=(car.idx+k)%N,p=G.P[ti],t=G.tan[ti];
   if(other&&other.fin==null){let gap=other.prog-car.prog;if(gap>-3&&gap<14/G.ds*1.5){const side=Math.sign(other.off-car.lane)||1;car.lane=Math.max(-6,Math.min(6,car.lane-side*.8))}else car.lane*=.985}
   const inside=-G.side[ti]*Math.min(4,40/Math.max(40,G.Rs[ti])*4);const tx=p[0]-t[1]*(car.lane+inside),ty=p[1]+t[0]*(car.lane+inside);
   let ang=Math.atan2(ty-car.y,tx-car.x)-car.h;while(ang>Math.PI)ang-=2*Math.PI;while(ang<-Math.PI)ang+=2*Math.PI;car.steer=Math.max(-1,Math.min(1,ang*2.4));
   const want=car.plan[(car.idx+Math.round(Math.max(8,v*.35)/G.ds))%N];if(v<want-1){car.thr=1;car.brk=0}else if(v>want+1.5){car.thr=0;car.brk=Math.min(1,(v-want)/6)}else{car.thr=.4;car.brk=0}}
 
 /* ---------- controls ---------- */
-const CDK={};let CDIN={steer:0,thr:0,brk:0,wheel:null,gas:false,brake:false};
-addEventListener("keydown",e=>{if(!CD2.S||CD2.S.done)return;const k=e.key.toLowerCase();if(["arrowleft","arrowright","arrowup","arrowdown","a","d","w","s"," "].includes(k)){CDK[k]=true;e.preventDefault()}});
-addEventListener("keyup",e=>{CDK[e.key.toLowerCase()]=false});
-function cdReadInput(dt){const L=CDK.arrowleft||CDK.a,R=CDK.arrowright||CDK.d;let s=CDIN.steer;
-  if(CDIN.wheel!=null)s=CDIN.wheel;else if(L||R){const tgt=(R?1:0)-(L?1:0);s+=Math.sign(tgt-s)*Math.min(Math.abs(tgt-s),dt*3.2)}else s-=Math.sign(s)*Math.min(Math.abs(s),dt*5);
-  CDIN.steer=s;return {steer:s,thr:CDK.arrowup||CDK.w||CDIN.gas?1:0,brk:CDK.arrowdown||CDK.s||CDK[" "]||CDIN.brake?1:0}}
-function cdWireControls(){const w=$("#cdWheel"),g=$("#cdGas"),b=$("#cdBrake");
+const DZK={};let DZIN={steer:0,thr:0,brk:0,wheel:null,gas:false,brake:false};
+addEventListener("keydown",e=>{if(!DZ2.S||DZ2.S.done)return;const k=e.key.toLowerCase();if(["arrowleft","arrowright","arrowup","arrowdown","a","d","w","s"," "].includes(k)){DZK[k]=true;e.preventDefault()}});
+addEventListener("keyup",e=>{DZK[e.key.toLowerCase()]=false});
+function dzReadInput(dt){const L=DZK.arrowleft||DZK.a,R=DZK.arrowright||DZK.d;let s=DZIN.steer;
+  if(DZIN.wheel!=null)s=DZIN.wheel;else if(L||R){const tgt=(R?1:0)-(L?1:0);s+=Math.sign(tgt-s)*Math.min(Math.abs(tgt-s),dt*3.2)}else s-=Math.sign(s)*Math.min(Math.abs(s),dt*5);
+  DZIN.steer=s;return {steer:s,thr:DZK.arrowup||DZK.w||DZIN.gas?1:0,brk:DZK.arrowdown||DZK.s||DZK[" "]||DZIN.brake?1:0}}
+function dzWireControls(){const w=$("#dzWheel"),g=$("#dzGas"),b=$("#dzBrake");
   if(w){let id=null,c0=null,a0=0;const ang=e=>{const r=w.getBoundingClientRect();return Math.atan2(e.clientY-(r.top+r.height/2),e.clientX-(r.left+r.width/2))};
-    w.addEventListener("pointerdown",e=>{id=e.pointerId;w.setPointerCapture(id);a0=ang(e)-(CDIN.wheel||0)*2.1;e.preventDefault()});
-    w.addEventListener("pointermove",e=>{if(e.pointerId!==id)return;let d=ang(e)-a0;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;CDIN.wheel=Math.max(-1,Math.min(1,d/2.1))});
-    const up=e=>{if(e.pointerId!==id)return;id=null;CDIN.wheel=null};w.addEventListener("pointerup",up);w.addEventListener("pointercancel",up)}
-  const pedal=(el,k)=>{if(!el)return;const on=e=>{CDIN[k]=true;el.classList.add("on");try{el.setPointerCapture(e.pointerId)}catch(x){}e.preventDefault()},off=()=>{CDIN[k]=false;el.classList.remove("on")};
+    w.addEventListener("pointerdown",e=>{id=e.pointerId;w.setPointerCapture(id);a0=ang(e)-(DZIN.wheel||0)*2.1;e.preventDefault()});
+    w.addEventListener("pointermove",e=>{if(e.pointerId!==id)return;let d=ang(e)-a0;while(d>Math.PI)d-=2*Math.PI;while(d<-Math.PI)d+=2*Math.PI;DZIN.wheel=Math.max(-1,Math.min(1,d/2.1))});
+    const up=e=>{if(e.pointerId!==id)return;id=null;DZIN.wheel=null};w.addEventListener("pointerup",up);w.addEventListener("pointercancel",up)}
+  const pedal=(el,k)=>{if(!el)return;const on=e=>{DZIN[k]=true;el.classList.add("on");try{el.setPointerCapture(e.pointerId)}catch(x){}e.preventDefault()},off=()=>{DZIN[k]=false;el.classList.remove("on")};
     el.addEventListener("pointerdown",on);el.addEventListener("pointerup",off);el.addEventListener("pointercancel",off);el.addEventListener("lostpointercapture",off)};
   pedal(g,"gas");pedal(b,"brake")}
 
 /* ---------- drawing ---------- */
-function cdDraw(S){const cv=S.cv,x=S.ctx,Wd=cv.width,Hd=cv.height,dpr=S.dpr,G=S.G,me=S.me;if(!Wd)return;
+function dzDraw(S){const cv=S.cv,x=S.ctx,Wd=cv.width,Hd=cv.height,dpr=S.dpr,G=S.G,me=S.me;if(!Wd)return;
   const v=Math.hypot(me.vx,me.vy),sc=dpr*Math.min(Wd/dpr,Hd/dpr)/52/(1+v/70);S.cam=S.cam==null?me.h:S.cam+(((me.h-S.cam+Math.PI*3)%(Math.PI*2))-Math.PI)*.12;
   x.setTransform(1,0,0,1,0,0);x.fillStyle="#3E7B3A";x.fillRect(0,0,Wd,Hd);
   const shake=S.shake>0?(Math.random()-.5)*S.shake*18*dpr:0;
@@ -4021,14 +4021,14 @@ function cdDraw(S){const cv=S.cv,x=S.ctx,Wd=cv.width,Hd=cv.height,dpr=S.dpr,G=S.
   const N=G.N,from=me.idx-90,to=me.idx+Math.round(420/G.ds);
   const path=()=>{x.beginPath();for(let j=from;j<=to;j++){const p=G.P[((j%N)+N)%N];j===from?x.moveTo(p[0],p[1]):x.lineTo(p[0],p[1])}};
   x.lineJoin="round";x.lineCap="round";path();
-  x.strokeStyle="#9AA1A6";x.lineWidth=CDW+CDRUN*2+2.5;x.stroke();x.strokeStyle="#4C8A45";x.lineWidth=CDW+CDRUN*2;x.stroke(); // barrier + grass verge
-  x.strokeStyle="#D9C58F";x.lineWidth=CDW+6;x.stroke(); // gravel/sand edge
+  x.strokeStyle="#9AA1A6";x.lineWidth=DZW+DZRUN*2+2.5;x.stroke();x.strokeStyle="#4C8A45";x.lineWidth=DZW+DZRUN*2;x.stroke(); // barrier + grass verge
+  x.strokeStyle="#D9C58F";x.lineWidth=DZW+6;x.stroke(); // gravel/sand edge
   /* kerbs in corners */
-  x.lineWidth=CDW+2.4;x.setLineDash([3,3]);x.strokeStyle="#E7372C";x.stroke();x.setLineDash([3,3]);x.lineDashOffset=3;x.strokeStyle="#FFFFFF";x.stroke();x.setLineDash([]);x.lineDashOffset=0;
-  x.strokeStyle="#474C51";x.lineWidth=CDW;x.stroke();
+  x.lineWidth=DZW+2.4;x.setLineDash([3,3]);x.strokeStyle="#E7372C";x.stroke();x.setLineDash([3,3]);x.lineDashOffset=3;x.strokeStyle="#FFFFFF";x.stroke();x.setLineDash([]);x.lineDashOffset=0;
+  x.strokeStyle="#474C51";x.lineWidth=DZW;x.stroke();
   x.strokeStyle="rgba(255,255,255,.18)";x.lineWidth=.35;x.setLineDash([6,10]);x.stroke();x.setLineDash([]);
   /* start / finish */
-  const s0=G.P[0],t0=G.tan[0];x.save();x.translate(s0[0],s0[1]);x.rotate(Math.atan2(t0[1],t0[0]));for(let a=-CDW/2;a<CDW/2;a+=1.5)for(let b=0;b<2;b++){x.fillStyle=((a/1.5+b)|0)%2?"#111":"#fff";x.fillRect(b*1.5-1.5,a,1.5,1.5)}x.restore();
+  const s0=G.P[0],t0=G.tan[0];x.save();x.translate(s0[0],s0[1]);x.rotate(Math.atan2(t0[1],t0[0]));for(let a=-DZW/2;a<DZW/2;a+=1.5)for(let b=0;b<2;b++){x.fillStyle=((a/1.5+b)|0)%2?"#111":"#fff";x.fillRect(b*1.5-1.5,a,1.5,1.5)}x.restore();
   /* cars */
   S.cars.forEach(c=>{x.save();x.translate(c.x,c.y);x.rotate(c.h);if(c.skid>.2){x.fillStyle="rgba(20,20,20,.25)";x.fillRect(-3,-1.3,1.6,2.6)}
     x.fillStyle="rgba(0,0,0,.35)";x.fillRect(-2.2,-1.05,4.9,2.3);x.fillStyle=c.col;if(x.roundRect){x.beginPath();x.roundRect(-2.4,-1,4.8,2,.6);x.fill()}else x.fillRect(-2.4,-1,4.8,2);
@@ -4038,120 +4038,120 @@ function cdDraw(S){const cv=S.cv,x=S.ctx,Wd=cv.width,Hd=cv.height,dpr=S.dpr,G=S.
   /* minimap */
   const mm=S.mm,mw=mm.width,mh=mm.height,mc=S.mmx;mc.clearRect(0,0,mw,mh);mc.drawImage(S.mmBase,0,0);const [x0,y0,x1,y1]=G.bb,ms=Math.min((mw-16)/(x1-x0),(mh-16)/(y1-y0));
   S.cars.forEach(c=>{mc.fillStyle=c.col;mc.beginPath();mc.arc(8+(c.x-x0)*ms,8+(c.y-y0)*ms,c===me?4.5*S.dpr/1.5:3.5*S.dpr/1.5,0,7);mc.fill();mc.strokeStyle="#fff";mc.lineWidth=1.2;mc.stroke()})}
-function cdMiniBase(S){const G=S.G,mm=S.mm,c=document.createElement("canvas");c.width=mm.width;c.height=mm.height;const x=c.getContext("2d"),[x0,y0,x1,y1]=G.bb,ms=Math.min((mm.width-16)/(x1-x0),(mm.height-16)/(y1-y0));
+function dzMiniBase(S){const G=S.G,mm=S.mm,c=document.createElement("canvas");c.width=mm.width;c.height=mm.height;const x=c.getContext("2d"),[x0,y0,x1,y1]=G.bb,ms=Math.min((mm.width-16)/(x1-x0),(mm.height-16)/(y1-y0));
   x.beginPath();G.P.forEach((p,i)=>{const X=8+(p[0]-x0)*ms,Y=8+(p[1]-y0)*ms;i?x.lineTo(X,Y):x.moveTo(X,Y)});x.closePath();x.strokeStyle="rgba(255,255,255,.9)";x.lineWidth=3*S.dpr/1.5;x.lineJoin="round";x.stroke();S.mmBase=c}
 
 /* ---------- race session ---------- */
-const CD2={S:null};
-function cdFmt(t){if(t==null)return "—";const m=Math.floor(t/60),s=t-m*60;return (m?m+":":"")+(m?s.toFixed(3).padStart(6,"0"):s.toFixed(3))}
-function cdOverlay(o){document.querySelector(".cd-ov")?.remove();document.body.insertAdjacentHTML("beforeend",`<div class="cd-ov" id="cdOv" role="application" aria-label="Race">
-  <canvas id="cdCv"></canvas><div class="cd-hud"><div class="cd-hl"><div class="cd-pos" id="cdPos">P1</div><div><b id="cdLap">Lap 1/${o.laps}</b><span id="cdTime">0.000</span><span id="cdBest"></span></div></div><canvas id="cdMm" class="cd-mm" width="240" height="180"></canvas></div>
-  <div class="cd-msg" id="cdMsg"></div><div class="cd-lights" id="cdLights"><i></i><i></i><i></i><i></i><i></i></div>
-  <div class="cd-speed"><b id="cdSpd">0</b><span>mph</span></div>
-  <div class="cd-ctl"><div class="cd-wheel" id="cdWheel" aria-label="Steering wheel: drag to steer"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="none" stroke="#1d2126" stroke-width="10"/><circle cx="50" cy="50" r="44" fill="none" stroke="#3a4148" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="#2a3036"/><path d="M8 52 H39 M61 52 H92 M50 61 V93" stroke="#2a3036" stroke-width="9" stroke-linecap="round"/><rect x="46" y="4" width="8" height="9" rx="2" fill="#F2C200"/></svg></div>
-   <div class="cd-pedals"><button type="button" class="cd-pedal brake" id="cdBrake" aria-label="Brake">BRAKE</button><button type="button" class="cd-pedal gas" id="cdGas" aria-label="Accelerator">GAS</button></div></div>
-  <button type="button" class="cd-quit" id="cdQuit" aria-label="Leave race">✕</button><p class="cd-keys">Keys: ← → steer · ↑ accelerate · ↓ brake</p></div>`);
+const DZ2={S:null};
+function dzFmt(t){if(t==null)return "—";const m=Math.floor(t/60),s=t-m*60;return (m?m+":":"")+(m?s.toFixed(3).padStart(6,"0"):s.toFixed(3))}
+function dzOverlay(o){document.querySelector(".cd-ov")?.remove();document.body.insertAdjacentHTML("beforeend",`<div class="cd-ov" id="dzOv" role="application" aria-label="Race">
+  <canvas id="dzCv"></canvas><div class="cd-hud"><div class="cd-hl"><div class="cd-pos" id="dzPos">P1</div><div><b id="dzLap">Lap 1/${o.laps}</b><span id="dzTime">0.000</span><span id="dzBest"></span></div></div><canvas id="dzMm" class="cd-mm" width="240" height="180"></canvas></div>
+  <div class="cd-msg" id="dzMsg"></div><div class="cd-lights" id="dzLights"><i></i><i></i><i></i><i></i><i></i></div>
+  <div class="cd-speed"><b id="dzSpd">0</b><span>mph</span></div>
+  <div class="cd-ctl"><div class="cd-wheel" id="dzWheel" aria-label="Steering wheel: drag to steer"><svg viewBox="0 0 100 100" aria-hidden="true"><circle cx="50" cy="50" r="44" fill="none" stroke="#1d2126" stroke-width="10"/><circle cx="50" cy="50" r="44" fill="none" stroke="#3a4148" stroke-width="3"/><circle cx="50" cy="50" r="11" fill="#2a3036"/><path d="M8 52 H39 M61 52 H92 M50 61 V93" stroke="#2a3036" stroke-width="9" stroke-linecap="round"/><rect x="46" y="4" width="8" height="9" rx="2" fill="#F2C200"/></svg></div>
+   <div class="cd-pedals"><button type="button" class="cd-pedal brake" id="dzBrake" aria-label="Brake">BRAKE</button><button type="button" class="cd-pedal gas" id="dzGas" aria-label="Accelerator">GAS</button></div></div>
+  <button type="button" class="cd-quit" id="dzQuit" aria-label="Leave race">✕</button><p class="cd-keys">Keys: ← → steer · ↑ accelerate · ↓ brake</p></div>`);
   document.documentElement.classList.add("cd-lock")}
-function cdRaceStart(o){ // o: {track,laps,mine:{car,name},rival:{car,name,ai,skill}|null,online}
-  cdOverlay(o);const G=cdGeom(o.track),cv=$("#cdCv"),mm=$("#cdMm");const dpr=Math.min(2,devicePixelRatio||1);
-  const me=cdCar(o.mine.car,G,o.mySeat==="b"?1:0);me.col=CDCOL[o.mySeat||"a"];me.name=o.mine.name;const cars=[me];let rival=null;
-  if(o.rival){rival=cdCar(o.rival.car,G,o.mySeat==="b"?0:1);rival.col=CDCOL[o.mySeat==="b"?"a":"b"];rival.name=o.rival.name;if(o.online)rival.remote=true;else cdAiPlan(rival,G,o.rival.skill);cars.push(rival)}
-  const S=CD2.S={o,G,cv,ctx:cv.getContext("2d"),mm,mmx:mm.getContext("2d"),dpr,me,rival,cars,t:-1,go:false,laps:o.laps,done:false,shake:0,last:performance.now(),acc:0,sendT:0};
-  const fit=()=>{cv.width=cv.clientWidth*dpr;cv.height=cv.clientHeight*dpr;const s=Math.min(1,cv.clientWidth/700)*(innerWidth<760?.7:1);mm.width=Math.round(220*dpr*(innerWidth<760?.62:1));mm.height=Math.round(170*dpr*(innerWidth<760?.62:1));mm.style.width=mm.width/dpr+"px";cdMiniBase(S)};fit();S.fit=fit;addEventListener("resize",fit);
-  cdWireControls();CDIN={steer:0,thr:0,brk:0,wheel:null,gas:false,brake:false};
+function dzRaceStart(o){ // o: {track,laps,mine:{car,name},rival:{car,name,ai,skill}|null,online}
+  dzOverlay(o);const G=dzGeom(o.track),cv=$("#dzCv"),mm=$("#dzMm");const dpr=Math.min(2,devicePixelRatio||1);
+  const me=dzCar(o.mine.car,G,o.mySeat==="b"?1:0);me.col=DZCOL[o.mySeat||"a"];me.name=o.mine.name;const cars=[me];let rival=null;
+  if(o.rival){rival=dzCar(o.rival.car,G,o.mySeat==="b"?0:1);rival.col=DZCOL[o.mySeat==="b"?"a":"b"];rival.name=o.rival.name;if(o.online)rival.remote=true;else dzAiPlan(rival,G,o.rival.skill);cars.push(rival)}
+  const S=DZ2.S={o,G,cv,ctx:cv.getContext("2d"),mm,mmx:mm.getContext("2d"),dpr,me,rival,cars,t:-1,go:false,laps:o.laps,done:false,shake:0,last:performance.now(),acc:0,sendT:0};
+  const fit=()=>{cv.width=cv.clientWidth*dpr;cv.height=cv.clientHeight*dpr;const s=Math.min(1,cv.clientWidth/700)*(innerWidth<760?.7:1);mm.width=Math.round(220*dpr*(innerWidth<760?.62:1));mm.height=Math.round(170*dpr*(innerWidth<760?.62:1));mm.style.width=mm.width/dpr+"px";dzMiniBase(S)};fit();S.fit=fit;addEventListener("resize",fit);
+  dzWireControls();DZIN={steer:0,thr:0,brk:0,wheel:null,gas:false,brake:false};
   /* F1-style start: five reds, then lights out */
-  const L=[...document.querySelectorAll("#cdLights i")];L.forEach((l,k)=>setTimeout(()=>{if(CD2.S===S)l.classList.add("on")},900+k*800));
-  const outAt=900+4*800+700+Math.random()*900;setTimeout(()=>{if(CD2.S!==S)return;L.forEach(l=>l.classList.remove("on"));$("#cdLights").classList.add("out");S.go=true;S.t=0;cars.forEach(c=>{c.lapStart=0});cdMsg("GO!",1)},outAt);
-  $("#cdQuit").onclick=()=>{if(confirmQuit())cdEnd(true)};
-  const loop=now=>{if(CD2.S!==S)return;let dt=Math.min(.05,(now-S.last)/1000);S.last=now;S.shake=Math.max(0,S.shake-dt);
-    const inp=cdReadInput(dt);me.steer=inp.steer;me.thr=me.fin==null?inp.thr:0;me.brk=me.fin==null?inp.brk:.4;
-    const sub=4;for(let k=0;k<sub;k++){const h=dt/sub;if(rival&&!rival.remote)cdAi(S,rival,G,me);cars.forEach(c=>{if(!c.remote)cdStep(S,c,h,G)});if(rival)cdCollide(me,rival)}
-    if(S.go&&!S.done)S.t+=dt;if(rival&&rival.remote)cdRemoteTick(S,rival);
+  const L=[...document.querySelectorAll("#dzLights i")];L.forEach((l,k)=>setTimeout(()=>{if(DZ2.S===S)l.classList.add("on")},900+k*800));
+  const outAt=900+4*800+700+Math.random()*900;setTimeout(()=>{if(DZ2.S!==S)return;L.forEach(l=>l.classList.remove("on"));$("#dzLights").classList.add("out");S.go=true;S.t=0;cars.forEach(c=>{c.lapStart=0});dzMsg("GO!",1)},outAt);
+  $("#dzQuit").onclick=()=>{if(confirmQuit())dzEnd(true)};
+  const loop=now=>{if(DZ2.S!==S)return;let dt=Math.min(.05,(now-S.last)/1000);S.last=now;S.shake=Math.max(0,S.shake-dt);
+    const inp=dzReadInput(dt);me.steer=inp.steer;me.thr=me.fin==null?inp.thr:0;me.brk=me.fin==null?inp.brk:.4;
+    const sub=4;for(let k=0;k<sub;k++){const h=dt/sub;if(rival&&!rival.remote)dzAi(S,rival,G,me);cars.forEach(c=>{if(!c.remote)dzStep(S,c,h,G)});if(rival)dzCollide(me,rival)}
+    if(S.go&&!S.done)S.t+=dt;if(rival&&rival.remote)dzRemoteTick(S,rival);
     if(o.online&&S.go){S.sendT-=dt;if(S.sendT<=0){S.sendT=.1;netSend({t:"act",data:{k:"cdpos",x:+me.x.toFixed(2),y:+me.y.toFixed(2),h:+me.h.toFixed(3),vx:+me.vx.toFixed(2),vy:+me.vy.toFixed(2),p:me.prog,l:me.lap}})}}
-    cdHud(S);cdDraw(S);S.raf=requestAnimationFrame(loop)};S.raf=requestAnimationFrame(loop)}
+    dzHud(S);dzDraw(S);S.raf=requestAnimationFrame(loop)};S.raf=requestAnimationFrame(loop)}
 function confirmQuit(){return true}
-function cdMsg(t,sec,cls){const m=$("#cdMsg");if(!m)return;m.textContent=t;m.className="cd-msg on "+(cls||"");clearTimeout(m._t);m._t=setTimeout(()=>m.classList.remove("on"),sec*1000)}
-function cdHud(S){const me=S.me,r=S.rival;const v=Math.hypot(me.vx,me.vy)*2.23694;const sp=$("#cdSpd");if(sp)sp.textContent=Math.round(v);
-  const lap=Math.min(S.laps,Math.max(1,me.lap+1));const L=$("#cdLap");if(L)L.textContent=me.fin!=null?"Finished":`Lap ${lap}/${S.laps}`;const T=$("#cdTime");if(T)T.textContent=cdFmt(Math.max(0,S.t));
-  const B=$("#cdBest");if(B)B.textContent=me.best!=null?"Best "+cdFmt(me.best):"";
-  const P=$("#cdPos");if(P&&r){const ahead=r.fin!=null&&me.fin==null||(me.fin==null&&r.fin==null&&r.prog>me.prog)||(me.fin!=null&&r.fin!=null&&r.fin<me.fin);P.textContent=ahead?"P2":"P1";P.className="cd-pos "+(ahead?"p2":"p1")}
-  if(me.msg){cdMsg(me.msg[0],me.msg[1],me.msg[0]==="CRASH!"?"bad":"");me.msg=null}
-  if(me.grass&&!S.grassWarn){S.grassWarn=true;cdMsg("Off track",.8,"warn");setTimeout(()=>S.grassWarn=false,1500)}}
-function cdFinished(S,car){if(car===S.me){cdMsg(S.rival&&(S.rival.fin==null||S.rival.fin>car.fin)?"You win!":"Finished",3,"good");if(S.o.online)act({k:"cdfin",t:+car.fin.toFixed(3),best:car.best});else setTimeout(()=>cdEnd(false),S.rival&&S.rival.fin==null?Math.min(12000,15000):2500)}
-  else if(!S.o.online&&S.me.fin!=null)setTimeout(()=>cdEnd(false),1500)}
-function cdEnd(quit){const S=CD2.S;if(!S)return;cancelAnimationFrame(S.raf);removeEventListener("resize",S.fit);CD2.S=null;document.querySelector(".cd-ov")?.remove();document.documentElement.classList.remove("cd-lock");
+function dzMsg(t,sec,cls){const m=$("#dzMsg");if(!m)return;m.textContent=t;m.className="cd-msg on "+(cls||"");clearTimeout(m._t);m._t=setTimeout(()=>m.classList.remove("on"),sec*1000)}
+function dzHud(S){const me=S.me,r=S.rival;const v=Math.hypot(me.vx,me.vy)*2.23694;const sp=$("#dzSpd");if(sp)sp.textContent=Math.round(v);
+  const lap=Math.min(S.laps,Math.max(1,me.lap+1));const L=$("#dzLap");if(L)L.textContent=me.fin!=null?"Finished":`Lap ${lap}/${S.laps}`;const T=$("#dzTime");if(T)T.textContent=dzFmt(Math.max(0,S.t));
+  const B=$("#dzBest");if(B)B.textContent=me.best!=null?"Best "+dzFmt(me.best):"";
+  const P=$("#dzPos");if(P&&r){const ahead=r.fin!=null&&me.fin==null||(me.fin==null&&r.fin==null&&r.prog>me.prog)||(me.fin!=null&&r.fin!=null&&r.fin<me.fin);P.textContent=ahead?"P2":"P1";P.className="cd-pos "+(ahead?"p2":"p1")}
+  if(me.msg){dzMsg(me.msg[0],me.msg[1],me.msg[0]==="CRASH!"?"bad":"");me.msg=null}
+  if(me.grass&&!S.grassWarn){S.grassWarn=true;dzMsg("Off track",.8,"warn");setTimeout(()=>S.grassWarn=false,1500)}}
+function dzFinished(S,car){if(car===S.me){dzMsg(S.rival&&(S.rival.fin==null||S.rival.fin>car.fin)?"You win!":"Finished",3,"good");if(S.o.online)act({k:"cdfin",t:+car.fin.toFixed(3),best:car.best});else setTimeout(()=>dzEnd(false),S.rival&&S.rival.fin==null?Math.min(12000,15000):2500)}
+  else if(!S.o.online&&S.me.fin!=null)setTimeout(()=>dzEnd(false),1500)}
+function dzEnd(quit){const S=DZ2.S;if(!S)return;cancelAnimationFrame(S.raf);removeEventListener("resize",S.fit);DZ2.S=null;document.querySelector(".cd-ov")?.remove();document.documentElement.classList.remove("cd-lock");
   if(S.o.onEnd)S.o.onEnd({quit,me:S.me,rival:S.rival,t:S.t})}
 /* remote car: smooth toward the latest packet */
-function cdRemote(from,d){const S=CD2.S;if(!S||!S.rival||!S.rival.remote)return;S.rival.target={...d,at:performance.now()}}
-function cdRemoteTick(S,r){const T=r.target;if(!T)return;const age=(performance.now()-T.at)/1000,px=T.x+T.vx*Math.min(.25,age),py=T.y+T.vy*Math.min(.25,age);r.x+=(px-r.x)*.35;r.y+=(py-r.y)*.35;let dh=T.h-r.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;r.h+=dh*.35;r.vx=T.vx;r.vy=T.vy;r.prog=T.p;r.lap=T.l}
-const _no20=netOn;netOn=function(m){if(m.t==="act"&&m.data&&m.data.k==="cdpos"){cdRemote(m.from,m.data);return}_no20(m)};
+function dzRemote(from,d){const S=DZ2.S;if(!S||!S.rival||!S.rival.remote)return;S.rival.target={...d,at:performance.now()}}
+function dzRemoteTick(S,r){const T=r.target;if(!T)return;const age=(performance.now()-T.at)/1000,px=T.x+T.vx*Math.min(.25,age),py=T.y+T.vy*Math.min(.25,age);r.x+=(px-r.x)*.35;r.y+=(py-r.y)*.35;let dh=T.h-r.h;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;r.h+=dh*.35;r.vx=T.vx;r.vy=T.vy;r.prog=T.p;r.lap=T.l}
+const _no20=netOn;netOn=function(m){if(m.t==="act"&&m.data&&m.data.k==="cdpos"){dzRemote(m.from,m.data);return}_no20(m)};
 
 /* ---------- showroom for one car ---------- */
-function cdMarket(B){const P=uniqFam(shuffle(WITHPH.filter(c=>c.price>0&&raceable(c)&&c.y0>=1985)));const out=[];[[B/7,B/3,8],[B/3,B*.66,10],[B*.66,B,10]].forEach(([lo,hi,n])=>{let k=0;for(const c of P){if(k>=n)break;if(c.price>lo&&c.price<=hi&&!out.includes(c.id)){out.push(c.id);k++}}});return out.sort((a,b)=>BY[b].price-BY[a].price)}
-function cdStars(v,lo,hi){const n=Math.max(1,Math.min(5,Math.round(1+(v-lo)/(hi-lo)*4)));return `<span class="cd-st" aria-label="${n} of 5">${"●".repeat(n)}<i>${"●".repeat(5-n)}</i></span>`}
-function cdShowroomHtml(B,market,pick,title){return `<div class="cd-shop"><div class="bb-bud"><div><span class="eyebrow">${title||"Your budget"}</span><b class="num">${money(B)}</b></div><div><span class="eyebrow">Showroom</span><b class="num">${market.length} cars</b></div></div>
-  <div class="cd-cars">${market.map(id=>{const c=BY[id],g=gripOf(c);return `<button type="button" class="cd-carbtn ${pick===id?"on":""}" data-cdcar="${id}">${ph(c)}<span class="cd-cb"><b>${esc(c.make)} ${esc(c.model)}</b><small>${c.bhp} bhp · ${acc(c.acc)} · ${c.top} mph</small><span class="cd-rt"><span>Grip ${cdStars(g.mu+g.aero*.4,.8,1.45)}</span><span>Brakes ${cdStars(g.brake*g.mu,.7,1.25)}</span></span></span><em class="num">${money(c.price)}</em></button>`}).join("")}</div></div>`}
-function cdAiPick(B,market,track,skillHard){const cur=CR.track;setTrack(track);const L=market.map(id=>[id,raceSim(BY[id]).s.T]).sort((a,b)=>a[1]-b[1]);setTrack(cur);return L[skillHard?0:Math.min(L.length-1,Math.floor(Math.random()*3)+1)][0]}
+function dzMarket(B){const P=uniqFam(shuffle(WITHPH.filter(c=>c.price>0&&raceable(c)&&c.y0>=1985)));const out=[];[[B/7,B/3,8],[B/3,B*.66,10],[B*.66,B,10]].forEach(([lo,hi,n])=>{let k=0;for(const c of P){if(k>=n)break;if(c.price>lo&&c.price<=hi&&!out.includes(c.id)){out.push(c.id);k++}}});return out.sort((a,b)=>BY[b].price-BY[a].price)}
+function dzStars(v,lo,hi){const n=Math.max(1,Math.min(5,Math.round(1+(v-lo)/(hi-lo)*4)));return `<span class="cd-st" aria-label="${n} of 5">${"●".repeat(n)}<i>${"●".repeat(5-n)}</i></span>`}
+function dzShowroomHtml(B,market,pick,title){return `<div class="cd-shop"><div class="bb-bud"><div><span class="eyebrow">${title||"Your budget"}</span><b class="num">${money(B)}</b></div><div><span class="eyebrow">Showroom</span><b class="num">${market.length} cars</b></div></div>
+  <div class="cd-cars">${market.map(id=>{const c=BY[id],g=gripOf(c);return `<button type="button" class="cd-carbtn ${pick===id?"on":""}" data-cdcar="${id}">${ph(c)}<span class="cd-cb"><b>${esc(c.make)} ${esc(c.model)}</b><small>${c.bhp} bhp · ${acc(c.acc)} · ${c.top} mph</small><span class="cd-rt"><span>Grip ${dzStars(g.mu+g.aero*.4,.8,1.45)}</span><span>Brakes ${dzStars(g.brake*g.mu,.7,1.25)}</span></span></span><em class="num">${money(c.price)}</em></button>`}).join("")}</div></div>`}
+function dzAiPick(B,market,track,skillHard){const cur=CR.track;setTrack(track);const L=market.map(id=>[id,raceSim(BY[id]).s.T]).sort((a,b)=>a[1]-b[1]);setTrack(cur);return L[skillHard?0:Math.min(L.length-1,Math.floor(Math.random()*3)+1)][0]}
 
 /* ---------- local page (#duel) ---------- */
-const CDL={};
+const DZL={};
 function duelPage(){return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#play">Play</a> / Circuit duel</div><h1>Circuit duel</h1><p>Pick a real circuit, buy one car on a budget and drive it yourself, seen from above. Brake before corners, carry speed through them, and overtake. Too fast and you'll spin or crash.</p></div></div><div id="game" class="game"></div></div>`}
-function duelMenu(){Object.assign(CDL,{step:"setup",track:CDL.track||"monaco",laps:CDL.laps||1,lv:store.get("ti-cd-level","normal")});const rec=store.get("ti-cd-rec",{});
+function duelMenu(){Object.assign(DZL,{step:"setup",track:DZL.track||"monaco",laps:DZL.laps||1,lv:store.get("ti-cd-level","normal")});const rec=store.get("ti-cd-rec",{});
   $("#game").innerHTML=`<div class="modes bb-modes"><button class="mode on" type="button" disabled><b>vs Computer</b><span>Race the computer on the circuit you choose.</span></button><a class="mode" href="#online"><b>Online with a friend</b><span>Create a room and choose Circuit duel.</span></a></div>
-  <h2 class="cd-h">Circuit</h2><div class="cd-tracks">${CDT.map(k=>{const T=TRKS[k];return `<button type="button" class="cd-trk ${CDL.track===k?"on":""}" data-cdtrk="${k}"><svg viewBox="${T.vb.join(" ")}" aria-hidden="true"><path d="${T.d}" fill="none" stroke="currentColor" stroke-width="10" stroke-linejoin="round"/></svg><b>${esc(TRACKS[k].short)}</b><small>${(T.len/1000).toFixed(1)} km${rec[k]?` · best ${cdFmt(rec[k])}`:""}</small></button>`}).join("")}</div>
-  <div class="cd-row"><div><h2 class="cd-h">Laps</h2><div class="seg" role="group">${[1,2,3].map(n=>`<button type="button" data-cdlaps="${n}" aria-pressed="${CDL.laps===n}">${n} lap${n>1?"s":""}</button>`).join("")}</div></div>
-  <div><h2 class="cd-h">Computer</h2><div class="seg" role="group">${[["normal","Normal"],["hard","Hard"]].map(([k,n])=>`<button type="button" data-cdlv="${k}" aria-pressed="${CDL.lv===k}">${n}</button>`).join("")}</div></div></div>
-  <div class="actions"><button class="btn big primary" type="button" id="cdNext">Get your budget →</button></div>
+  <h2 class="cd-h">Circuit</h2><div class="cd-tracks">${DZT.map(k=>{const T=TRKS[k];return `<button type="button" class="cd-trk ${DZL.track===k?"on":""}" data-cdtrk="${k}"><svg viewBox="${T.vb.join(" ")}" aria-hidden="true"><path d="${T.d}" fill="none" stroke="currentColor" stroke-width="10" stroke-linejoin="round"/></svg><b>${esc(TRACKS[k].short)}</b><small>${(T.len/1000).toFixed(1)} km${rec[k]?` · best ${dzFmt(rec[k])}`:""}</small></button>`}).join("")}</div>
+  <div class="cd-row"><div><h2 class="cd-h">Laps</h2><div class="seg" role="group">${[1,2,3].map(n=>`<button type="button" data-cdlaps="${n}" aria-pressed="${DZL.laps===n}">${n} lap${n>1?"s":""}</button>`).join("")}</div></div>
+  <div><h2 class="cd-h">Computer</h2><div class="seg" role="group">${[["normal","Normal"],["hard","Hard"]].map(([k,n])=>`<button type="button" data-cdlv="${k}" aria-pressed="${DZL.lv===k}">${n}</button>`).join("")}</div></div></div>
+  <div class="actions"><button class="btn big primary" type="button" id="dzNext">Get your budget →</button></div>
   <div class="bb-how"><div><b>⟲</b><span>Drag the wheel to steer, or ← →</span></div><div><b>▲</b><span>GAS pedal, or ↑</span></div><div><b>▼</b><span>BRAKE pedal, or ↓</span></div><div><b>!</b><span>Grass is slow. Walls at speed = crash.</span></div></div>`}
-function duelShop(){const B=CDBUD[Math.floor(Math.random()*CDBUD.length)];Object.assign(CDL,{step:"shop",B,market:cdMarket(B),pick:null});duelShopDraw()}
-function duelShopDraw(){$("#game").innerHTML=`<p class="bb-opp">${esc(TRACKS[CDL.track].name)} · ${CDL.laps} lap${CDL.laps>1?"s":""} · The computer gets the same budget and showroom.</p>${cdShowroomHtml(CDL.B,CDL.market,CDL.pick)}<div class="actions cd-go"><button class="btn big primary" type="button" id="cdRace" ${CDL.pick?"":"disabled"}>${CDL.pick?"Race in the "+esc(BY[CDL.pick].model)+" →":"Pick a car"}</button><button class="btn" type="button" id="cdBack">Back</button></div>`}
-function duelRace(){const hard=CDL.lv==="hard";const aiId=cdAiPick(CDL.B,CDL.market.filter(id=>id!==CDL.pick),CDL.track,hard);
-  cdRaceStart({track:CDL.track,laps:CDL.laps,mine:{car:BY[CDL.pick],name:"You"},rival:{car:BY[aiId],name:"Computer",skill:hard?.95:.84},onEnd:r=>duelResult(r)})}
+function duelShop(){const B=DZBUD[Math.floor(Math.random()*DZBUD.length)];Object.assign(DZL,{step:"shop",B,market:dzMarket(B),pick:null});duelShopDraw()}
+function duelShopDraw(){$("#game").innerHTML=`<p class="bb-opp">${esc(TRACKS[DZL.track].name)} · ${DZL.laps} lap${DZL.laps>1?"s":""} · The computer gets the same budget and showroom.</p>${dzShowroomHtml(DZL.B,DZL.market,DZL.pick)}<div class="actions cd-go"><button class="btn big primary" type="button" id="dzRace" ${DZL.pick?"":"disabled"}>${DZL.pick?"Race in the "+esc(BY[DZL.pick].model)+" →":"Pick a car"}</button><button class="btn" type="button" id="dzBack">Back</button></div>`}
+function duelRace(){const hard=DZL.lv==="hard";const aiId=dzAiPick(DZL.B,DZL.market.filter(id=>id!==DZL.pick),DZL.track,hard);
+  dzRaceStart({track:DZL.track,laps:DZL.laps,mine:{car:BY[DZL.pick],name:"You"},rival:{car:BY[aiId],name:"Computer",skill:hard?.95:.84},onEnd:r=>duelResult(r)})}
 function duelResult(r){const g=$("#game");if(!g)return;const me=r.me,ai=r.rival;const win=!r.quit&&me.fin!=null&&(ai.fin==null||me.fin<ai.fin);
-  if(me.best!=null){const rec=store.get("ti-cd-rec",{});if(!rec[CDL.track]||me.best<rec[CDL.track]){rec[CDL.track]=me.best;store.set("ti-cd-rec",rec)}}if(!r.quit)bump("cd");
-  g.innerHTML=`<div class="result"><div class="eyebrow">${esc(TRACKS[CDL.track].name)} · ${CDL.laps} lap${CDL.laps>1?"s":""}</div><div class="big">${r.quit?"Retired":win?"You win!":"Computer wins"}</div>
-   <table class="bb-table"><thead><tr><th></th><th>You</th><th>Computer</th></tr></thead><tbody><tr><td>Car</td><td>${esc(me.c.make)} ${esc(me.c.model)}</td><td>${esc(ai.c.make)} ${esc(ai.c.model)}</td></tr><tr><td>Time</td><td class="${win?"w":""}">${me.fin!=null?cdFmt(me.fin):"DNF"}</td><td class="${!win&&ai.fin!=null?"w":""}">${ai.fin!=null?cdFmt(ai.fin):"—"}</td></tr><tr><td>Best lap</td><td>${cdFmt(me.best)}</td><td>${cdFmt(ai.best)}</td></tr><tr><td>Crashes</td><td>${me.crashes||0}</td><td>${ai.crashes||0}</td></tr></tbody></table>
-   <div class="actions" style="justify-content:center"><button class="btn primary" type="button" id="cdAgain">Race again</button><button class="btn" type="button" id="cdNewCar">New budget</button><button class="btn" type="button" id="cdMenu">Change circuit</button></div></div>`}
-document.addEventListener("click",e=>{if(route().name!=="duel")return;const t=e.target.closest("[data-cdtrk],[data-cdlaps],[data-cdlv],#cdNext,[data-cdcar],#cdRace,#cdBack,#cdAgain,#cdNewCar,#cdMenu");if(!t)return;const d=t.dataset;
-  if(d.cdtrk){CDL.track=d.cdtrk;return duelMenu()}if(d.cdlaps){CDL.laps=+d.cdlaps;return duelMenu()}if(d.cdlv){store.set("ti-cd-level",d.cdlv);return duelMenu()}
-  if(t.id==="cdNext")return duelShop();if(d.cdcar){CDL.pick=d.cdcar;return duelShopDraw()}if(t.id==="cdBack"||t.id==="cdMenu")return duelMenu();
-  if(t.id==="cdRace"&&CDL.pick)return duelRace();if(t.id==="cdAgain")return duelRace();if(t.id==="cdNewCar")return duelShop()});
+  if(me.best!=null){const rec=store.get("ti-cd-rec",{});if(!rec[DZL.track]||me.best<rec[DZL.track]){rec[DZL.track]=me.best;store.set("ti-cd-rec",rec)}}if(!r.quit)bump("cd");
+  g.innerHTML=`<div class="result"><div class="eyebrow">${esc(TRACKS[DZL.track].name)} · ${DZL.laps} lap${DZL.laps>1?"s":""}</div><div class="big">${r.quit?"Retired":win?"You win!":"Computer wins"}</div>
+   <table class="bb-table"><thead><tr><th></th><th>You</th><th>Computer</th></tr></thead><tbody><tr><td>Car</td><td>${esc(me.c.make)} ${esc(me.c.model)}</td><td>${esc(ai.c.make)} ${esc(ai.c.model)}</td></tr><tr><td>Time</td><td class="${win?"w":""}">${me.fin!=null?dzFmt(me.fin):"DNF"}</td><td class="${!win&&ai.fin!=null?"w":""}">${ai.fin!=null?dzFmt(ai.fin):"—"}</td></tr><tr><td>Best lap</td><td>${dzFmt(me.best)}</td><td>${dzFmt(ai.best)}</td></tr><tr><td>Crashes</td><td>${me.crashes||0}</td><td>${ai.crashes||0}</td></tr></tbody></table>
+   <div class="actions" style="justify-content:center"><button class="btn primary" type="button" id="dzAgain">Race again</button><button class="btn" type="button" id="dzNewCar">New budget</button><button class="btn" type="button" id="dzMenu">Change circuit</button></div></div>`}
+document.addEventListener("click",e=>{if(route().name!=="duel")return;const t=e.target.closest("[data-cdtrk],[data-cdlaps],[data-cdlv],#dzNext,[data-cdcar],#dzRace,#dzBack,#dzAgain,#dzNewCar,#dzMenu");if(!t)return;const d=t.dataset;
+  if(d.cdtrk){DZL.track=d.cdtrk;return duelMenu()}if(d.cdlaps){DZL.laps=+d.cdlaps;return duelMenu()}if(d.cdlv){store.set("ti-cd-level",d.cdlv);return duelMenu()}
+  if(t.id==="dzNext")return duelShop();if(d.cdcar){DZL.pick=d.cdcar;return duelShopDraw()}if(t.id==="dzBack"||t.id==="dzMenu")return duelMenu();
+  if(t.id==="dzRace"&&DZL.pick)return duelRace();if(t.id==="dzAgain")return duelRace();if(t.id==="dzNewCar")return duelShop()});
 
 /* ---------- online ---------- */
 GAMES.cd=["Circuit duel","Buy a car on a budget, then drive a real circuit yourself."];
-function cdHostStart(){const S=NET.S,o=S.opts,B=CDBUD[Math.floor(Math.random()*CDBUD.length)];const trk=CDT.includes(o.track)?o.track:"monaco";
-  S.cd={run:Date.now(),B,market:cdMarket(B),track:trk,laps:o.laps||1,cars:{a:null,b:null},phase:"pick",fin:{a:null,b:null},best:{a:null,b:null},firstFin:null};S.phase="cd";pushState()}
-function cdHostAct(from,d){const S=NET.S,C=S.cd;if(!C)return;
+function dzHostStart(){const S=NET.S,o=S.opts,B=DZBUD[Math.floor(Math.random()*DZBUD.length)];const trk=DZT.includes(o.track)?o.track:"monaco";
+  S.cd={run:Date.now(),B,market:dzMarket(B),track:trk,laps:o.laps||1,cars:{a:null,b:null},phase:"pick",fin:{a:null,b:null},best:{a:null,b:null},firstFin:null};S.phase="cd";pushState()}
+function dzHostAct(from,d){const S=NET.S,C=S.cd;if(!C)return;
   if(d.k==="cdcar"&&C.phase==="pick"&&C.market.includes(d.id)){C.cars[from]=d.id;if(C.cars.a&&C.cars.b){C.phase="race";C.go=Date.now()}return pushState()}
-  if(d.k==="cdfin"&&C.phase==="race"&&C.fin[from]==null){C.fin[from]=+d.t;C.best[from]=d.best;if(C.firstFin==null){C.firstFin=Date.now();setTimeout(()=>cdHostClose(C.run),45000)}if(C.fin.a!=null&&C.fin.b!=null)cdHostClose(C.run);else pushState();return}
-  if(d.k==="cdquit"&&C.phase==="race"){C.fin[from]=C.fin[from]??-1;if(C.fin.a!=null&&C.fin.b!=null)cdHostClose(C.run);else pushState()}}
-function cdHostClose(run){const S=NET.S,C=S.cd;if(!C||C.run!==run||C.phase!=="race")return;C.phase="done";const t=s=>C.fin[s]==null||C.fin[s]<0?1e9:C.fin[s];if(t("a")!==t("b"))S.score[t("a")<t("b")?"a":"b"]++;pushState()}
-function cdRoomHtml(){const S=NET.S,C=S.cd,me=NET.seat,op=other(me);
-  if(C.phase==="pick")return `<p class="bb-opp">${esc(TRACKS[C.track].name)} · ${C.laps} lap${C.laps>1?"s":""} · ${pName(op)}: ${C.cars[op]?"<b>ready ✓</b>":"choosing a car…"}</p>`+(C.cars[me]?`<div class="bb-intro"><span class="eyebrow">You picked</span><div class="bb-big" style="font-size:clamp(26px,5vw,40px)">${esc(BY[C.cars[me]].make)} ${esc(BY[C.cars[me]].model)}</div><p>Waiting for ${pName(op)} to pick…</p></div>`:cdShowroomHtml(C.B,C.market,null,"Budget for one car"));
-  if(C.phase==="race")return `<div class="bb-intro"><span class="eyebrow">Race on</span><div class="bb-big" style="font-size:clamp(26px,5vw,40px)">${esc(TRACKS[C.track].name)}</div><p>${C.fin[me]!=null?`You finished in ${C.fin[me]<0?"—":cdFmt(C.fin[me])}. Waiting for ${pName(op)}…`:"Your race is running."}</p>${C.fin[me]==null&&!CD2.S?`<button class="btn big primary" type="button" id="cdRejoin">Back to the race</button>`:""}</div>`;
+  if(d.k==="cdfin"&&C.phase==="race"&&C.fin[from]==null){C.fin[from]=+d.t;C.best[from]=d.best;if(C.firstFin==null){C.firstFin=Date.now();setTimeout(()=>dzHostClose(C.run),45000)}if(C.fin.a!=null&&C.fin.b!=null)dzHostClose(C.run);else pushState();return}
+  if(d.k==="cdquit"&&C.phase==="race"){C.fin[from]=C.fin[from]??-1;if(C.fin.a!=null&&C.fin.b!=null)dzHostClose(C.run);else pushState()}}
+function dzHostClose(run){const S=NET.S,C=S.cd;if(!C||C.run!==run||C.phase!=="race")return;C.phase="done";const t=s=>C.fin[s]==null||C.fin[s]<0?1e9:C.fin[s];if(t("a")!==t("b"))S.score[t("a")<t("b")?"a":"b"]++;pushState()}
+function dzRoomHtml(){const S=NET.S,C=S.cd,me=NET.seat,op=other(me);
+  if(C.phase==="pick")return `<p class="bb-opp">${esc(TRACKS[C.track].name)} · ${C.laps} lap${C.laps>1?"s":""} · ${pName(op)}: ${C.cars[op]?"<b>ready ✓</b>":"choosing a car…"}</p>`+(C.cars[me]?`<div class="bb-intro"><span class="eyebrow">You picked</span><div class="bb-big" style="font-size:clamp(26px,5vw,40px)">${esc(BY[C.cars[me]].make)} ${esc(BY[C.cars[me]].model)}</div><p>Waiting for ${pName(op)} to pick…</p></div>`:dzShowroomHtml(C.B,C.market,null,"Budget for one car"));
+  if(C.phase==="race")return `<div class="bb-intro"><span class="eyebrow">Race on</span><div class="bb-big" style="font-size:clamp(26px,5vw,40px)">${esc(TRACKS[C.track].name)}</div><p>${C.fin[me]!=null?`You finished in ${C.fin[me]<0?"—":dzFmt(C.fin[me])}. Waiting for ${pName(op)}…`:"Your race is running."}</p>${C.fin[me]==null&&!DZ2.S?`<button class="btn big primary" type="button" id="dzRejoin">Back to the race</button>`:""}</div>`;
   const t=s=>C.fin[s]==null||C.fin[s]<0?null:C.fin[s];const w=t("a")==null&&t("b")==null?null:(t("b")==null||t("a")!=null&&t("a")<t("b"))?"a":"b";
-  return `<div class="result"><div class="eyebrow">Circuit duel · ${esc(TRACKS[C.track].name)}</div><div class="big">${w?(w===me?"You win!":pName(w)+" wins"):"No finishers"}</div><table class="bb-table"><thead><tr><th></th><th>${pName("a")}</th><th>${pName("b")}</th></tr></thead><tbody><tr><td>Car</td><td>${esc(BY[C.cars.a].model)}</td><td>${esc(BY[C.cars.b].model)}</td></tr><tr><td>Time</td><td class="${w==="a"?"w":""}">${t("a")!=null?cdFmt(t("a")):"DNF"}</td><td class="${w==="b"?"w":""}">${t("b")!=null?cdFmt(t("b")):"DNF"}</td></tr><tr><td>Best lap</td><td>${cdFmt(C.best.a)}</td><td>${cdFmt(C.best.b)}</td></tr></tbody></table>
+  return `<div class="result"><div class="eyebrow">Circuit duel · ${esc(TRACKS[C.track].name)}</div><div class="big">${w?(w===me?"You win!":pName(w)+" wins"):"No finishers"}</div><table class="bb-table"><thead><tr><th></th><th>${pName("a")}</th><th>${pName("b")}</th></tr></thead><tbody><tr><td>Car</td><td>${esc(BY[C.cars.a].model)}</td><td>${esc(BY[C.cars.b].model)}</td></tr><tr><td>Time</td><td class="${w==="a"?"w":""}">${t("a")!=null?dzFmt(t("a")):"DNF"}</td><td class="${w==="b"?"w":""}">${t("b")!=null?dzFmt(t("b")):"DNF"}</td></tr><tr><td>Best lap</td><td>${dzFmt(C.best.a)}</td><td>${dzFmt(C.best.b)}</td></tr></tbody></table>
    ${me==="a"?`<div class="actions" style="justify-content:center"><button class="btn primary" type="button" id="rStart">Rematch · new budget</button><button class="btn" type="button" id="rLobby">Back to lobby</button></div>`:`<p class="note">Waiting for the host…</p>`}</div>`}
-function cdOnlineGo(){const S=NET.S,C=S.cd,me=NET.seat,op=other(me);if(CD2.S||NET.cdRun===C.run)return;NET.cdRun=C.run;
-  cdRaceStart({track:C.track,laps:C.laps,online:true,mySeat:me,mine:{car:BY[C.cars[me]],name:pName(me)},rival:{car:BY[C.cars[op]],name:pName(op)},onEnd:r=>{if(r.quit&&r.me.fin==null)act({k:"cdquit"});roomDraw()}})}
+function dzOnlineGo(){const S=NET.S,C=S.cd,me=NET.seat,op=other(me);if(DZ2.S||NET.dzRun===C.run)return;NET.dzRun=C.run;
+  dzRaceStart({track:C.track,laps:C.laps,online:true,mySeat:me,mine:{car:BY[C.cars[me]],name:pName(me)},rival:{car:BY[C.cars[op]],name:pName(op)},onEnd:r=>{if(r.quit&&r.me.fin==null)act({k:"cdquit"});roomDraw()}})}
 document.addEventListener("click",e=>{const b=e.target.closest("[data-cdcar]");if(b&&route().name==="room"&&NET.S&&NET.S.phase==="cd"){act({k:"cdcar",id:b.dataset.cdcar});return}
-  if(e.target.closest("#cdRejoin")){NET.cdRun=null;cdOnlineGo()}});
+  if(e.target.closest("#dzRejoin")){NET.dzRun=null;dzOnlineGo()}});
 /* hook the room */
-const _hs20=hostStart;hostStart=function(){const S=NET.S;if(S.game==="cd"){if(!bothOnline())return toast("Waiting for your opponent to join.");return cdHostStart()}return _hs20()};
-const _hg20=hostGuest;hostGuest=function(from,d){if(NET.S.phase==="cd")return cdHostAct(from,d);return _hg20(from,d)};
-const _rd20=roomDraw;roomDraw=function(light){const S=NET.S;if(S&&S.phase==="cd"&&route().name==="room"&&!light){const el=$("#roomv");if(!el)return;el.innerHTML=roomHeader()+`<div class="rbody">${cdRoomHtml()}</div>`;if(S.cd.phase==="race")cdOnlineGo();return}return _rd20(light)};
-const _ra20=roomApply;roomApply=function(){const S=NET.S;if(route().name==="room"&&S&&S.phase==="cd"){if(CD2.S&&S.cd.phase==="race"){if(S.cd.fin[other(NET.seat)]!=null&&CD2.S.rival&&CD2.S.rival.fin==null){CD2.S.rival.fin=S.cd.fin[other(NET.seat)]}return}
-  if(CD2.S&&S.cd.phase==="done"){cdEnd(false)}return roomDraw()}_ra20()};
+const _hs20=hostStart;hostStart=function(){const S=NET.S;if(S.game==="cd"){if(!bothOnline())return toast("Waiting for your opponent to join.");return dzHostStart()}return _hs20()};
+const _hg20=hostGuest;hostGuest=function(from,d){if(NET.S.phase==="cd")return dzHostAct(from,d);return _hg20(from,d)};
+const _rd20=roomDraw;roomDraw=function(light){const S=NET.S;if(S&&S.phase==="cd"&&route().name==="room"&&!light){const el=$("#roomv");if(!el)return;el.innerHTML=roomHeader()+`<div class="rbody">${dzRoomHtml()}</div>`;if(S.cd.phase==="race")dzOnlineGo();return}return _rd20(light)};
+const _ra20=roomApply;roomApply=function(){const S=NET.S;if(route().name==="room"&&S&&S.phase==="cd"){if(DZ2.S&&S.cd.phase==="race"){if(S.cd.fin[other(NET.seat)]!=null&&DZ2.S.rival&&DZ2.S.rival.fin==null){DZ2.S.rival.fin=S.cd.fin[other(NET.seat)]}return}
+  if(DZ2.S&&S.cd.phase==="done"){dzEnd(false)}return roomDraw()}_ra20()};
 
 /* ---------- routing, menus ---------- */
 const _r20=route;route=function(){if(location.hash==="#duel")return{name:"duel"};return _r20()};
 PAGES.duel=duelPage;GT.duel="Circuit duel";PLAYR.push("duel");PAL_PAGES.push(["Circuit duel","#duel"]);
-const _ar20=afterRender;afterRender=function(r){if(CD2.S&&r.name!=="room")cdEnd(true);_ar20(r);if(r.name==="duel"){duelMenu();document.querySelectorAll('#links a[data-r="play"],.tabbar a[data-r="play"]').forEach(a=>a.setAttribute("aria-current","page"))}};
+const _ar20=afterRender;afterRender=function(r){if(DZ2.S&&r.name!=="room")dzEnd(true);_ar20(r);if(r.name==="duel"){duelMenu();document.querySelectorAll('#links a[data-r="play"],.tabbar a[data-r="play"]').forEach(a=>a.setAttribute("aria-current","page"))}};
 HUB[1][2].splice(2,0,["duel","Circuit duel","Drive a real circuit yourself","flag"]);
 if(typeof ACH!=="undefined")ACH.push(["cd","Wheel to wheel","Finish a Circuit duel",()=>ST.cd>=1]);
 const _pp20=playPage;playPage=function(){return _pp20().replace('<a class="bgpromo"',`<a class="bgpromo" href="#duel"><span class="ti">${ic2("flag",26)}</span><div><b>Circuit duel</b><p>Buy one car on a budget, pick a real circuit and drive it yourself with a wheel and pedals. Race the computer or a friend online.</p></div><span class="go2">Drive →</span></a><a class="bgpromo"`)};
 
-function cdLobbyOpts(o,seg){return `${seg("track",CDT.map(k=>[k,TRACKS[k].short]),CDT.includes(o.track)?o.track:"monaco")}${seg("laps",[[1,"1 lap"],[2,"2 laps"],[3,"3 laps"]],o.laps)}<p class="note">A random budget and showroom each race. You each drive on your own device.</p>`}
+function dzLobbyOpts(o,seg){return `${seg("track",DZT.map(k=>[k,TRACKS[k].short]),DZT.includes(o.track)?o.track:"monaco")}${seg("laps",[[1,"1 lap"],[2,"2 laps"],[3,"3 laps"]],o.laps)}<p class="note">A random budget and showroom each race. You each drive on your own device.</p>`}
 
 render();syncCmp();
 </script>
