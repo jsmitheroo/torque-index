@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610012200";
+const BUILD="202610020900";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -6074,7 +6074,7 @@ const insaneOn=o=>!o.online&&o.mode!=="tt"&&o.mode!=="quali"&&["insane","impossi
 const _rs41i=dzRaceStart;dzRaceStart=function(o){const ins=insaneOn(o);if(ins){const n=o.rivals.length;o.slots={me:n,rivals:[...Array(n).keys()]}}_rs41i(o);const S=DZ2.S;if(!S)return;S.insane=ins;if(!ins)return;
   const imp=lvNow(o)==="impossible",B=imp?{mu:1.42,v:1.24,tau:.58,trac:1.6,brk:1.35,aero:.28}:{mu:1.2,v:1.1,tau:.78,trac:1.25,brk:1.15,aero:.1};S.impossible=imp;
   /* rivals are always at least a step above YOUR car (including its upgrades), so no car — not even the Spéirling — makes it easy */
-  const me=S.me,P=me.M,R=imp?{mu:1.25,v:1.15,tau:.7,trac:1.35,brk:1.25,aero:.15}:{mu:1.1,v:1.06,tau:.85,trac:1.15,brk:1.1,aero:.05};
+  const me=S.me,P=me.M,R=imp?{mu:1.95,v:1.3,tau:.5,trac:2.2,brk:1.7,aero:.4}:{mu:1.5,v:1.15,tau:.65,trac:1.6,brk:1.4,aero:.2};
   S.AI.forEach(c=>{const M=c.M;c.mu0=Math.max(c.mu0*B.mu,me.mu0*R.mu);M.mu=c.mu0;M.vmax=Math.max(M.vmax*B.v,P.vmax*R.v);M.tau=Math.min(M.tau*B.tau,P.tau*R.tau);M.trac=Math.max(M.trac*B.trac,P.trac*R.trac);
     M.brake=Math.max(M.brake*B.brk,P.brake*R.brk);M.aero=Math.max(M.aero+B.aero,P.aero+R.aero);c.skill=1;dzAiPlan(c,S.G,1);if(c.vmax0!=null)c.vmax0=M.vmax});
   setTimeout(()=>{if(DZ2.S===S)dzMsg(imp?"IMPOSSIBLE — good luck":"INSANE — you start last",2,"bad")},300)};
