@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610061600";
+const BUILD="202610071000";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -6972,6 +6972,53 @@ document.head.insertAdjacentHTML("beforeend",`<style id="v48css">
 .gh-pick{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:4px 0 12px}.gh-pick .note{flex-basis:100%;margin:0}
 .rx-pit{top:auto;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%)}
 </style>`);
+
+/* ================= v49: steering sensitivity for every control, and a much simpler menu: Home · Browse · Play · Cars · Social ================= */
+/* ---------- steering sensitivity (keys, buttons, wheel, tilt and controller) ---------- */
+const steerSens=()=>{const c=store.get("ti-ctrl",null)||{};return Math.max(.4,Math.min(2.2,c.sens??c.steer??1))};
+const _ci49=ctrlInput;ctrlInput=function(dt,prev){const k=steerSens();const w=DZIN&&DZIN.wheel;if(w!=null)DZIN.wheel=Math.max(-1,Math.min(1,w*k));CTRL.steer=k;const r=_ci49(dt,prev);if(w!=null)DZIN.wheel=w;
+  const p=padRead();if(p&&Math.abs(p.steer)>.01&&!(DZIN&&DZIN.wheel!=null))r.steer=Math.max(-1,Math.min(1,p.steer*k));return r};
+function sensUI(id){const k=steerSens();return `<label class="ct-sl sens"><span>Steering sensitivity</span><input type="range" id="${id}" min="0.4" max="2.2" step="0.05" value="${k}"><b>${k<.85?"Gentle":k>1.25?"Sharp":"Normal"} · ${k.toFixed(2)}×</b></label>`}
+document.addEventListener("input",e=>{if(!["sensR","sensC"].includes(e.target.id))return;const v=+e.target.value;raceOptSet("sens",v);raceOptSet("steer",v);const b=e.target.nextElementSibling;if(b)b.textContent=`${v<.85?"Gentle":v>1.25?"Sharp":"Normal"} · ${v.toFixed(2)}×`});
+const _rs49=dzRaceStart;dzRaceStart=function(o){_rs49(o);const p=$("#rxPanel");if(p&&!p.querySelector("#sensR"))p.querySelector("b:nth-of-type(2)")?.insertAdjacentHTML("beforebegin",sensUI("sensR"))};
+const _cpg49=controlsPage;controlsPage=function(){return _cpg49().replace(/<label class="ct-sl">Keyboard steering speed[\s\S]*?<\/label>/,sensUI("sensC")).replace("Lower is smoother, higher is snappier. Touch screens use the on-screen wheel.","Works for every way of steering — keys, on-screen buttons, the wheel, tilt and controllers. Lower is calmer, higher reacts faster. You can also change it mid-race from the ⚙︎ button.").replace('<h2>🕹️ Steering</h2>','<h2>🕹️ Steering</h2>')};
+
+/* ---------- navigation: five sections instead of eight ---------- */
+const NAVG={browse:["browse","explore","makes","make","car","compare","years","insights","lab","news","collections","collection","cotw","today","finder","credits","offline","show3d","tag","body","country","era"],
+  play:["play","racing","race","circuit","duel","tournament","tune","bbattle","daily","cardle","headlights","trumps","trumps2","match","quiz","hol","gp","champ","event","city","controls","roulette","dailyrace","pal","online","room"],
+  cars:["cars","garage","showroom","auctions","trades","tradenew","custom","pass","calendar","sets","vip"],
+  social:["social","friends","profile","profile2","leaderboards","clubs","club","account","admin","notifs"]};
+const navGroup=n=>Object.keys(NAVG).find(g=>NAVG[g].includes(n))||null;
+navMark=function(r){const g=navGroup(r.name);document.querySelectorAll("#links a, .tabbar a").forEach(a=>a.setAttribute("aria-current",g&&a.dataset.r===g?"page":"false"))};
+(function nav49(){const l=$("#links");if(l){l.querySelectorAll('[data-r="racing"],[data-r="explore"],[data-r="news"]').forEach(a=>a.remove())}
+  const t=document.querySelector(".tabbar");if(t){t.querySelectorAll('[data-r="racing"],[data-r="explore"]').forEach(a=>a.remove());const pl=t.querySelector('[data-r="play"]'),br=t.querySelector('[data-r="browse"]');if(pl&&br&&pl.compareDocumentPosition(br)&Node.DOCUMENT_POSITION_FOLLOWING)br.after(pl)}})();
+/* the old Explore and Racing hubs now live inside Browse and Play */
+const _r49=route;route=function(){const h=location.hash;if(h==="#explore"){history.replaceState(null,"","#browse")}else if(h==="#racing"){history.replaceState(null,"","#play")}return _r49()};
+const tileRow=(items)=>`<div class="nv-g">${items.map(([h,i,t,s])=>`<a class="nv-t" href="#${h}"><span>${i}</span><b>${t}</b><small>${s}</small></a>`).join("")}</div>`;
+function browseExtras(){if(document.querySelector("#view .nv-g"))return;const t=document.querySelector("#view h1");if(!t)return;const h=t.closest(".phead")||t.parentElement;
+  h.insertAdjacentHTML("afterend",`<section class="nv-sec"><div class="nv-h"><b>Explore</b><small>Everything for research, in one place</small></div>${tileRow([["makes","🏭","Makers","All 141 brands"],["compare","⚖️","Compare","Up to three side by side"],["collections","🗂️","Collections","Hand-picked lists"],["years","🕰️","Time machine","Cars by year"],["insights","📈","Rankings","Fastest, cheapest, best"],["lab","🧪","Data lab","Charts from the data"],["news","📰","Car news","Headlines + alerts"],["today","📅","Car of the day","Plus car of the week"]])}</section>`)}
+function playExtras(){if(document.querySelector("#view .nv-g"))return;const d=document.querySelector("#view .dailyb:not(.dr-play)")||document.querySelector("#view .dailyb");if(!d)return;const dr=document.querySelector("#view .dr-play");if(dr&&dr!==d)d.before(dr);const h={insertAdjacentHTML:(p,html)=>d.insertAdjacentHTML("afterend",html)};
+  h.insertAdjacentHTML("afterend",`<section class="nv-sec"><div class="nv-h"><b>Racing</b><small>Every way to race, in one place</small></div>${tileRow([["duel","🏁","Circuit duel","Race, time trial, drift, championship"],["online","🌐","Online races","Up to 8 players, ranked"],["city","🏙️","Torque City","Free-roam online city"],["event","🏆","Weekly event","This week's challenge"],["race","🚦","Drag strip","Reaction starts, ¼ mile"],["circuit","🏎️","Grand Prix","Full-grid simulated race"],["tournament","🥇","Tournament","Knockout bracket"],["tune","🔧","Tuning shop","Tweak and test"]])}
+   <div class="nv-h" style="margin-top:18px"><b>Games</b><small>Quick games built from the index</small></div>${tileRow([["daily","📆","Daily 5","Five cars, same for everyone"],["cardle","🔎","Car-dle","Guess the mystery car"],["quiz","❓","Guess the car","From the photo"],["headlights","💡","Headlights","Name it from the front"],["trumps","🃏","Top Trumps","Solo or two players"],["bbattle","💷","Budget battle","Best car for the money"],["match","🪞","Which car are you?","Quick personality quiz"],["controls","🎮","Controls","Keys, controller, sensitivity"]])}</section>`)}
+const _ar49=afterRender;afterRender=function(r){_ar49(r);if(r.name==="browse")browseExtras();if(r.name==="play")playExtras();navMark(r)};
+/* ---------- footer: four clear columns ---------- */
+const _ft49=footer;footer=function(){const h=_ft49(),a=h.indexOf("<div><h4>"),b=h.indexOf("</div>\n",h.lastIndexOf("</ul>"));if(a<0||b<0)return h;
+  const col=(t,L)=>`<div><h4>${t}</h4><ul>${L.map(([hr,n])=>`<li><a href="#${hr}">${n}</a></li>`).join("")}</ul></div>`;
+  const cols=col("Browse",[["browse","All cars"],["makes","Makers"],["compare","Compare"],["collections","Collections"],["news","Car news"],["today","Car of the day"],["credits","Photo credits"]])+
+    col("Play",[["duel","Circuit duel"],["online","Online races"],["city","Torque City"],["event","Weekly event"],["race","Drag strip"],["daily","Daily 5"],["controls","Controls"]])+
+    col("Cars",[["garage","My garage"],["showroom","Showroom"],["auctions","Auctions"],["trades","Trades"],["pass","Season pass"],["calendar","Login calendar"],["vip","★ VIP"]])+
+    col("Social",[["friends","Friends"],["profile","Profile"],["leaderboards","Leaderboards"],["clubs","Clubs"],["offline","Use offline"]].concat(typeof ownerOn==="function"&&ownerOn()?[["admin","✦ Admin panel"]]:[]));
+  return h.slice(0,a)+cols+h.slice(b)};
+document.head.insertAdjacentHTML("beforeend",`<style id="v49css">
+.tabbar{grid-template-columns:repeat(5,1fr)!important}
+@media (min-width:1120px){#links a[data-r="home"]{display:revert!important}}@media (min-width:1300px){header .brand>span{display:revert!important}}
+.nv-sec{margin:6px 0 26px}.nv-h{display:flex;align-items:baseline;gap:10px;margin:0 0 10px}.nv-h b{font-size:18px}.nv-h small{color:var(--muted)}
+.nv-g{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}.nv-t{display:grid;grid-template-columns:36px minmax(0,1fr);column-gap:10px;align-items:center;padding:12px 14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;color:var(--ink);transition:border-color .2s}
+.nv-t:hover{border-color:var(--ink)}.nv-t span{grid-row:span 2;font-size:22px;width:36px;height:36px;border-radius:10px;background:var(--line-2);display:flex;align-items:center;justify-content:center}.nv-t b{font-size:14.5px}.nv-t small{color:var(--muted);font-size:12px;line-height:1.3}
+.ct-sl.sens{display:grid;grid-template-columns:auto 1fr auto;gap:10px;align-items:center}.rx-panel .ct-sl.sens{color:#fff;margin:0}.rx-panel .ct-sl.sens b{font-size:12px;opacity:.8}
+@media (max-width:860px){.nv-g{grid-template-columns:repeat(2,minmax(0,1fr))}}
+</style>`);
+PAGES.controls=controlsPage;PAGES.cars=carsPage;PAGES.social=socialPage;
 
 render();syncCmp();
 </script>
