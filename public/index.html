@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610061500";
+const BUILD="202610061600";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -6866,7 +6866,7 @@ function engProfile(c){const e=(c.engine||"")+" ",E=typeof cp38Eng==="function"?
   let red=diesel?4600:lay==="rotary"?9000:cyl>=12?8800:cyl===10?8700:lay==="flat"&&!turbo?9000:cyl===8?(turbo?7200:7800):cyl===6?7300:6900;if(c.id===VIPCAR.id)red=0;
   const gears=ev?1:c.y0<1985?4:c.y0<2000?5:c.body==="supercar"||c.y0>=2012?7:6;return {ev,cyl,lay,diesel,turbo,sc,hybrid,red,gears,idle:diesel?800:950}}
 const SND={};
-dzAudioInit=function(){if(!DZA.on)return;try{if(!DZA.ctx){DZA.ctx=new (window.AudioContext||window.webkitAudioContext)()}const A=DZA.ctx;A.resume?.();SND.A=A;if(SND.master)return;
+dzAudioInit=function(){if(!DZA.on)return;try{if(!DZA.ctx){DZA.ctx=new (window.AudioContext||window.webkitAudioContext)()}const A=DZA.ctx;A.resume?.();if(SND.A!==A){SND.master=null;SND.eng=null}SND.A=A;if(SND.master)return;
   const m=A.createGain();m.gain.value=.9;const comp=A.createDynamicsCompressor();m.connect(comp);comp.connect(A.destination);SND.master=m;
   const nb=A.createBuffer(1,A.sampleRate*2,A.sampleRate),nd=nb.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;SND.noise=nb;
   const mk=(type)=>{const o=A.createOscillator();o.type=type;o.start();return o};
@@ -6877,8 +6877,8 @@ dzAudioInit=function(){if(!DZA.on)return;try{if(!DZA.ctx){DZA.ctx=new (window.Au
   const sq=A.createBufferSource();sq.buffer=nb;sq.loop=true;const sqf=A.createBiquadFilter();sqf.type="bandpass";sqf.frequency.value=2400;sqf.Q.value=6;const sqg=A.createGain();sqg.gain.value=0;sq.connect(sqf);sqf.connect(sqg);sqg.connect(m);sq.start();
   const wind=A.createBufferSource();wind.buffer=nb;wind.loop=true;const wf=A.createBiquadFilter();wf.type="lowpass";wf.frequency.value=600;const wng=A.createGain();wng.gain.value=0;wind.connect(wf);wf.connect(wng);wng.connect(m);wind.start();
   Object.assign(SND,{eng,lp,o1,o2,o3,o4,g1,g2,g3,g4,lfo,lfoG,whine,wg,sqg,wng,gear:1,rpm:1000,shiftT:0});DZA.g=eng;DZA.ng=sqg}catch(e){}};
-function sndBurst(freq,dur,gain,q){const A=SND.A;if(!A||!SND.noise)return;const s=A.createBufferSource();s.buffer=SND.noise;const f=A.createBiquadFilter();f.type="bandpass";f.frequency.value=freq;f.Q.value=q||1.2;const g=A.createGain();const t=A.currentTime;g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);s.connect(f);f.connect(g);g.connect(SND.master);s.start(t,Math.random());s.stop(t+dur+.02)}
-dzAudio=function(S){if(!SND.eng||!DZA.on)return;const A=SND.A,t=A.currentTime,me=S.me,P=me.eng||(me.eng=engProfile(me.c)),v=Math.hypot(me.vx,me.vy),vm=me.M.vmax,run=(S.go||S.t<0)&&!S.done,thr=me.thr||0;
+function sndBurst(freq,dur,gain,q){const A=SND.A;if(!A||!SND.noise||A!==DZA.ctx||A.state==="closed")return;try{const s=A.createBufferSource();s.buffer=SND.noise;const f=A.createBiquadFilter();f.type="bandpass";f.frequency.value=freq;f.Q.value=q||1.2;const g=A.createGain();const t=A.currentTime;g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);s.connect(f);f.connect(g);g.connect(SND.master);s.start(t,Math.random());s.stop(t+dur+.02)}catch(e){}}
+dzAudio=function(S){if(SND.A&&SND.A!==DZA.ctx&&DZA.ctx)dzAudioInit();if(!SND.eng||!DZA.on||SND.A!==DZA.ctx)return;const A=SND.A,t=A.currentTime,me=S.me,P=me.eng||(me.eng=engProfile(me.c)),v=Math.hypot(me.vx,me.vy),vm=me.M.vmax,run=(S.go||S.t<0)&&!S.done,thr=me.thr||0;
   let rpm,freq;if(P.ev){rpm=v/vm;const wf=120+v*38;SND.o1.frequency.setTargetAtTime(wf,t,.03);SND.o4.frequency.setTargetAtTime(wf*2.01,t,.03);SND.g1.gain.setTargetAtTime(.06,t,.1);SND.g2.gain.setTargetAtTime(0,t,.1);SND.g3.gain.setTargetAtTime(0,t,.1);SND.g4.gain.setTargetAtTime(.25,t,.1);
     SND.lp.frequency.setTargetAtTime(1200+v*40,t,.05);SND.eng.gain.setTargetAtTime(run?.05+thr*.07:0,t,.08);SND.lfoG.gain.value=0}
   else{const G=P.gears,red=P.red||9500,idle=P.idle;const top=g=>vm*Math.pow(g/G,.78)*1.02;let g=SND.gear;
