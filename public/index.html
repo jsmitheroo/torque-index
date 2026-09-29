@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610051900";
+const BUILD="202610061000";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -6749,6 +6749,113 @@ document.head.insertAdjacentHTML("beforeend",`<style id="v46css">
 @media (hover:hover) and (pointer:fine){.ct-touch{display:none}}
 .ct-ch,.ct-hn{position:absolute;right:calc(12px + env(safe-area-inset-right,0px));width:44px;height:44px;border-radius:50%;border:0;background:rgba(10,12,14,.7);font-size:20px}.ct-ch{top:calc(172px + env(safe-area-inset-top,0px))}.ct-hn{top:calc(222px + env(safe-area-inset-top,0px))}
 @media (max-width:760px){.set-g{grid-template-columns:minmax(0,1fr)}.cal-g{grid-template-columns:repeat(4,minmax(0,1fr))}#cityMm{width:110px;height:110px}.ct-touch{grid-template-columns:58px 58px 1fr 54px 70px 70px;gap:8px}.ct-touch button{height:62px}}
+</style>`);
+
+/* ================= v47: race overhaul — button controls & tilt, driving assists for phones, better graphics, livelier physics, your own cars online ================= */
+const isTouch=()=>matchMedia("(pointer:coarse)").matches||("ontouchstart" in window&&!matchMedia("(pointer:fine)").matches);
+function raceOpt(){const c=store.get("ti-ctrl",null)||{};let sch=c.scheme||"auto";if(sch==="auto")sch=isTouch()?"buttons":"wheel";const as=c.assist||(isTouch()?"full":"off");return {sch,as,rawSch:c.scheme||"auto"}}
+function raceOptSet(k,v){const c=store.get("ti-ctrl",null)||{};c[k]=v;store.set("ti-ctrl",c);CTRL=ctrlGet()}
+/* tilt steering (iPhone / iPad): hold the phone like a wheel */
+const TILT={on:false,v:0,base:null};
+function tiltHandler(e){const land=Math.abs(window.orientation||screen.orientation?.angle||0)===90;let a=land?(e.beta||0)*((window.orientation||screen.orientation?.angle)===-90||screen.orientation?.angle===270?-1:1):(e.gamma||0);TILT.v=Math.max(-1,Math.min(1,a/24))}
+async function tiltStart(){try{if(typeof DeviceOrientationEvent!=="undefined"&&DeviceOrientationEvent.requestPermission){const r=await DeviceOrientationEvent.requestPermission();if(r!=="granted")return false}}catch(e){return false}
+  if(!TILT.on){addEventListener("deviceorientation",tiltHandler);TILT.on=true}return true}
+/* ---------- the race HUD: bigger buttons, gear-style rev bar, quick settings ---------- */
+const _rs47=dzRaceStart;dzRaceStart=function(o){document.activeElement?.blur?.();_rs47(o);const S=DZ2.S;if(!S)return;const ov=$("#dzOv");if(!ov)return;const R=raceOpt();S.as=o.online&&NET.S&&NET.S.cd&&NET.S.cd.ranked?"off":R.as;S.sch=R.sch;
+  ov.classList.add("rx","sch-"+R.sch);
+  ov.insertAdjacentHTML("beforeend",`<div class="rx-btns"><button type="button" class="rx-b" data-rx="left" aria-label="Steer left">◀</button><button type="button" class="rx-b" data-rx="right" aria-label="Steer right">▶</button></div>
+   <div class="rx-ped"><button type="button" class="rx-b hb" data-rx="hb" aria-label="Handbrake">HB</button><button type="button" class="rx-b br" data-rx="brake" aria-label="Brake">BRAKE</button><button type="button" class="rx-b gs" data-rx="gas" aria-label="Accelerator">GAS</button></div>
+   <div class="rx-rev" aria-hidden="true"><i id="rxRev"></i></div><button type="button" class="rx-set" id="rxSet" aria-label="Race settings">⚙︎</button>
+   <div class="rx-panel" id="rxPanel" hidden><b>Controls</b><div class="seg">${[["buttons","Buttons"],["wheel","Wheel"],["tilt","Tilt"]].map(([k,n])=>`<button type="button" data-rxs="${k}" aria-pressed="${R.sch===k}">${n}</button>`).join("")}</div>
+    <b>Driving assists</b><div class="seg">${[["off","Off"],["brake","Braking"],["full","Braking + steering"]].map(([k,n])=>`<button type="button" data-rxa="${k}" aria-pressed="${S.as===k}" ${o.online&&S.as==="off"&&NET.S?.cd?.ranked?"disabled":""}>${n}</button>`).join("")}</div>
+    <p>${S.as==="full"?"Just hold GAS — the car brakes and steers for corners; steer yourself any time to take over.":S.as==="brake"?"The car brakes for corners for you. You steer.":"No help — full control."}${o.online&&NET.S?.cd?.ranked?" Assists are off in ranked races.":""}</p><button type="button" class="btn" id="rxClose">Done</button></div>`);
+  const tb=e=>{const b=e.target.closest("[data-rx]");if(!b)return;const k=b.dataset.rx,on=e.type==="pointerdown";if(on){b.setPointerCapture?.(e.pointerId)}b.classList.toggle("on",on);
+    if(k==="gas")DZIN.gas=on;else if(k==="brake")DZIN.brake=on;else if(k==="hb")DZIN.hb=on;else on?TOUCH.add(k):TOUCH.delete(k);e.preventDefault()};
+  ov.querySelectorAll("[data-rx]").forEach(b=>["pointerdown","pointerup","pointercancel","lostpointercapture"].forEach(ev=>b.addEventListener(ev,tb)));
+  if(R.sch==="tilt")tiltStart().then(ok=>{if(!ok){dzMsg("Tilt not allowed — using buttons",2);ov.classList.replace("sch-tilt","sch-buttons");S.sch="buttons"}});
+  /* driving-line plan for the assists */
+  try{const keep=S.me.plan,lane=S.me.lane;dzAiPlan(S.me,S.G,.97);S.me.aplan=S.me.plan;S.me.plan=keep;S.me.lane=lane}catch(e){}
+  S.skid=[];if(S.as!=="off"&&!o.online)setTimeout(()=>{if(DZ2.S===S)dzMsg(S.as==="full"?"Assists on — just hold GAS":"Brake assist on",1.8)},1200)};
+document.addEventListener("click",e=>{const S=DZ2.S;if(!S)return;if(e.target.closest("#rxSet")){$("#rxPanel").hidden=!$("#rxPanel").hidden;return}if(e.target.closest("#rxClose")){$("#rxPanel").hidden=true;return}
+  const s=e.target.closest("[data-rxs]"),a=e.target.closest("[data-rxa]");const ov=$("#dzOv");
+  if(s){const k=s.dataset.rxs;raceOptSet("scheme",k);ov.classList.remove("sch-buttons","sch-wheel","sch-tilt");ov.classList.add("sch-"+k);S.sch=k;if(k==="tilt")tiltStart().then(ok=>{if(!ok){dzMsg("Tilt needs permission",2)}});s.parentElement.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b===s));DZIN.wheel=null}
+  if(a&&!a.disabled){S.as=a.dataset.rxa;raceOptSet("assist",S.as);a.parentElement.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b===a))}});
+/* ---------- input: tilt + assists on top of keys / pad / touch ---------- */
+const _ri47=dzReadInput;dzReadInput=function(dt){const S=DZ2.S;if(S&&S.sch==="tilt"&&TILT.on){DZIN.wheel=TILT.v}else if(S&&S.sch==="buttons")DZIN.wheel=null;
+  const r=_ri47(dt);if(!S||!S.go||S.as==="off"||!S.me.aplan)return r;const me=S.me,G=S.G,P=me.aplan,N=G.N,v=Math.hypot(me.vx,me.vy),i0=me.idx||0;
+  /* let the computer driver's brain drive a copy of your car's inputs, then keep only what the assist allows */
+  const keep={thr:me.thr,brk:me.brk,steer:me.steer,hb:me.hb,plan:me.plan,lane:me.lane,skill:me.skill};me.plan=me.aplan;me.skill=.97;me.lane=me.lane||0;
+  try{dzAi(S,me,G,null)}catch(e){}const ai={thr:me.thr,brk:me.brk,steer:me.steer};Object.assign(me,keep);
+  if(ai.brk>.05&&r.brk<ai.brk){r.brk=ai.brk;r.thr=0}else if(r.thr>0&&ai.thr<r.thr)r.thr=Math.max(ai.thr,.15);
+  const pad=padRead(),manual=CK.has("left")||CK.has("right")||(DZIN.wheel!=null&&Math.abs(DZIN.wheel)>.12)||(pad&&Math.abs(pad.steer)>.12);
+  if(S.as==="full"&&!manual){r.steer=ai.steer;DZIN.steer=0}
+  return r};
+/* ---------- physics: weight transfer, drive-type character, trail-braking and tyre scrub ---------- */
+const _st47=dzStep;dzStep=function(S,car,dt,G){const h0=car.h,v0=Math.hypot(car.vx,car.vy);_st47(S,car,dt,G);if(!S.go||car.remote||car.fin!=null||car.crash>0)return;
+  let dh=car.h-h0;while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;const drv=car.c.drive||"RWD",st=car.steer||0,thr=car.thr||0,brk=car.brk||0,v=Math.hypot(car.vx,car.vy);
+  let k=1;if(brk>.2&&Math.abs(st)>.15&&v>12)k*=1.07;/* trail-braking: weight on the nose helps it turn in */
+  if(thr>.6&&v>8){if(drv==="FWD")k*=.93;else if(drv==="AWD")k*=.97}/* power understeer on front-drive cars */
+  if(brk>.85&&v>30&&Math.abs(st)>.4)k*=.9;/* locking the fronts: less steering */
+  car.h=h0+dh*k;
+  /* rear-drive power oversteer: too much throttle out of slow corners kicks the tail out */
+  const pw=car.c.bhp/Math.max(900,(car.c.body==="suv"?2100:1450));if(drv==="RWD"&&thr>.7&&v>6&&v<32&&Math.abs(st)>.25){car.h+=Math.sign(st)*thr*Math.min(.9,pw)*.35*dt}
+  /* tyre scrub: sliding sideways costs a little speed */
+  const f=[Math.cos(car.h),Math.sin(car.h)],vT=Math.abs(-car.vx*f[1]+car.vy*f[0]);if(vT>2){const s=1-Math.min(.012,vT*.0009)*dt*60;car.vx*=s;car.vy*=s}
+  /* skid marks */
+  if(S.skid&&(vT>3.2||(brk>.9&&v>18&&v0-v>0))&&!car.grass){const b=[-f[1],f[0]],L=1.25;for(const sd of[-.75,.75]){const x=car.x-f[0]*L+b[0]*sd,y=car.y-f[1]*L+b[1]*sd;const key=car===S.me?"m":"a";const last=car["_sk"+sd];if(last&&Math.hypot(x-last[0],y-last[1])<3)S.skid.push([last[0],last[1],x,y,Math.min(.5,.12+vT*.03)]);car["_sk"+sd]=[x,y]}if(S.skid.length>2400)S.skid.splice(0,400)}else{car["_sk-0.75"]=null;car["_sk0.75"]=null}};
+/* ---------- graphics: rubbered-in racing line, skid marks, speed lines, rev bar, vignette ---------- */
+function rxWorld(x,S){const G=S.G,me=S.me,R=150;
+  if(!G.rpath){const p=new Path2D();for(let i=0;i<=G.N;i+=2){const q=G.P[i%G.N];i?p.lineTo(q[0],q[1]):p.moveTo(q[0],q[1])}G.rpath=p}
+  x.save();x.strokeStyle="rgba(10,10,12,.22)";x.lineWidth=2.6;x.lineJoin="round";x.stroke(G.rpath);x.strokeStyle="rgba(10,10,12,.12)";x.lineWidth=5;x.stroke(G.rpath);
+  if(S.skid&&S.skid.length){x.lineCap="round";x.lineWidth=.32;for(const s of S.skid){if(Math.abs(s[0]-me.x)>R||Math.abs(s[1]-me.y)>R)continue;x.strokeStyle=`rgba(12,12,14,${s[4]})`;x.beginPath();x.moveTo(s[0],s[1]);x.lineTo(s[2],s[3]);x.stroke()}}x.restore()}
+function rxScreen(x,S){const cv=S.cv,W=cv.width,H=cv.height,me=S.me,v=Math.hypot(me.vx,me.vy),vmax=me.M.vmax;
+  if(v>vmax*.55){const a=Math.min(.35,(v/vmax-.55)*.9);x.save();x.strokeStyle=`rgba(255,255,255,${a})`;x.lineWidth=Math.max(1,S.dpr);const n=18,t=performance.now()/1000;x.beginPath();
+    for(let i=0;i<n;i++){const ang=i/n*Math.PI*2+Math.sin(i*7.3)*.2,r0=Math.max(W,H)*(.45+((t*1.7+i*.37)%1)*.25),r1=r0+Math.max(W,H)*.08;x.moveTo(W/2+Math.cos(ang)*r0,H*.62+Math.sin(ang)*r0);x.lineTo(W/2+Math.cos(ang)*r1,H*.62+Math.sin(ang)*r1)}x.stroke();x.restore()}
+  const g=x.createRadialGradient(W/2,H/2,Math.min(W,H)*.45,W/2,H/2,Math.max(W,H)*.75);g.addColorStop(0,"rgba(0,0,0,0)");g.addColorStop(1,"rgba(0,0,0,.28)");x.fillStyle=g;x.fillRect(0,0,W,H);
+  const rv=$("#rxRev");if(rv){const r=(v/vmax*6)%1,gear=Math.min(6,Math.floor(v/vmax*6)+1);rv.style.width=Math.round((v<1?0:.25+r*.75)*100)+"%";rv.className=r>.85?"hot":"";rv.dataset.g=gear}}
+const _rs47b=dzRaceStart;dzRaceStart=function(o){_rs47b(o);const S=DZ2.S;if(!S)return;const pw=S.onWorld,ps=S.onScreen;S.onWorld=(x,s)=>{rxWorld(x,s);if(pw)pw(x,s)};S.onScreen=(x,s)=>{if(ps)ps(x,s);rxScreen(x,s)}};
+
+/* ---------- online: race with cars from your own garage ---------- */
+const _lo47=dzLobbyOpts;dzLobbyOpts=function(o,seg){return _lo47(o,seg).replace('<p class="note">',`${seg("cars",[["market","Showroom budget"],["garage","Own garages"]],o.cars||"market")}<p class="note">`).replace("A random budget and showroom each race; you each drive on your own device.",o.cars==="garage"?"Everyone picks a car from their own garage — upgrades, paint and plates included (upgrades are off in ranked).":"A random budget and showroom each race; you each drive on your own device.")};
+const _hs47=dzHostStart;dzHostStart=function(){_hs47();const C=NET.S&&NET.S.cd;if(!C)return;C.carsMode=NET.S.opts.cars==="garage"?"garage":"market";C.look={};pushState()};
+const _ha47=dzHostAct;dzHostAct=function(from,d){const C=NET.S&&NET.S.cd;if(d&&d.k==="cdcar"&&C&&C.carsMode==="garage"&&C.phase==="pick"&&C.seats.includes(from)&&BY[d.id]&&!C.market.includes(d.id)){
+    C.cars[from]=d.id;C.look[from]={paint:/^#[0-9a-f]{6}$/i.test(d.paint||"")?d.paint:null,plate:String(d.plate||"").replace(/[^A-Z0-9 ]/g,"").slice(0,8)||null,plst:["uk","show","gold","owner"].includes(d.plst)?d.plst:"uk"};
+    if(C.seats.every(s=>C.cars[s])){C.phase="race";C.go=Date.now()}return pushState()}
+  if(d&&d.k==="cdcar"&&C&&C.carsMode==="garage"){C.look=C.look||{};C.look[from]={paint:/^#[0-9a-f]{6}$/i.test(d.paint||"")?d.paint:null,plate:String(d.plate||"").replace(/[^A-Z0-9 ]/g,"").slice(0,8)||null,plst:d.plst||"uk"}}return _ha47(from,d)};
+const _rd47=roomDraw;roomDraw=function(light){_rd47(light);const S=NET.S;if(!S||S.phase!=="cd"||!S.cd)return;const C=S.cd,me=NET.seat;
+  if(C.phase==="pick"&&C.carsMode==="garage"&&C.seats.includes(me)&&!C.cars[me]&&!light){const shop=document.querySelector("#roomv .cd-shop");if(shop&&!document.querySelector(".rx-gar")){const own=crGet().own.filter(ownVis);
+    shop.insertAdjacentHTML("beforebegin",own.length?`<div class="rx-gar"><h3 class="cd-h">Pick from your garage</h3><div class="cd-cars">${own.map(o=>{const c=BY[o.id];return `<button type="button" class="cd-carbtn" data-rxown="${o.id}">${ph(c)}<span class="cd-cb"><b>${esc(c.make)} ${esc(c.model)}</b><small>${o.plate?`<span class="gp-plate ${o.plst||"uk"}">${esc(o.plate)}</span> `:""}${c.bhp} bhp${Object.values(upOf(o)).some(Boolean)?" · ⚙︎ upgraded":""}</small></span></button>`}).join("")}</div><p class="note">No cars? You can still pick from the showroom below.</p></div>`:`<p class="note rx-gar">Your garage is empty, so pick from the showroom below.</p>`)}}
+  if(C.phase==="race"&&DZ2.S&&C.look){DZ2.S.cars.forEach(c=>{if(c.seat&&C.look[c.seat]){const l=C.look[c.seat];if(l.paint)c.paint=l.paint;if(l.plate){c.plate=l.plate;c.plst=l.plst}}})}};
+document.addEventListener("click",e=>{const b=e.target.closest("[data-rxown]");if(!b)return;const o=crGet().own.find(x=>x.id===b.dataset.rxown)||{};act({k:"cdcar",id:b.dataset.rxown,paint:o.paint||"",plate:o.plate||"",plst:o.plst||"uk"})});
+/* send your paint and plate with showroom picks too */
+const _act47=act;act=function(d){if(d&&d.k==="cdcar"&&!d.paint){const o=crGet().own.find(x=>x.id===d.id);if(o){d.paint=o.paint||"";d.plate=o.plate||"";d.plst=o.plst||"uk"}}return _act47(d)};
+
+/* ---------- controls page: scheme + assists ---------- */
+const _cpg47=controlsPage;controlsPage=function(){const R=raceOpt(),c=store.get("ti-ctrl",null)||{};return _cpg47().replace('<div class="adm-g">',`<div class="adm-g"><section class="adm adm-wide"><h2>📱 Touch & phone racing</h2>
+  <p class="note">On iPhone and iPad, big buttons are easiest: ◀ ▶ on the left, GAS and BRAKE on the right. Tilt lets you steer by turning the phone like a wheel.</p>
+  <div class="seg">${[["auto","Automatic"],["buttons","Buttons"],["wheel","Wheel"],["tilt","Tilt"]].map(([k,n])=>`<button type="button" data-cts="${k}" aria-pressed="${(c.scheme||"auto")===k}">${n}</button>`).join("")}</div>
+  <h3 style="margin:14px 0 6px">Driving assists</h3><div class="seg">${[["off","Off"],["brake","Braking"],["full","Braking + steering"]].map(([k,n])=>`<button type="button" data-cta="${k}" aria-pressed="${R.as===k}">${n}</button>`).join("")}</div>
+  <p class="note">Braking assist slows you for every corner. Braking + steering follows the racing line while you hold GAS — steer yourself any time to take over. Assists are off in ranked races and lap times with assists still count.</p></section>`)};
+document.addEventListener("click",async e=>{const s=e.target.closest("[data-cts]"),a=e.target.closest("[data-cta]");if(s){if(s.dataset.cts==="tilt"){const ok=await tiltStart();if(!ok){toast("Tilt needs motion permission — try again and tap Allow");return}}raceOptSet("scheme",s.dataset.cts);render()}if(a){raceOptSet("assist",a.dataset.cta);render()}});
+
+document.head.insertAdjacentHTML("beforeend",`<style id="v47css">
+.cd-ov.rx .cd-ctl{display:none}.cd-ov.rx.sch-wheel .cd-ctl{display:flex}.cd-ov.rx.sch-wheel .rx-btns,.cd-ov.rx.sch-wheel .rx-ped{display:none}.cd-ov.rx.sch-tilt .rx-btns{display:none}
+@media (hover:hover) and (pointer:fine){.cd-ov.rx .rx-btns,.cd-ov.rx .rx-ped{display:none}.cd-ov.rx.sch-wheel .cd-ctl{display:none}}
+.rx-btns,.rx-ped{position:absolute;bottom:calc(14px + env(safe-area-inset-bottom,0px));display:flex;gap:12px;z-index:5}
+.rx-btns{left:calc(14px + env(safe-area-inset-left,0px))}.rx-ped{right:calc(14px + env(safe-area-inset-right,0px));align-items:flex-end}
+.rx-b{width:clamp(78px,20vmin,112px);height:clamp(78px,20vmin,112px);border:0;border-radius:22px;background:rgba(20,22,26,.55);backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);color:#fff;font-size:30px;font-weight:900;touch-action:none;user-select:none;-webkit-user-select:none;-webkit-touch-callout:none;box-shadow:inset 0 -5px 0 rgba(0,0,0,.35),0 6px 18px rgba(0,0,0,.3);transition:transform .06s,background .06s}
+.rx-b.on{transform:scale(.94);background:rgba(255,255,255,.3)}.rx-b.gs{background:rgba(30,158,98,.78);height:clamp(110px,30vmin,160px);font-size:16px;letter-spacing:.08em}.rx-b.br{background:rgba(200,16,46,.72);font-size:14px;letter-spacing:.06em}.rx-b.hb{width:clamp(56px,14vmin,74px);height:clamp(56px,14vmin,74px);font-size:13px;border-radius:50%}
+.rx-b.gs.on{background:rgba(43,224,112,.9)}.rx-b.br.on{background:rgba(255,50,70,.9)}
+.rx-rev{position:absolute;left:50%;transform:translateX(-50%);bottom:calc(132px + env(safe-area-inset-bottom,0px));width:min(240px,50vw);height:6px;border-radius:3px;background:rgba(255,255,255,.18);overflow:hidden;z-index:4;pointer-events:none}
+.rx-rev i{display:block;height:100%;width:0;background:linear-gradient(90deg,#2BE070,#F2C200 70%,#FF3B2F);transition:width .08s}.rx-rev i.hot{box-shadow:0 0 10px #FF3B2F}
+.rx-set{position:absolute;right:calc(64px + env(safe-area-inset-right,0px));top:calc(12px + env(safe-area-inset-top,0px));width:40px;height:40px;border-radius:50%;border:0;background:rgba(10,12,14,.66);color:#fff;font-size:18px;z-index:6}
+.rx-panel{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:20;background:rgba(14,16,20,.95);color:#fff;border-radius:18px;padding:18px;width:min(420px,92vw);display:grid;gap:10px;box-shadow:0 20px 60px rgba(0,0,0,.5)}
+.rx-panel[hidden]{display:none}.rx-panel .btn{background:#fff;color:#111;border:0}.rx-panel .seg{background:rgba(255,255,255,.08);border-color:rgba(255,255,255,.15)}.rx-panel .seg button{color:#fff}.rx-panel .seg button[aria-pressed=true]{background:#fff;color:#111}.rx-panel p{margin:0;font-size:13px;opacity:.8}
+.cd-ov.rx .cd-hud .cd-hl,.cd-ov.rx .cd-speed{backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}.cd-ov.rx .cd-speed b{font-size:clamp(36px,8vmin,56px);letter-spacing:-.02em}
+@media (max-width:640px){.cd-ov.rx .cd-keys{display:none}.cd-ov.rx .cd-mm{width:120px;height:90px}.cd-ov.rx .cd-speed{bottom:calc(128px + env(safe-area-inset-bottom,0px))}.rx-rev{bottom:calc(122px + env(safe-area-inset-bottom,0px))}}
+@media (max-height:480px){.rx-b{width:74px;height:74px}.rx-b.gs{height:100px}}
+@media (max-width:500px){.rx-b{width:76px;height:76px;font-size:26px}.rx-b.gs{width:88px;height:116px}.rx-b.br{width:80px}.rx-ped,.rx-btns{gap:8px}.rx-b.hb{position:absolute;bottom:calc(100% + 10px);left:0;width:60px;height:60px}}
+.rx-gar{margin-bottom:14px}
 </style>`);
 
 render();syncCmp();
