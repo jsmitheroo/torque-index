@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610041700";
+const BUILD="202610041900";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -5830,7 +5830,7 @@ document.head.insertAdjacentHTML("beforeend",`<style id="v39css">
 @media (max-width:1280px){#links a[data-r="news"]{display:none}}
 @media (max-width:1300px) and (min-width:641px){header .brand>span{display:none}}
 @media (max-width:1180px) and (min-width:641px){.crnav b{display:none}.crnav{padding:6px 8px}header .qs{max-width:112px;min-width:0}}
-@media (max-width:1060px) and (min-width:961px){header .qs{display:none}}
+
 @media (max-width:640px){.crnav{padding:6px 8px;font-size:12px}}
 </style>`);
 
@@ -6444,7 +6444,7 @@ document.head.insertAdjacentHTML("beforeend",`<style id="v45css">
 @media (max-width:1280px){#links a[data-r="home"]{display:none}}
 @media (max-width:1760px){#links a[data-r="news"]{display:none}}
 @media (max-width:1580px) and (min-width:641px){header .brand>span{display:none}}
-@media (max-width:1130px) and (min-width:961px){header .qs{display:none}}
+@media (max-width:1180px) and (min-width:961px){.nav .favnav{display:none!important}#links a{padding-left:5px!important;padding-right:5px!important}header .qs{max-width:160px!important;min-width:120px!important;flex:1 1 140px}}
 .hub-g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:4px 0 26px}
 .hub-t{position:relative;display:grid;grid-template-columns:48px minmax(0,1fr);gap:14px;align-items:center;padding:18px;background:var(--surface);border:1px solid var(--line);border-radius:16px;color:var(--ink);transition:border-color .2s,transform .2s}.hub-t:hover{border-color:var(--ink);transform:translateY(-2px)}
 .hub-i{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--line-2)}.hub-t b{display:block;font-size:17px}.hub-t small{color:var(--muted);font-size:13px;line-height:1.35}
