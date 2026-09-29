@@ -63,7 +63,7 @@ export default {
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
       return stub.fetch(request);
     }
-    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(ghost|ghost-post|wevent|wevent-post|admin-wevent|lb-drift|drift-post|lb-earn|auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
+    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(dm-list|dm-thread|dm-send|ghost|ghost-post|wevent|wevent-post|admin-wevent|lb-drift|drift-post|lb-earn|auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
     if (a) {
       // Accounts: writes must come from this site (blocks cross-site form tricks).
       if (request.method !== "GET") {
@@ -245,6 +245,7 @@ export class Accounts extends DurableObject {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS clubs(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE COLLATE NOCASE, tag TEXT UNIQUE COLLATE NOCASE, col TEXT, owner TEXT, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS wevents(id INTEGER PRIMARY KEY AUTOINCREMENT, cfg TEXT, start INTEGER, ends INTEGER, settled INTEGER DEFAULT 0, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS wscores(ev INTEGER, uid TEXT, score REAL, car TEXT, created INTEGER, PRIMARY KEY(ev,uid))`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS dms(id INTEGER PRIMARY KEY AUTOINCREMENT, a TEXT, b TEXT, text TEXT, created INTEGER, seen INTEGER DEFAULT 0)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS ghosts(uid TEXT, track TEXT, t REAL, car TEXT, data TEXT, created INTEGER, PRIMARY KEY(uid,track))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS drifts(uid TEXT, track TEXT, score INTEGER, car TEXT, created INTEGER, PRIMARY KEY(uid,track))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS clubpts(season INTEGER, club INTEGER, pts INTEGER, PRIMARY KEY(season,club))`);
@@ -333,6 +334,8 @@ export class Accounts extends DurableObject {
       this.sql.exec(`DELETE FROM sessions WHERE uid=?`, s.uid);
       this.sql.exec(`DELETE FROM users WHERE id=?`, s.uid);
       for (const t of ["laps","wins","cup","reviews","notifs","dailyr","ranks","drifts","wscores","ghosts"]) this.sql.exec(`DELETE FROM ${t} WHERE uid=?`, s.uid);
+      this.sql.exec(`DELETE FROM dms WHERE a=? OR b=?`, s.uid, s.uid);
+      for (const t of []) this.sql.exec(`DELETE FROM ${t} WHERE uid=?`, s.uid);
       this.sql.exec(`DELETE FROM friends WHERE a=? OR b=?`, s.uid, s.uid);this.sql.exec(`DELETE FROM invites WHERE to_uid=? OR from_uid=?`, s.uid, s.uid);
       return json({ ok: true }, 200, null, { "set-cookie": this.cookie("", secure, 0) });
     }
@@ -487,7 +490,8 @@ export class Accounts extends DurableObject {
       const rk = this.sql.exec(`SELECT r, n, w FROM ranks WHERE season=? AND uid=?`, this.season(), u.id).toArray()[0] || null;
       const owned = d["ti-cr"] && Array.isArray(d["ti-cr"].own) ? d["ti-cr"].own.map(o => o && o.id).filter(x => typeof x === "string").slice(0, 60) : [];
       const vip = this.sql.exec(`SELECT vip_until, vip_since FROM users WHERE id=?`, u.id).toArray()[0] || {};
-      return json({ vip: vip.vip_until > Date.now() ? vip.vip_until : null, vipSince: vip.vip_since || null, rk, owned: pubGarage ? owned : null, username: u.username, created: u.created, avatar: av, garage: pubGarage && Array.isArray(d["ti-fav"]) ? d["ti-fav"].slice(0, 24) : null, laps, wins, reviews, ach, friends, me: s ? s.uid === u.id : false, rel });
+      const pf = d["ti-prof"] && typeof d["ti-prof"] === "object" ? { banner: String(d["ti-prof"].banner || "").slice(0, 20), title: String(d["ti-prof"].title || "").slice(0, 40), badges: Array.isArray(d["ti-prof"].badges) ? d["ti-prof"].badges.slice(0, 3).map(x => String(x).slice(0, 30)) : [] } : null;
+      return json({ prof: pf, vip: vip.vip_until > Date.now() ? vip.vip_until : null, vipSince: vip.vip_since || null, rk, owned: pubGarage ? owned : null, username: u.username, created: u.created, avatar: av, garage: pubGarage && Array.isArray(d["ti-fav"]) ? d["ti-fav"].slice(0, 24) : null, laps, wins, reviews, ach, friends, me: s ? s.uid === u.id : false, rel });
     }
     if (route === "reviews") {
       const car = String(q.get("car") || ""); if (!CAR_RE.test(car)) return json({ error: "Bad car" }, 400);
@@ -519,6 +523,30 @@ export class Accounts extends DurableObject {
       if (!this.limit("lw:" + s.uid, 60, 3600e3)) return json({ error: "Slow down" }, 429);
       const game = String(body.game || ""); if (!/^(bb|cd|champ)$/.test(game)) return json({ error: "Bad game" }, 400);
       this.sql.exec(`INSERT INTO wins(uid,game,n) VALUES(?,?,1) ON CONFLICT(uid,game) DO UPDATE SET n=n+1`, s.uid, game);
+      return json({ ok: true });
+    }
+    /* ---------- direct messages between friends ---------- */
+    if (route === "dm-list") {
+      const rows = this.sql.exec(`SELECT CASE WHEN d.a=? THEN d.b ELSE d.a END AS other, MAX(d.created) AS last, SUM(CASE WHEN d.b=? AND d.seen=0 THEN 1 ELSE 0 END) AS unread FROM dms d WHERE d.a=? OR d.b=? GROUP BY other ORDER BY last DESC LIMIT 50`, s.uid, s.uid, s.uid, s.uid).toArray();
+      const out = rows.map(r => { const u = this.sql.exec(`SELECT username FROM users WHERE id=?`, r.other).toArray()[0]; const m = this.sql.exec(`SELECT text, a FROM dms WHERE (a=? AND b=?) OR (a=? AND b=?) ORDER BY id DESC LIMIT 1`, s.uid, r.other, r.other, s.uid).toArray()[0]; return u ? { username: u.username, last: r.last, unread: r.unread, preview: m ? m.text.slice(0, 80) : "", mine: m ? m.a === s.uid : false } : null; }).filter(Boolean);
+      return json({ threads: out, unread: out.reduce((a, t) => a + t.unread, 0) });
+    }
+    if (route === "dm-thread") {
+      const u = this.sql.exec(`SELECT id, username FROM users WHERE username=?`, String(body.u || "")).toArray()[0]; if (!u) return json({ error: "No such player" }, 404);
+      const msgs = this.sql.exec(`SELECT id, a, text, created FROM dms WHERE (a=? AND b=?) OR (a=? AND b=?) ORDER BY id DESC LIMIT 100`, s.uid, u.id, u.id, s.uid).toArray().reverse().map(m => ({ id: m.id, mine: m.a === s.uid, text: m.text, created: m.created }));
+      this.sql.exec(`UPDATE dms SET seen=1 WHERE a=? AND b=? AND seen=0`, u.id, s.uid);
+      const friends = !!this.sql.exec(`SELECT 1 FROM friends WHERE ((a=? AND b=?) OR (a=? AND b=?)) AND status='ok'`, s.uid, u.id, u.id, s.uid).toArray().length;
+      return json({ username: u.username, msgs, friends });
+    }
+    if (route === "dm-send") {
+      if (!this.limit("dm:" + s.uid, 120, 3600e3)) return json({ error: "Slow down a bit" }, 429);
+      const u = this.sql.exec(`SELECT id, username FROM users WHERE username=?`, String(body.to || "")).toArray()[0], text = String(body.text || "").replace(/[\u0000-\u001f\u007f]/g, " ").trim().slice(0, 500);
+      if (!u || u.id === s.uid) return json({ error: "Pick a friend to message." }, 400);
+      if (!text) return json({ error: "Type a message first." }, 400);
+      if (!this.sql.exec(`SELECT 1 FROM friends WHERE ((a=? AND b=?) OR (a=? AND b=?)) AND status='ok'`, s.uid, u.id, u.id, s.uid).toArray().length) return json({ error: "You can only message friends." }, 403);
+      this.sql.exec(`INSERT INTO dms(a,b,text,created) VALUES(?,?,?,?)`, s.uid, u.id, text, now);
+      this.sql.exec(`DELETE FROM dms WHERE created<?`, now - 90 * 864e5);
+      this.notify(u.id, "dm", `${s.username}: ${text.slice(0, 60)}`, "#messages-" + s.username);
       return json({ ok: true });
     }
     /* ---------- weekly events & drift scores ---------- */
