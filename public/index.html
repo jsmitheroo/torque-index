@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202609291500";
+const BUILD="202609301000";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -5832,6 +5832,70 @@ document.head.insertAdjacentHTML("beforeend",`<style id="v39css">
 @media (max-width:1180px) and (min-width:641px){.crnav b{display:none}.crnav{padding:6px 8px}header .qs{max-width:112px;min-width:0}}
 @media (max-width:1060px) and (min-width:961px){header .qs{display:none}}
 @media (max-width:640px){.crnav{padding:6px 8px;font-size:12px}}
+</style>`);
+
+/* ================= v40: VIP — redeem a code for a gold badge, gold name, profile flair and +50% credits ================= */
+const VIPS=new Set();
+const vipOn=()=>!!(AUTH.user&&AUTH.user.vip&&AUTH.user.vip>Date.now());
+const vipLife=()=>vipOn()&&AUTH.user.vip>=4102444800000;
+async function vipLoad(){if(!(await netCheck()))return;const r=await xapi("vips");if(r.ok&&Array.isArray(r.vips)){VIPS.clear();r.vips.forEach(u=>VIPS.add(u.toLowerCase()));vipDecoSoon()}}
+/* +50% on every credit reward */
+const _cre40=crEarn;crEarn=function(n,why,quiet){if(vipOn()){n*=1.5;why=(why||"")+" · VIP +50%"}return _cre40(n,why,quiet)};
+/* gold names and a VIP badge wherever a VIP's username appears */
+function vipName(t){return String(t||"").replace(/\s*\((you|host|guest|[A-H])\)\s*$/i,"").trim().toLowerCase()}
+function vipDeco(){if(!VIPS.size&&!vipOn())return;const me=AUTH.user&&vipOn()?AUTH.user.username.toLowerCase():null;
+  document.querySelectorAll(DZ2.S?"#dzTower span":"a.ulink, .rp b, .rc-m b, .lb-table td, .rk-res td, .dz-res td, .pr-head h1").forEach(el=>{if(el.dataset.vipd)return;
+    const own=el.firstChild&&el.firstChild.nodeType===3?el.firstChild.textContent:el.textContent;const n=vipName(own);if(!n||!(VIPS.has(n)||n===me))return;
+    if(el.matches(".lb-table td, .rk-res td, .dz-res td")&&el.querySelector("a.ulink"))return;el.dataset.vipd="1";el.classList.add("vipn");if(!el.matches(".pr-head h1, #dzTower span"))el.insertAdjacentHTML("beforeend",`<span class="vipb" title="VIP">VIP</span>`)});
+  document.body.classList.toggle("is-vip",vipOn())}
+let VIPT=null;function vipDecoSoon(){clearTimeout(VIPT);VIPT=setTimeout(vipDeco,120)}
+new MutationObserver(vipDecoSoon).observe(document.body,{childList:true,subtree:true});
+/* profile flair */
+const _pd40=profDraw;profDraw=async function(u){await _pd40(u);const el=$("#prv");if(!el)return;const isMe=AUTH.user&&AUTH.user.username.toLowerCase()===String(u).toLowerCase();
+  let vip=isMe&&vipOn()?{until:AUTH.user.vip,since:AUTH.user.vipSince}:null;if(!vip&&VIPS.has(String(u).toLowerCase())){const r=await xapi("profile?u="+encodeURIComponent(u));if(r.ok&&r.vip)vip={until:r.vip,since:r.vipSince}}
+  const h=el.querySelector(".pr-head");if(!vip||!h||h.classList.contains("vip-head"))return;h.classList.add("vip-head");
+  const t=h.querySelector("h1");if(t)t.insertAdjacentHTML("afterend",`<div class="vip-flair"><span class="vipb big">★ VIP</span>${vip.since?`<span>VIP since ${new Date(vip.since).toLocaleDateString("en-GB",{month:"long",year:"numeric"})}</span>`:""}</div>`)};
+/* ---------- the VIP page ---------- */
+function vipPage(){const on=vipOn();const until=on?new Date(AUTH.user.vip):null;
+  return `<div class="wrap"><section class="vip-hero ${on?"on":""}"><div class="eyebrow">Torque Index</div><h1><span>★</span> VIP</h1>
+   <p>${on?(vipLife()?"You're a VIP for life. Thanks for supporting Torque Index.":`You're a VIP until <b>${until.toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</b>.`):"Stand out on every leaderboard, race room and profile — and earn credits faster."}</p></section>
+  <div class="vip-perks">${[["🪙","+50% credits","Every reward from every game, race and daily challenge is boosted by half."],["★","Gold VIP badge","Next to your name on leaderboards, ranked tables, race rooms, chat and results."],["✨","Gold name","Your username shows in gold wherever it appears."],["🏆","Profile flair","A gold profile header with your VIP badge and how long you've been a member."]].map(([i,t,d])=>`<div><span>${i}</span><b>${t}</b><p>${d}</p></div>`).join("")}</div>
+  <section class="vip-redeem"><h2 class="cd-h">${on?"Add more time":"Have a VIP code?"}</h2>
+   ${AUTH.user?`<form id="vipF" class="vip-f" autocomplete="off"><input id="vipC" class="sel" placeholder="VIP-XXXX-XXXX" maxlength="24" aria-label="VIP code" autocapitalize="characters" spellcheck="false"><button class="btn primary" type="submit">Redeem</button></form><p class="au-err" id="vipE" aria-live="polite"></p><p class="note">Codes add to any VIP time you already have. Each code works once.</p>`
+    :AUTH.ready&&!AUTH.online?offNote():`<p>VIP belongs to your account, so it works on all your devices.</p><div class="actions"><a class="btn primary" href="#signup">Sign up free</a><a class="btn" href="#login">Log in</a></div>`}
+   <p class="note vip-soon">Buying VIP directly is coming soon. For now VIP is by code only.</p></section></div>`}
+document.addEventListener("submit",async e=>{if(e.target.id!=="vipF")return;e.preventDefault();const i=$("#vipC"),er=$("#vipE"),b=e.target.querySelector("button");const code=i.value.trim();if(!code){er.textContent="Type your code first.";return}
+  b.disabled=true;b.textContent="Checking…";er.textContent="";const r=await xapi("vip-redeem","POST",{code});b.disabled=false;b.textContent="Redeem";
+  if(!r.ok){er.textContent=r.error||"Couldn't reach the server. Try again.";return}AUTH.user.vip=r.vip;AUTH.user.vipSince=AUTH.user.vipSince||Date.now();VIPS.add(AUTH.user.username.toLowerCase());
+  toast(`<span class="ti2">★</span><div><b>Welcome to VIP!</b><span>${r.lifetime?"VIP for life":r.days+" days of VIP"} · +50% credits starts now</span></div>`,"ach");render()});
+const _r40=route;route=function(){if(location.hash==="#vip")return{name:"vip"};return _r40()};
+PAGES.vip=vipPage;GT.vip="VIP";PAL_PAGES.push(["VIP","#vip"]);
+const _ft40=footer;footer=function(){const h=_ft40(),i=h.lastIndexOf("</ul>");return i<0?h:h.slice(0,i)+`<li><a href="#vip">★ VIP</a></li>`+h.slice(i)};
+const _ar40=afterRender;afterRender=function(r){_ar40(r);
+  if(r.name==="account"&&AUTH.user&&!document.querySelector(".vip-acct")){const box=document.querySelector("#view .au-box");const html=`<div class="au-box vip-acct"><div><b>★ VIP</b><p>${vipOn()?(vipLife()?"VIP for life.":"Active until "+new Date(AUTH.user.vip).toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})+"."):"Gold badge, gold name, profile flair and +50% credits."}</p></div><a class="btn ${vipOn()?"":"primary"}" href="#vip">${vipOn()?"Manage":"Get VIP"}</a></div>`;if(box)box.insertAdjacentHTML("beforebegin",html)}
+  if((r.name==="showroom"||r.name==="garage")&&!document.querySelector(".vip-strip")){const bar=document.querySelector("#view .cr-bar");if(bar)bar.insertAdjacentHTML("afterend",vipOn()?`<p class="vip-strip on">★ VIP: you're earning <b>+50% credits</b> on everything.</p>`:`<a class="vip-strip" href="#vip">★ VIP members earn <b>+50% credits</b> on everything → </a>`)}
+  vipDecoSoon()};
+const _an40=acctNav;acctNav=function(){_an40();document.body.classList.toggle("is-vip",vipOn());vipDecoSoon()};
+setTimeout(vipLoad,1500);setInterval(()=>{if(document.visibilityState==="visible")vipLoad()},10*60e3);
+document.head.insertAdjacentHTML("beforeend",`<style id="v40css">
+.vipn{background:linear-gradient(90deg,#B8860B,#F2C200 45%,#D4A017);-webkit-background-clip:text;background-clip:text;color:transparent!important;font-weight:800}
+.vipn *{-webkit-text-fill-color:initial}
+.vipb{display:inline-block;margin-left:6px;padding:1px 6px;border-radius:5px;background:linear-gradient(135deg,#F7D84A,#C9971C);color:#2b2000;-webkit-text-fill-color:#2b2000;font-size:10px;font-weight:900;letter-spacing:.06em;vertical-align:2px;line-height:1.5}
+.vipb.big{font-size:13px;padding:3px 10px;margin:0}
+body.is-vip .acctbox .av,body.is-vip .acctnav .av{box-shadow:0 0 0 2px #F2C200,0 0 10px rgba(242,194,0,.5)}
+.vip-head{background:linear-gradient(135deg,rgba(242,194,0,.16),rgba(184,134,11,.06));border:1.5px solid #E0B000;border-radius:18px;padding:18px}
+.vip-head .av{box-shadow:0 0 0 3px #F2C200,0 0 16px rgba(242,194,0,.55)}
+.vip-flair{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin:4px 0 6px;color:var(--muted);font-size:13.5px}
+.vip-hero{margin:28px 0 22px;padding:34px 30px;border-radius:22px;background:radial-gradient(120% 140% at 0% 0%,#3a2d00 0%,#14110a 55%,#0b0c0e 100%);color:#fff;border:1px solid #5a4700}
+.vip-hero .eyebrow{color:#F2C200}.vip-hero h1{font-family:var(--display);font-weight:900;font-size:clamp(44px,8vw,86px);margin:6px 0;letter-spacing:-.03em;background:linear-gradient(90deg,#F7D84A,#E6B422,#FFF1A8,#C9971C);-webkit-background-clip:text;background-clip:text;color:transparent}
+.vip-hero h1 span{-webkit-text-fill-color:#F2C200}.vip-hero p{max-width:560px;color:rgba(255,255,255,.82);font-size:16px;margin:0}
+.vip-perks{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:26px}
+.vip-perks div{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:16px}.vip-perks span{font-size:24px;color:#D4A017}.vip-perks b{display:block;margin:6px 0 4px;font-size:16px}.vip-perks p{margin:0;color:var(--muted);font-size:13.5px;line-height:1.45}
+.vip-redeem{max-width:560px}.vip-f{display:flex;gap:8px}.vip-f input{flex:1;text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.vip-soon{margin-top:18px}
+.vip-strip{display:block;margin:-6px 0 18px;padding:10px 14px;border-radius:12px;border:1px solid #E0B000;background:linear-gradient(90deg,rgba(242,194,0,.14),transparent);color:var(--ink);font-size:14px}
+@media (max-width:860px){.vip-perks{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:480px){.vip-perks{grid-template-columns:minmax(0,1fr)}.vip-hero{padding:26px 20px}}
 </style>`);
 
 render();syncCmp();

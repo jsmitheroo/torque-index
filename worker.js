@@ -2,6 +2,8 @@
 // Each room code maps to one Durable Object that relays moves between the two players.
 import { DurableObject } from "cloudflare:workers";
 
+/* VIP codes: only the SHA-256 of each code is stored here, so the codes cannot be read from this file. Each works once. days 36500 = lifetime. */
+const VIP_CODES = {"09514e1039d17bc86a7fb45276c68023e37138829d3a4c519dc851b8a0467eff": 30,"86dbdf13052f3a6c236b05d08addf3a111d272179e21851e1c250e89ea4a7c27": 30,"5b750e91f327a68ca309e3eee7882665c40d237ec74a992ddbf47dd21e38d6e8": 30,"914098f4a188c897c802e9321a69a493ac4187b643203758731f41a8bba3ca97": 30,"c43df271250bea1f54ec1c13f8977fd7062344bcfcf6aeb8a31a7cd9622a2d30": 30,"c60f653564b9f119721868b64013b5d2fe5a793c5ce168c4962152d4eaaeb871": 30,"8953f37124a498c7ee9535b6844e78ec9df511735043e3fa1e10f9ff187518e0": 30,"fd0a45205253f1a965cee9e7c8325e1c84a6a280ecd730a48068af6d2d34bc44": 30,"ab495a062bd8317c7b5e3c9cab10ddb85dd4ef70e58cf15a9c290dd77aaba0f8": 30,"49c9d0cb494e54362965bd04dd498dd03ccd1fcc9c27646382e2af5c519b2360": 30,"b089a0c3c3c1344cf43c6666ab30b2b8c0bec2698bf3984504e00a6c11715d35": 30,"b07923350072530727ff19b1a8727b1c3741a0da9fb7a1a57ad7854d1831b437": 30,"ee91bb3a2f53bdc92a88e064c7f5b22fc58043200d2cce90aae60345068a15bb": 30,"4c1221cfcfe4fe6205d156d2650c2ea68421be2b2bdae82f9b004b25c19483f3": 30,"4f64b0678ecc93be0ae60d712816096e59c788fbd6c6cf995b0b7f1a9fca428d": 30,"c5e6bf4075c6404ea0d7d70bd97b25a77966fc7c451a67d0cb1865fbff8eabe2": 30,"0589de2ee31a7635d782a9ad08e72010a183463603a6c7aec6b6d135ee4ac4ba": 30,"81d4136ee6401861613aeddd4167105ecea7ed4b103f02653ed4f9a6328982e0": 30,"afb17af043e16d4ade6794288c3979011715220ec81369988a465a4aee46686d": 30,"6011bb892438728a882d9e2eebe910c0c202d2962788f1199df9d53f7571f17f": 30,"d1b1df4815090137bd8d28013fbfd5b658d19643c8fe337d89f34aaf3d159a9a": 365,"aebda853e341cb8ad561489001263d19074f20b0c1e9ecc9247936b5761c27ca": 365,"0844b9fe9dcb19df93007996510983b03b2961f89c95a4d2eccc9899a5a1d1c2": 365,"951fd4067f161ca435acbbd029d38df8a74468a01ccceae6bf69e41588d0639f": 365,"79a44a29ff5236557c102c30902a2b6d16ae9a3a0eed644edfbae4b65c2afd65": 365,"f1dd36cbced4c3292e7d28ee00e3bf1bd939535a57e40c5c5ac3196bd417cc40": 36500,"d4d29bfea28c8234db0383eb714cb18440e97a66a1ca0e7f6de22b9c4a8c25de": 36500,"d70c7fd3db21c4ec923026026e85541d847d70f0a0074fec08c56a67bf6f8d46": 36500};
 const CODE_RE = /^[A-HJ-NP-Z2-9]{5}$/;
 const EMOTES = ["👏", "🔥", "😂", "😮", "GG"];
 
@@ -53,7 +55,7 @@ export default {
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
       return stub.fetch(request);
     }
-    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
+    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(vip-redeem|vips|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
     if (a) {
       // Accounts: writes must come from this site (blocks cross-site form tricks).
       if (request.method !== "GET") {
@@ -220,6 +222,9 @@ export class Accounts extends DurableObject {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS dailyr(day INTEGER, uid TEXT, car TEXT, t REAL, created INTEGER, PRIMARY KEY(day,uid))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS reviews(car TEXT, uid TEXT, rating INTEGER, text TEXT, created INTEGER, PRIMARY KEY(car,uid))`);
     try { this.sql.exec(`ALTER TABLE users ADD COLUMN seen INTEGER`); } catch (e) {}
+    try { this.sql.exec(`ALTER TABLE users ADD COLUMN vip_until INTEGER`); } catch (e) {}
+    try { this.sql.exec(`ALTER TABLE users ADD COLUMN vip_since INTEGER`); } catch (e) {}
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS vipused(h TEXT PRIMARY KEY, uid TEXT, at INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS notifs(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, kind TEXT, text TEXT, link TEXT, created INTEGER, read INTEGER DEFAULT 0)`);
   }
   // Counts attempts per key inside a time window; returns false once the limit is hit.
@@ -234,7 +239,7 @@ export class Accounts extends DurableObject {
   async session(req) {
     const m = (req.headers.get("cookie") || "").match(/(?:^|;\s*)ti_session=([a-f0-9]{64})/);
     if (!m) return null;
-    const row = this.sql.exec(`SELECT s.uid, s.expires, u.username, u.email, u.created, u.updated FROM sessions s JOIN users u ON u.id=s.uid WHERE s.token=?`, await sha256(m[1])).toArray()[0];
+    const row = this.sql.exec(`SELECT s.uid, s.expires, u.username, u.email, u.created, u.updated, u.vip_until, u.vip_since FROM sessions s JOIN users u ON u.id=s.uid WHERE s.token=?`, await sha256(m[1])).toArray()[0];
     if (!row || row.expires < Date.now()) return null;
     return { ...row, raw: m[1] };
   }
@@ -244,7 +249,7 @@ export class Accounts extends DurableObject {
     this.sql.exec(`DELETE FROM sessions WHERE expires<?`, Date.now());
     return this.cookie(token, secure, SESSION_DAYS * 86400);
   }
-  pub(u) { return { username: u.username, email: u.email, created: u.created, updated: u.updated || null }; }
+  pub(u) { return { username: u.username, email: u.email, created: u.created, updated: u.updated || null, vip: u.vip_until && u.vip_until > Date.now() ? u.vip_until : null, vipSince: u.vip_since || null }; }
 
   async fetch(req) {
     const route = new URL(req.url).pathname.slice(1);
@@ -332,6 +337,9 @@ export class Accounts extends DurableObject {
       const mine = s ? this.sql.exec(`SELECT car, t FROM laps WHERE uid=? AND track=?`, s.uid, track).toArray()[0] || null : null;
       return json({ top, mine });
     }
+    if (route === "vips") {
+      return json({ vips: this.sql.exec(`SELECT username FROM users WHERE vip_until>? LIMIT 2000`, Date.now()).toArray().map(r => r.username) });
+    }
     if (route === "ranked") {
       const season = this.season(), y = Math.floor(season / 100), m = season % 100;
       const top = this.sql.exec(`SELECT u.username, k.r, k.n, k.w FROM ranks k JOIN users u ON u.id=k.uid WHERE k.season=? AND k.n>0 ORDER BY k.r DESC LIMIT 50`, season).toArray();
@@ -372,7 +380,8 @@ export class Accounts extends DurableObject {
       if (s && s.uid !== u.id) { const f = this.sql.exec(`SELECT a, status FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)`, s.uid, u.id, u.id, s.uid).toArray()[0]; rel = f ? (f.status === "ok" ? "friends" : f.a === s.uid ? "requested" : "incoming") : "none"; }
       const rk = this.sql.exec(`SELECT r, n, w FROM ranks WHERE season=? AND uid=?`, this.season(), u.id).toArray()[0] || null;
       const owned = d["ti-cr"] && Array.isArray(d["ti-cr"].own) ? d["ti-cr"].own.map(o => o && o.id).filter(x => typeof x === "string").slice(0, 60) : [];
-      return json({ rk, owned: pubGarage ? owned : null, username: u.username, created: u.created, avatar: av, garage: pubGarage && Array.isArray(d["ti-fav"]) ? d["ti-fav"].slice(0, 24) : null, laps, wins, reviews, ach, friends, me: s ? s.uid === u.id : false, rel });
+      const vip = this.sql.exec(`SELECT vip_until, vip_since FROM users WHERE id=?`, u.id).toArray()[0] || {};
+      return json({ vip: vip.vip_until > Date.now() ? vip.vip_until : null, vipSince: vip.vip_since || null, rk, owned: pubGarage ? owned : null, username: u.username, created: u.created, avatar: av, garage: pubGarage && Array.isArray(d["ti-fav"]) ? d["ti-fav"].slice(0, 24) : null, laps, wins, reviews, ach, friends, me: s ? s.uid === u.id : false, rel });
     }
     if (route === "reviews") {
       const car = String(q.get("car") || ""); if (!CAR_RE.test(car)) return json({ error: "Bad car" }, 400);
@@ -403,6 +412,18 @@ export class Accounts extends DurableObject {
       const game = String(body.game || ""); if (!/^(bb|cd|champ)$/.test(game)) return json({ error: "Bad game" }, 400);
       this.sql.exec(`INSERT INTO wins(uid,game,n) VALUES(?,?,1) ON CONFLICT(uid,game) DO UPDATE SET n=n+1`, s.uid, game);
       return json({ ok: true });
+    }
+    if (route === "vip-redeem") {
+      if (!this.limit("vr:" + s.uid, 10, 3600e3)) return json({ error: "Too many tries. Wait an hour and try again." }, 429);
+      const code = String(body.code || "").toUpperCase().replace(/[^A-Z0-9]/g, "");
+      const h = await sha256(code), days = VIP_CODES[h];
+      if (!days) return json({ error: "That code isn't valid." }, 400);
+      if (this.sql.exec(`SELECT 1 FROM vipused WHERE h=?`, h).toArray().length) return json({ error: "That code has already been used." }, 409);
+      const u = this.sql.exec(`SELECT vip_until, vip_since FROM users WHERE id=?`, s.uid).toArray()[0] || {};
+      const base = Math.max(now, u.vip_until || 0), until = days >= 36500 ? 4102444800000 : base + days * 864e5;
+      this.sql.exec(`INSERT INTO vipused(h,uid,at) VALUES(?,?,?)`, h, s.uid, now);
+      this.sql.exec(`UPDATE users SET vip_until=?, vip_since=COALESCE(vip_since,?) WHERE id=?`, until, now, s.uid);
+      return json({ ok: true, vip: until, days, lifetime: days >= 36500 });
     }
     if (route === "ranked-post") {
       if (!this.limit("rk:" + s.uid, 40, 3600e3)) return json({ error: "Slow down" }, 429);
