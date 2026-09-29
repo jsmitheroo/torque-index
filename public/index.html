@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610061000";
+const BUILD="202610061500";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -6856,6 +6856,121 @@ document.head.insertAdjacentHTML("beforeend",`<style id="v47css">
 @media (max-height:480px){.rx-b{width:74px;height:74px}.rx-b.gs{height:100px}}
 @media (max-width:500px){.rx-b{width:76px;height:76px;font-size:26px}.rx-b.gs{width:88px;height:116px}.rx-b.br{width:80px}.rx-ped,.rx-btns{gap:8px}.rx-b.hb{position:absolute;bottom:calc(100% + 10px);left:0;width:60px;height:60px}}
 .rx-gar{margin-bottom:14px}
+</style>`);
+
+/* ================= v48: real engine sounds per car, visible damage, pit crews & strategy, portrait/landscape tilt, day-to-night, flags & penalties, safety car, friends' ghosts ================= */
+/* ---------- engine sound: built from the car's actual engine ---------- */
+function engProfile(c){const e=(c.engine||"")+" ",E=typeof cp38Eng==="function"?cp38Eng(c):{};const ev=c.fuel==="E"||/kWh|electric motor/i.test(e)&&!/V\d|cyl|flat|inline/i.test(e);
+  const cyl=ev?0:E.cyl||(/rotary/i.test(e)?2:/W16/.test(e)?16:/V12/.test(e)?12:/V10/.test(e)?10:/V8/.test(e)?8:/V6|flat-?6|straight-?6|inline-?6/i.test(e)?6:/3-cyl|three/i.test(e)?3:4);
+  const lay=/rotary/i.test(e)?"rotary":/flat|boxer/i.test(e)?"flat":/V\d|W\d/.test(e)?"v":"inline",diesel=c.fuel==="D",turbo=/turbo/i.test(e)&&!/supercharg/i.test(e),sc=/supercharg/i.test(e),hybrid=c.fuel==="H"||/hybrid/i.test(e);
+  let red=diesel?4600:lay==="rotary"?9000:cyl>=12?8800:cyl===10?8700:lay==="flat"&&!turbo?9000:cyl===8?(turbo?7200:7800):cyl===6?7300:6900;if(c.id===VIPCAR.id)red=0;
+  const gears=ev?1:c.y0<1985?4:c.y0<2000?5:c.body==="supercar"||c.y0>=2012?7:6;return {ev,cyl,lay,diesel,turbo,sc,hybrid,red,gears,idle:diesel?800:950}}
+const SND={};
+dzAudioInit=function(){if(!DZA.on)return;try{if(!DZA.ctx){DZA.ctx=new (window.AudioContext||window.webkitAudioContext)()}const A=DZA.ctx;A.resume?.();SND.A=A;if(SND.master)return;
+  const m=A.createGain();m.gain.value=.9;const comp=A.createDynamicsCompressor();m.connect(comp);comp.connect(A.destination);SND.master=m;
+  const nb=A.createBuffer(1,A.sampleRate*2,A.sampleRate),nd=nb.getChannelData(0);for(let i=0;i<nd.length;i++)nd[i]=Math.random()*2-1;SND.noise=nb;
+  const mk=(type)=>{const o=A.createOscillator();o.type=type;o.start();return o};
+  const eng=A.createGain();eng.gain.value=0;const lp=A.createBiquadFilter();lp.type="lowpass";lp.Q.value=4;const ws=A.createWaveShaper();const curve=new Float32Array(1024);for(let i=0;i<1024;i++){const x=i/512-1;curve[i]=Math.tanh(x*2.4)}ws.curve=curve;
+  const o1=mk("sawtooth"),o2=mk("square"),o3=mk("sawtooth"),o4=mk("sine"),g1=A.createGain(),g2=A.createGain(),g3=A.createGain(),g4=A.createGain();[[o1,g1],[o2,g2],[o3,g3],[o4,g4]].forEach(([o,g])=>{o.connect(g);g.connect(ws)});
+  const am=A.createGain(),lfo=mk("sine"),lfoG=A.createGain();lfo.connect(lfoG);lfoG.connect(am.gain);am.gain.value=1;ws.connect(am);am.connect(lp);lp.connect(eng);eng.connect(m);
+  const whine=mk("sine"),wg=A.createGain();wg.gain.value=0;whine.connect(wg);wg.connect(m);
+  const sq=A.createBufferSource();sq.buffer=nb;sq.loop=true;const sqf=A.createBiquadFilter();sqf.type="bandpass";sqf.frequency.value=2400;sqf.Q.value=6;const sqg=A.createGain();sqg.gain.value=0;sq.connect(sqf);sqf.connect(sqg);sqg.connect(m);sq.start();
+  const wind=A.createBufferSource();wind.buffer=nb;wind.loop=true;const wf=A.createBiquadFilter();wf.type="lowpass";wf.frequency.value=600;const wng=A.createGain();wng.gain.value=0;wind.connect(wf);wf.connect(wng);wng.connect(m);wind.start();
+  Object.assign(SND,{eng,lp,o1,o2,o3,o4,g1,g2,g3,g4,lfo,lfoG,whine,wg,sqg,wng,gear:1,rpm:1000,shiftT:0});DZA.g=eng;DZA.ng=sqg}catch(e){}};
+function sndBurst(freq,dur,gain,q){const A=SND.A;if(!A||!SND.noise)return;const s=A.createBufferSource();s.buffer=SND.noise;const f=A.createBiquadFilter();f.type="bandpass";f.frequency.value=freq;f.Q.value=q||1.2;const g=A.createGain();const t=A.currentTime;g.gain.setValueAtTime(gain,t);g.gain.exponentialRampToValueAtTime(.0001,t+dur);s.connect(f);f.connect(g);g.connect(SND.master);s.start(t,Math.random());s.stop(t+dur+.02)}
+dzAudio=function(S){if(!SND.eng||!DZA.on)return;const A=SND.A,t=A.currentTime,me=S.me,P=me.eng||(me.eng=engProfile(me.c)),v=Math.hypot(me.vx,me.vy),vm=me.M.vmax,run=(S.go||S.t<0)&&!S.done,thr=me.thr||0;
+  let rpm,freq;if(P.ev){rpm=v/vm;const wf=120+v*38;SND.o1.frequency.setTargetAtTime(wf,t,.03);SND.o4.frequency.setTargetAtTime(wf*2.01,t,.03);SND.g1.gain.setTargetAtTime(.06,t,.1);SND.g2.gain.setTargetAtTime(0,t,.1);SND.g3.gain.setTargetAtTime(0,t,.1);SND.g4.gain.setTargetAtTime(.25,t,.1);
+    SND.lp.frequency.setTargetAtTime(1200+v*40,t,.05);SND.eng.gain.setTargetAtTime(run?.05+thr*.07:0,t,.08);SND.lfoG.gain.value=0}
+  else{const G=P.gears,red=P.red||9500,idle=P.idle;const top=g=>vm*Math.pow(g/G,.78)*1.02;let g=SND.gear;
+    const rpmOf=g=>idle+(red-idle)*Math.min(1.02,v/top(g));if(rpmOf(g)>red*.97&&g<G&&thr>.2){g++;SND.shiftT=.11;if(P.turbo&&thr>.5)sndBurst(2600,.18,.08,2);else if(!P.diesel)sndBurst(180,.09,.12,.8)}
+    else if(g>1&&rpmOf(g-1)<red*.72&&(thr<.3||rpmOf(g)<idle+(red-idle)*.35)){g--;if(!P.diesel&&(P.cyl>=6||P.turbo))sndBurst(140,.12,.18,1)}SND.gear=g;me.gear=g;
+    rpm=Math.max(idle,rpmOf(g));if(SND.shiftT>0){SND.shiftT-=1/60;rpm*=.86}SND.rpm+=(rpm-SND.rpm)*.35;rpm=SND.rpm;
+    const fire=rpm/60*(P.lay==="rotary"?2:Math.max(2,P.cyl)/2);const base=P.diesel?fire*.5:fire;SND.o1.frequency.setTargetAtTime(base,t,.02);SND.o2.frequency.setTargetAtTime(base/2,t,.02);SND.o3.frequency.setTargetAtTime(base*(P.cyl>=10?2:1.5),t,.02);SND.o4.frequency.setTargetAtTime(base*(P.cyl>=12?3:2),t,.02);
+    const hi=P.cyl>=10,v8=P.cyl===8&&P.lay==="v",fl=P.lay==="flat";
+    SND.g1.gain.setTargetAtTime(.5,t,.05);SND.g2.gain.setTargetAtTime(v8||P.diesel?.55:fl?.3:.15,t,.05);SND.g3.gain.setTargetAtTime(hi?.4:fl?.25:.1,t,.05);SND.g4.gain.setTargetAtTime(hi?.25:.05,t,.05);
+    /* V8 burble: an uneven wobble at a quarter of the firing rate; flat-6 gets a softer one */
+    SND.lfo.frequency.setTargetAtTime(v8?base/4:fl?base/3:base/2,t,.05);SND.lfoG.gain.setTargetAtTime(v8?(thr<.3?.55:.25):fl?.18:P.lay==="rotary"?.35:.08,t,.08);
+    const open=(P.diesel?350:500)+(rpm/red)*(hi?5200:3600)*(.45+thr*.55);SND.lp.frequency.setTargetAtTime(open,t,.03);
+    SND.eng.gain.setTargetAtTime(run?(.05+thr*.09)*(P.diesel?.8:1):0,t,.06);
+    if(!thr&&SND.lastThr>.6&&rpm>red*.55&&!P.diesel&&(P.cyl>=6||P.turbo)){for(let i=0;i<3;i++)setTimeout(()=>sndBurst(220+Math.random()*200,.07,.14,.9),60+i*90+Math.random()*60);if(P.turbo)sndBurst(3200,.25,.06,1.5)}
+    SND.lastThr=thr;const whF=P.sc?rpm/60*6:P.turbo?2400+rpm/red*3200:0;SND.whine.frequency.setTargetAtTime(whF||100,t,.05);SND.wg.gain.setTargetAtTime(run&&whF?(P.sc?.02+thr*.03:thr*.012*rpm/red):0,t,.1)}
+  SND.sqg.gain.setTargetAtTime(run&&me.skid>.25&&v>7&&!me.grass?Math.min(.09,me.skid*.09):0,t,.04);SND.wng.gain.setTargetAtTime(run?Math.min(.08,v/vm*.08):0,t,.2);
+  const gb=$("#rxRev");if(gb&&me.gear)gb.dataset.g=me.gear};
+const _rs48s=dzRaceStart;dzRaceStart=function(o){SND.gear=1;SND.rpm=1000;_rs48s(o);if(DZ2.S)DZ2.S.me.eng=engProfile(DZ2.S.me.c)};
+/* ---------- visible damage: dents, smoke, lost parts ---------- */
+const _cs48=dzCarShape;dzCarShape=function(x,c,paint,seat){_cs48(x,c,paint,seat);const d=Math.min(1,(c.dmg||0)/.3);if(d<.08||!c.c)return;const [L,W]=(dzSig(c.c).dim||DZSHAPE[c.c.body]||DZSHAPE.saloon),l=L/2,w=W/2;
+  x.save();x.strokeStyle=`rgba(20,20,22,${.25+d*.45})`;x.lineWidth=.07;const r=dzRng((c.c.id||"x").length*97+(c.seed||(c.seed=Math.floor(Math.random()*1e6))));x.beginPath();for(let i=0;i<Math.round(3+d*10);i++){const px=(r()-.5)*L*.9,py=(r()>.5?1:-1)*w*(.55+r()*.35);x.moveTo(px,py);x.lineTo(px+(r()-.5)*.8,py+(r()-.5)*.25)}x.stroke();
+  if(d>.45){x.fillStyle=`rgba(15,15,17,${.2+d*.3})`;x.beginPath();x.moveTo(l,-w*.7);x.lineTo(l-.35-d*.3,-w*.2);x.lineTo(l-.25,w*.3);x.lineTo(l,w*.6);x.closePath();x.fill()}x.restore()};
+function dmgFx(S){if(!S.debris)S.debris=[];S.cars.forEach(c=>{const d=Math.min(1,(c.dmg||0)/.3);if(d>.5&&!c.lostBumper){c.lostBumper=1;S.debris.push({x:c.x,y:c.y,h:c.h+Math.random(),w:1.6,l:.35,col:c.paint||"#999"})}if(d>.8&&!c.lostWing&&dzSig(c.c).wing){c.lostWing=1;S.debris.push({x:c.x-Math.cos(c.h)*2,y:c.y-Math.sin(c.h)*2,h:c.h+1.2,w:1.5,l:.3,col:"#16181b"})}
+  if(d>.55&&Math.random()<d*.4){(S.smoke||(S.smoke=[])).push([c.x-Math.cos(c.h)*1.2+(Math.random()-.5),c.y-Math.sin(c.h)*1.2+(Math.random()-.5),.5+Math.random()*.4,.5])}})}
+/* ---------- pit stops: crew, timer and strategy ---------- */
+const PITS={tyre:null,repair:false};
+function pitPanel(){const S=DZ2.S;if(!S)return;let p=$("#rxPit");if(p){p.remove();return}const me=S.me;$("#dzOv").insertAdjacentHTML("beforeend",`<div class="rx-panel rx-pit" id="rxPit"><b>Pit strategy</b><p>Pick your tyres for this stop. Repairs fix damage but add 3 seconds.</p>
+  <div class="seg">${[["S","Soft"],["M","Medium"],["H","Hard"],["W","Wet"]].map(([k,n])=>`<button type="button" data-pt="${k}" aria-pressed="${(PITS.tyre||me.tyre)===k}">${n}</button>`).join("")}</div>
+  <label class="rw-l"><input type="checkbox" id="rxRep" ${PITS.repair?"checked":""}> Repair damage (+3 s)${me.dmg?` — damage ${Math.round(me.dmg/.35*100)}%`:""}</label><div class="actions"><button class="btn" type="button" id="rxPitGo">${me.pitReq?"Cancel pit":"Box this lap"}</button></div></div>`)}
+document.addEventListener("click",e=>{const S=DZ2.S;if(!S)return;if(e.target.closest("#dzPit")&&S.laps>=2&&S.o.mode!=="tt"){e.stopImmediatePropagation();pitPanel();return}
+  const t=e.target.closest("[data-pt]");if(t){PITS.tyre=t.dataset.pt;t.parentElement.querySelectorAll("button").forEach(b=>b.setAttribute("aria-pressed",b===t))}
+  if(e.target.closest("#rxPitGo")){const me=S.me;me.pitReq=!me.pitReq;PITS.repair=!!$("#rxRep")?.checked;const pb=$("#dzPit");if(pb){pb.classList.toggle("on",me.pitReq);pb.textContent=me.pitReq?"PIT: this lap":"PIT"}$("#rxPit")?.remove()}},true);
+function pitFx(S){const me=S.me;if(me.pit>0&&!me._pitDone){me._pitDone=true;me._pitT0=S.t;if(PITS.tyre){me.tyre=PITS.tyre;const tb=$("#dzTyre span");if(tb)tb.textContent=({S:"Soft",M:"Medium",H:"Hard",W:"Wet"})[PITS.tyre]}me.wear=0;if(PITS.repair){me.pit+=3;me.dmg=0;me.lostBumper=0;me.lostWing=0}PITS.tyre=null;PITS.repair=false}
+  if(me.pit<=0&&me._pitDone){me._pitDone=false;dzMsg(`Pit stop ${(S.t-me._pitT0).toFixed(1)}s`,1.8,"good")}}
+function pitCrew(x,S){S.cars.forEach(c=>{if(!(c.pit>0))return;const f=[Math.cos(c.h),Math.sin(c.h)],r=[-f[1],f[0]],ph=performance.now()/140;
+  [[1.3,1.3],[1.3,-1.3],[-1.3,1.3],[-1.3,-1.3],[3,0],[-3.1,0]].forEach(([a,b],i)=>{const bob=Math.sin(ph+i)*.12,px=c.x+f[0]*(a+bob)+r[0]*b*1.45,py=c.y+f[1]*(a+bob)+r[1]*b*1.45;x.fillStyle=i<4?"#E0412F":"#F2C200";x.beginPath();x.arc(px,py,.42,0,7);x.fill();x.fillStyle="#1b1d22";x.beginPath();x.arc(px,py,.22,0,7);x.fill();
+    if(i<4){x.strokeStyle="#9aa1a8";x.lineWidth=.12;x.beginPath();x.moveTo(px,py);x.lineTo(px-r[0]*b*.35,py-r[1]*b*.35);x.stroke()}})})}
+/* ---------- time of day: sunset into night during the race ---------- */
+function todFx(S){if(S.vis!=="dusk")return;const k=Math.min(1,Math.max(0,S.t/(S.durEst||120)));S.night=Math.max(0,(k-.35)/.65);S.dusk=k}
+const _rs48t=dzRaceStart;dzRaceStart=function(o){const dusk=o.weather==="dusk";if(dusk)o.weather="dry";_rs48t(o);const S=DZ2.S;if(!S)return;if(dusk){S.vis="dusk";S.night=0;S.durEst=(o.mode==="tt"?2:Math.max(1,o.laps||1))*TRKS[o.track].len/40;$("#dzOv")?.classList.add("wx-dusk")}};
+WX.dusk="Sunset → night";
+/* ---------- flags, penalties and the safety car ---------- */
+function flagMsg(S,txt,col){const f=$("#rxFlag");if(!f)return;f.textContent=txt;f.style.background=col;f.classList.add("on");clearTimeout(f._t);f._t=setTimeout(()=>f.classList.remove("on"),2600)}
+function raceRules(S,dt){const me=S.me;if(!S.go||S.o.mode==="tt"||S.o.mode==="quali"||me.fin!=null)return;
+  /* track limits: going off with all four wheels and carrying on costs a warning; three warnings = +5 s */
+  if(me.grass&&Math.hypot(me.vx,me.vy)>14){me._off=(me._off||0)+dt}else{if((me._off||0)>.9){me.warn=(me.warn||0)+1;if(me.warn%3===0){me.pen=(me.pen||0)+5;flagMsg(S,"⚫⬜ +5 s penalty — track limits","#1b1d22")}else flagMsg(S,`⚫⬜ Track limits warning ${me.warn%3}/3`,"#1b1d22")}me._off=0}
+  /* yellow flags where someone has crashed ahead */
+  const crashAhead=S.cars.some(c=>c!==me&&c.crash>0&&((c.prog-me.prog)*S.G.ds)>0&&((c.prog-me.prog)*S.G.ds)<250);if(crashAhead&&!S._yel){S._yel=1;flagMsg(S,"🟨 Yellow flag — crash ahead","#E0A100")}if(!crashAhead)S._yel=0;
+  /* safety car after a big crash in longer races */
+  if(!S.sc&&!S.scUsed&&S.laps>=2&&S.cars.length>=4&&S.cars.some(c=>c.crash>0&&(c.dmg||0)>.2)&&Math.random()<.35){S.sc={t:22};S.scUsed=1;flagMsg(S,"🟨 SAFETY CAR — hold position, 60 mph max","#E0A100")}
+  if(S.sc){S.sc.t-=dt;if(S.sc.t<=0){S.sc=null;flagMsg(S,"🟩 Green flag — racing resumes","#1E9E62")}}}
+const _st48=dzStep;dzStep=function(S,car,dt,G){_st48(S,car,dt,G);if(S.sc&&S.go&&car.fin==null&&!car.remote){const v=Math.hypot(car.vx,car.vy),cap=27;if(v>cap){car.vx*=cap/v;car.vy*=cap/v}
+  const lead=S.cars.filter(c=>c.fin==null).reduce((a,b)=>a.prog>b.prog?a:b,car);if(car!==lead){const ahead=S.cars.filter(c=>c!==car&&c.prog>car.prog&&c.fin==null).reduce((a,b)=>!a||b.prog<a.prog?b:a,null);if(ahead&&(ahead.prog-car.prog)*G.ds<9){car.vx*=.97;car.vy*=.97}}}};
+function scDraw(x,S){if(!S.sc)return;const lead=S.cars.filter(c=>c.fin==null).reduce((a,b)=>a.prog>b.prog?a:b,S.me),G=S.G,i=((lead.idx||0)+Math.round(30/G.ds))%G.N,p=G.P[i],t=G.tan[i];
+  const sc={c:BY["mercedes-benz-amg-gt-r"]||BY["porsche-911-gt3"],steer:0,paint:"#F4F4F4",plate:"SAFETY"};x.save();x.translate(p[0],p[1]);x.rotate(Math.atan2(t[1],t[0]));dzCarShape(x,sc,"rgb(240,240,240)","#E0A100");const on=Math.floor(performance.now()/250)%2;x.fillStyle=on?"#F2C200":"#FF8A00";x.fillRect(-.2,-.6,.4,.5);x.fillStyle=on?"#FF8A00":"#F2C200";x.fillRect(-.2,.1,.4,.5);x.restore()}
+/* penalties are added to the finishing time */
+const _dres48=duelResult;duelResult=function(r){if(r&&r.me&&r.me.pen&&r.me.fin!=null){r.me.fin+=r.me.pen;DZL.lastPen=r.me.pen}else DZL.lastPen=0;_dres48(r);if(DZL.lastPen){const b=$("#game .result p")||$("#game .result .big");if(b)b.insertAdjacentHTML("afterend",`<p class="note" style="color:#C8102E">Includes a ${DZL.lastPen} s track-limits penalty.</p>`)}};
+/* ---------- more graphics: tyre smoke, debris, dusk sky ---------- */
+function gfxWorld(x,S){const me=S.me,R=160;if(S.debris)S.debris.forEach(d=>{if(Math.abs(d.x-me.x)>R||Math.abs(d.y-me.y)>R)return;x.save();x.translate(d.x,d.y);x.rotate(d.h);x.fillStyle=d.col;x.fillRect(-d.w/2,-d.l/2,d.w,d.l);x.restore()});
+  if(!S.smoke)S.smoke=[];S.cars.forEach(c=>{const f=[Math.cos(c.h),Math.sin(c.h)],vT=Math.abs(-c.vx*f[1]+c.vy*f[0]);if(vT>5.5&&!c.grass&&Math.random()<.6)S.smoke.push([c.x-f[0]*1.4+(Math.random()-.5)*1.4,c.y-f[1]*1.4+(Math.random()-.5)*1.4,.6,.35])});
+  const now=performance.now(),dt=Math.min(.05,(now-(S._smT||now))/1000);S._smT=now;for(let i=S.smoke.length-1;i>=0;i--){const p=S.smoke[i];p[2]+=dt*2.6;p[3]-=dt*.32;if(p[3]<=0)S.smoke.splice(i,1)}if(S.smoke.length>220)S.smoke.splice(0,S.smoke.length-220);
+  for(const p of S.smoke){if(Math.abs(p[0]-me.x)>R||Math.abs(p[1]-me.y)>R)continue;x.fillStyle=`rgba(225,225,228,${p[3].toFixed(3)})`;x.beginPath();x.arc(p[0],p[1],p[2],0,7);x.fill()}
+  pitCrew(x,S);scDraw(x,S)}
+function gfxScreen(x,S){if(S.dusk!=null){const W=S.cv.width,H=S.cv.height,k=S.dusk;x.fillStyle=`rgba(255,120,40,${(Math.sin(Math.min(1,k*1.6)*Math.PI)*.16).toFixed(3)})`;x.fillRect(0,0,W,H)}}
+const _rs48g=dzRaceStart;dzRaceStart=function(o){_rs48g(o);const S=DZ2.S;if(!S)return;const pw=S.onWorld,ps=S.onScreen;S.onWorld=(x,s)=>{if(pw)pw(x,s);gfxWorld(x,s)};S.onScreen=(x,s)=>{gfxScreen(x,s);if(ps)ps(x,s)};
+  $("#dzOv")?.insertAdjacentHTML("beforeend",`<div class="rx-flag" id="rxFlag"></div>`)};
+const _hud48=dzHud;dzHud=function(S){_hud48(S);const now=performance.now(),dt=Math.min(.1,(now-(S._t48||now))/1000);S._t48=now;dmgFx(S);pitFx(S);todFx(S);raceRules(S,dt)};
+/* dusk option in the weather pickers */
+const _dm48=duelMenu;duelMenu=function(){_dm48();document.querySelectorAll("#game .seg").forEach(s=>{const n=s.querySelector('[data-dzwx="night"]');if(n&&!s.querySelector('[data-dzwx="dusk"]'))n.insertAdjacentHTML("beforebegin",`<button type="button" data-dzwx="dusk" aria-pressed="${DZL.wx==="dusk"}">Sunset</button>`)})};
+/* ---------- tilt that works held upright or sideways ---------- */
+tiltStart=async function(){try{if(typeof DeviceMotionEvent!=="undefined"&&DeviceMotionEvent.requestPermission){const r=await DeviceMotionEvent.requestPermission();if(r!=="granted")return false}}catch(e){return false}
+  if(!TILT.on2){addEventListener("devicemotion",e=>{const g=e.accelerationIncludingGravity;if(!g||g.x==null)return;const ang=(screen.orientation?.angle??window.orientation??0)*Math.PI/180;
+    const sx=g.x*Math.cos(ang)+g.y*Math.sin(ang),sy=-g.x*Math.sin(ang)+g.y*Math.cos(ang);let a=Math.atan2(sx,-sy);const inv=(store.get("ti-ctrl",null)||{}).tiltInv?-1:1,ios=/iPhone|iPad|iPod/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+    a*=ios?-1:1;TILT.v=Math.max(-1,Math.min(1,a*inv/.45))});TILT.on2=true}TILT.on=true;return true};
+const _cpg48=controlsPage;controlsPage=function(){const c=store.get("ti-ctrl",null)||{};return _cpg48().replace('<h3 style="margin:14px 0 6px">Driving assists</h3>',`<label class="rw-l" style="margin-top:10px"><input type="checkbox" id="ctTiltInv" ${c.tiltInv?"checked":""}> Reverse tilt direction (if turning the phone steers the wrong way)</label><h3 style="margin:14px 0 6px">Driving assists</h3>`)};
+document.addEventListener("change",e=>{if(e.target.id==="ctTiltInv")raceOptSet("tiltInv",e.target.checked)});
+/* ---------- friends' ghosts in time trials ---------- */
+const _gs48=dzGhostSet;dzGhostSet=function(t,g){_gs48(t,g);const track=String(t).replace(/^.*?([a-z]{2,16})$/,"$1");if(AUTH.user&&g&&g.s&&TRACKS[track])xapi("ghost-post","POST",{track,t:+g.t.toFixed(3),car:g.car,s:g.s.map(p=>Array.isArray(p)?p.map(v=>Math.round(v*100)/100):p)})};
+const GH={u:null,cache:{}};
+const _rs48h=dzRaceStart;dzRaceStart=function(o){if(o.mode==="tt"&&GH.u&&!o.ev){const g=GH.cache[GH.u+"|"+o.track];if(g){o.ghost=g;setTimeout(()=>dzMsg(`Ghost: ${GH.u}'s best ${dzFmt(g.t)}`,2),1400)}}return _rs48h(o)};
+const _dm48g=duelMenu;duelMenu=function(){_dm48g();if(DZL.mode!=="tt")return;const g=$("#game");const btn=g&&g.querySelector("#dzTT");if(!btn||g.querySelector(".gh-pick"))return;
+  btn.closest(".actions").insertAdjacentHTML("beforebegin",`<div class="gh-pick"><b>👻 Race a ghost</b><div class="seg" id="ghSeg"><button type="button" data-gh="" aria-pressed="${!GH.u}">Your own</button></div><span class="note" id="ghN"></span></div>`);ghFriends()};
+async function ghFriends(){if(!AUTH.user||!(await netCheck()))return;const r=await xapi("social");const seg=$("#ghSeg");if(!seg||!r.ok)return;(r.friends||[]).slice(0,8).forEach(f=>seg.insertAdjacentHTML("beforeend",`<button type="button" data-gh="${esc(f.username)}" aria-pressed="${GH.u===f.username}">${esc(f.username)}</button>`));ghLoad()}
+async function ghLoad(){const n=$("#ghN");if(!GH.u){if(n)n.textContent="";return}const k=GH.u+"|"+DZL.track;if(!(k in GH.cache)){const r=await xapi(`ghost?u=${encodeURIComponent(GH.u)}&track=${DZL.track}`);GH.cache[k]=r.ok&&r.ghost?r.ghost:null}
+  if(n)n.textContent=GH.cache[k]?`${GH.u}'s best here: ${dzFmt(GH.cache[k].t)} in the ${BY[GH.cache[k].car]?.model||"?"}`:`${GH.u} hasn't set a lap here yet`}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-gh]");if(!b)return;GH.u=b.dataset.gh||null;b.parentElement.querySelectorAll("button").forEach(x=>x.setAttribute("aria-pressed",x===b));ghLoad()});
+document.head.insertAdjacentHTML("beforeend",`<style id="v48css">
+.rx-flag{position:absolute;left:50%;top:calc(150px + env(safe-area-inset-top,0px));transform:translate(-50%,-8px);opacity:0;transition:.25s;color:#fff;font-weight:900;border-radius:10px;padding:8px 16px;z-index:7;pointer-events:none;font-size:15px;white-space:nowrap}.rx-flag.on{opacity:1;transform:translate(-50%,0)}
+.rx-rev i::after{content:attr(data-g)}.rx-rev{overflow:visible}.rx-rev::after{content:"";}
+.cd-ov.wx-dusk .dz-sky{background:linear-gradient(#2a1b3d,#c2573a 60%,#f0a35a)}
+.gh-pick{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin:4px 0 12px}.gh-pick .note{flex-basis:100%;margin:0}
+.rx-pit{top:auto;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%)}
 </style>`);
 
 render();syncCmp();

@@ -63,7 +63,7 @@ export default {
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
       return stub.fetch(request);
     }
-    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(wevent|wevent-post|admin-wevent|lb-drift|drift-post|lb-earn|auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
+    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(ghost|ghost-post|wevent|wevent-post|admin-wevent|lb-drift|drift-post|lb-earn|auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
     if (a) {
       // Accounts: writes must come from this site (blocks cross-site form tricks).
       if (request.method !== "GET") {
@@ -245,6 +245,7 @@ export class Accounts extends DurableObject {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS clubs(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE COLLATE NOCASE, tag TEXT UNIQUE COLLATE NOCASE, col TEXT, owner TEXT, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS wevents(id INTEGER PRIMARY KEY AUTOINCREMENT, cfg TEXT, start INTEGER, ends INTEGER, settled INTEGER DEFAULT 0, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS wscores(ev INTEGER, uid TEXT, score REAL, car TEXT, created INTEGER, PRIMARY KEY(ev,uid))`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS ghosts(uid TEXT, track TEXT, t REAL, car TEXT, data TEXT, created INTEGER, PRIMARY KEY(uid,track))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS drifts(uid TEXT, track TEXT, score INTEGER, car TEXT, created INTEGER, PRIMARY KEY(uid,track))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS clubpts(season INTEGER, club INTEGER, pts INTEGER, PRIMARY KEY(season,club))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS vipused(h TEXT PRIMARY KEY, uid TEXT, at INTEGER)`);
@@ -331,7 +332,7 @@ export class Accounts extends DurableObject {
       if (!u || !same(await hashPw(String(body.password || ""), u.salt), u.hash)) return json({ error: "That password isn't right.", field: "password" }, 401);
       this.sql.exec(`DELETE FROM sessions WHERE uid=?`, s.uid);
       this.sql.exec(`DELETE FROM users WHERE id=?`, s.uid);
-      for (const t of ["laps","wins","cup","reviews","notifs","dailyr","ranks","drifts","wscores"]) this.sql.exec(`DELETE FROM ${t} WHERE uid=?`, s.uid);
+      for (const t of ["laps","wins","cup","reviews","notifs","dailyr","ranks","drifts","wscores","ghosts"]) this.sql.exec(`DELETE FROM ${t} WHERE uid=?`, s.uid);
       this.sql.exec(`DELETE FROM friends WHERE a=? OR b=?`, s.uid, s.uid);this.sql.exec(`DELETE FROM invites WHERE to_uid=? OR from_uid=?`, s.uid, s.uid);
       return json({ ok: true }, 200, null, { "set-cookie": this.cookie("", secure, 0) });
     }
@@ -413,6 +414,12 @@ export class Accounts extends DurableObject {
       const mine = e && s ? this.sql.exec(`SELECT score, car FROM wscores WHERE ev=? AND uid=?`, e.id, s.uid).toArray()[0] || null : null;
       return json({ event: e ? { id: e.id, ...JSON.parse(e.cfg), start: e.start, ends: e.ends } : null, top: board(e), mine, n: e ? this.sql.exec(`SELECT COUNT(*) AS n FROM wscores WHERE ev=?`, e.id).toArray()[0].n : 0,
         last: last ? { ...JSON.parse(last.cfg), ends: last.ends, top: board(last).slice(0, 3) } : null });
+    }
+    if (route === "ghost") {
+      const u = this.sql.exec(`SELECT id FROM users WHERE username=?`, String(q.get("u") || "")).toArray()[0], track = String(q.get("track") || "");
+      if (!u || !/^[a-z]{2,16}$/.test(track)) return json({ error: "Not found" }, 404);
+      const g = this.sql.exec(`SELECT t, car, data FROM ghosts WHERE uid=? AND track=?`, u.id, track).toArray()[0];
+      return json({ ghost: g ? { t: g.t, car: g.car, s: JSON.parse(g.data) } : null });
     }
     if (route === "lb-drift") {
       const track = String(q.get("track") || ""); if (!/^[a-z]{2,16}$/.test(track)) return json({ error: "Bad track" }, 400);
@@ -527,6 +534,14 @@ export class Accounts extends DurableObject {
       if (better) this.sql.exec(`INSERT OR REPLACE INTO wscores(ev,uid,score,car,created) VALUES(?,?,?,?,?)`, e.id, s.uid, sc, car, now);
       const rank = this.sql.exec(`SELECT COUNT(*)+1 AS r FROM wscores WHERE ev=? AND score ${cfg.kind === "drift" ? ">" : "<"} ?`, e.id, better ? sc : old.score).toArray()[0].r;
       return json({ ok: true, best: better, rank });
+    }
+    if (route === "ghost-post") {
+      if (!this.limit("gp:" + s.uid, 120, 3600e3)) return json({ error: "Slow down" }, 429);
+      const track = String(body.track || ""), t = +body.t, car = String(body.car || ""), data = JSON.stringify(Array.isArray(body.s) ? body.s.slice(0, 3000) : []);
+      if (!/^[a-z]{2,16}$/.test(track) || !(t > 15 && t < 2000) || !/^[a-z0-9-]{2,90}$/.test(car) || data.length > 120000) return json({ error: "Bad ghost" }, 400);
+      const old = this.sql.exec(`SELECT t FROM ghosts WHERE uid=? AND track=?`, s.uid, track).toArray()[0];
+      if (!old || t < old.t) this.sql.exec(`INSERT OR REPLACE INTO ghosts(uid,track,t,car,data,created) VALUES(?,?,?,?,?,?)`, s.uid, track, t, car, data, now);
+      return json({ ok: true });
     }
     if (route === "drift-post") {
       if (s.banned) return json({ ok: false }, 403);
