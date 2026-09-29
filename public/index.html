@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610011000";
+const BUILD="202610011200";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -5903,7 +5903,7 @@ body.is-vip .acctbox .av,body.is-vip .acctnav .av{box-shadow:0 0 0 2px #F2C200,0
 const VIPCAR={i:-1,make:"McMurtry",model:"Spéirling",years:"2021–",body:"supercar",fuel:"E",engine:"60kWh battery, twin electric motors, downforce fan",bhp:1000,acc:1.5,top:150,price:1000,drive:"RWD",ph:-1,id:"mcmurtry-speirling",y0:2021,cur:true,dec:2020,fam:"McMurtry|Spéirling",vip:true};
 BY[VIPCAR.id]=VIPCAR;
 DZSIG.push([/McMurtry/,{shape:"hyper",fan:1,dim:[3.2,1.55,.42,.2,.24],intakes:null}]);
-const _grip41=gripOf;gripOf=function(c){const g=_grip41(c);if(c&&c.id===VIPCAR.id){g.mu*=1.38;g.aero=.2;g.brake=1.05}return g};
+const _grip41=gripOf;gripOf=function(c){const g=_grip41(c);if(c&&c.id===VIPCAR.id){g.mu*=2.2;g.aero=.6;g.brake=1.35}/* fan car: huge grip even at walking pace, and more as speed builds */return g};
 const VIPSVG=`<svg viewBox="0 0 400 250" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="vsg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2410"/><stop offset="1" stop-color="#0b0c0e"/></linearGradient><linearGradient id="vsb" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#C9971C"/><stop offset=".5" stop-color="#F7D84A"/><stop offset="1" stop-color="#B8860B"/></linearGradient></defs>
 <rect width="400" height="250" fill="url(#vsg)"/><g opacity=".18" stroke="#F2C200"><path d="M0 200H400M0 170H400"/></g>
 <path d="M58 178 C70 150 120 138 170 134 C200 108 238 102 266 112 C300 122 330 140 346 160 L350 178 Z" fill="url(#vsb)"/><path d="M186 132 C206 112 236 108 258 116 C270 122 272 130 262 134 Z" fill="#11151b" stroke="#F7D84A" stroke-width="1.5"/>
