@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610011200";
+const BUILD="202610011400";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -6052,6 +6052,14 @@ document.head.insertAdjacentHTML("beforeend",`<style id="v41css">
 .h3-today+.ps-strip,.ps-strip+.nw-home{margin-top:6px}
 @media (max-width:860px){.tn-g,.vipcar-hero{grid-template-columns:minmax(0,1fr)}.tn-prev{position:static}.ps-top{grid-template-columns:auto minmax(0,1fr)}.ps-top .btn{grid-column:1/-1}}
 </style>`);
+
+/* ---------- quicker reverse: after a crash or spin, hold BRAKE (S) at a standstill to back out briskly ---------- */
+const DZREV={max:9.5,acc:7.5,stop:14};
+const _step41=dzStep;dzStep=function(S,car,dt,G){const f=[Math.cos(car.h),Math.sin(car.h)],pre=car.vx*f[0]+car.vy*f[1];_step41(S,car,dt,G);
+  if(!S.go||car.remote||car.fin!=null||car.crash>0||car.pit>0)return;const f2=[Math.cos(car.h),Math.sin(car.h)],r2=[-f2[1],f2[0]];let vL=car.vx*f2[0]+car.vy*f2[1];const vT=car.vx*r2[0]+car.vy*r2[1];
+  if(car.brk>0&&car.thr===0&&pre<.8){vL=Math.max(-DZREV.max,Math.min(pre,.2)-DZREV.acc*car.brk*dt);car.rev=true}
+  else if(car.thr>0&&pre<-.4){vL=Math.min(0,pre+DZREV.stop*dt);car.rev=false}else{car.rev=vL<-.3;return}
+  car.vx=f2[0]*vL+r2[0]*vT;car.vy=f2[1]*vL+r2[1]*vT};
 
 render();syncCmp();
 </script>
