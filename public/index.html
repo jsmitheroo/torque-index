@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610051200";
+const BUILD="202610051500";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -6462,13 +6462,20 @@ document.head.insertAdjacentHTML("beforeend",`<style id="v45css">
 const CTRLDEF={left:["KeyA","ArrowLeft"],right:["KeyD","ArrowRight"],gas:["KeyW","ArrowUp"],brake:["KeyS","ArrowDown"],hb:["Space"],cam:["KeyC"],horn:["KeyH"]};
 const CTRLN={left:"Steer left",right:"Steer right",gas:"Accelerate",brake:"Brake / reverse",hb:"Handbrake",cam:"Change camera",horn:"Horn (city)"};
 function ctrlGet(){const c=store.get("ti-ctrl",null)||{};return {keys:Object.assign({},CTRLDEF,c.keys||{}),steer:c.steer||1,dead:c.dead??.14,pad:c.pad!==false}}
-const CK=new Set();let CTRL=ctrlGet();
+let CTRL=ctrlGet();
 const ctrlActive=()=>!!(DZ2.S&&!DZ2.S.done)||!!(window.CITY&&CITY.on);
 const keyIs=(code,act)=>CTRL.keys[act].includes(code);
-addEventListener("keydown",e=>{if(!ctrlActive()||e.target.closest?.("input,textarea,select"))return;const act=Object.keys(CTRL.keys).find(a=>keyIs(e.code,a));if(!act)return;
-  if(act==="cam"&&!e.repeat){if(e.key!=="c"&&e.key!=="C")document.dispatchEvent(new KeyboardEvent("keydown",{key:"c"}));if(window.CITY&&CITY.on)CITY.zoomT=CITY.zoomT===1?.6:1}
-  if(act==="horn"&&!e.repeat&&window.CITY&&CITY.on)cityHorn();CK.add(act);e.preventDefault();e.stopImmediatePropagation()},true);
-addEventListener("keyup",e=>{Object.keys(CTRL.keys).forEach(a=>{if(keyIs(e.code,a))CK.delete(a)})},true);
+/* keys held right now (by physical key code). The older race key handler stops other listeners for W/A/S/D/arrows/Space,
+   so those are also read from its DZK state — either way every key goes through your own bindings. */
+const CODES=new Set(),TOUCH=new Set(),DZCODE_R={w:"KeyW",a:"KeyA",s:"KeyS",d:"KeyD",arrowup:"ArrowUp",arrowdown:"ArrowDown",arrowleft:"ArrowLeft",arrowright:"ArrowRight"," ":"Space"};
+function codeDown(code){if(CODES.has(code))return true;return Object.entries(DZCODE_R).some(([k,c])=>c===code&&DZK[k])}
+const actOn=a=>TOUCH.has(a)||CTRL.keys[a].some(c=>c&&codeDown(c));
+const CK={has:actOn,clear(){CODES.clear();TOUCH.clear();Object.keys(DZK).forEach(k=>DZK[k]=false)},add(a){TOUCH.add(a)},delete(a){TOUCH.delete(a)}};
+document.addEventListener("keydown",e=>{if(!ctrlActive()||e.target.closest?.("#ctChatI,#rchatI"))return;if(!Object.keys(CTRL.keys).some(a=>keyIs(e.code,a)))return;CODES.add(e.code);e.preventDefault()},true);
+addEventListener("keydown",e=>{if(!ctrlActive()||e.target.closest?.("#ctChatI,#rchatI")||e.repeat)return;
+  if(keyIs(e.code,"cam")&&e.key!=="c"&&e.key!=="C")document.dispatchEvent(new KeyboardEvent("keydown",{key:"c"}));if(keyIs(e.code,"cam")&&window.CITY&&CITY.on)CITY.zoomT=CITY.zoomT===1?.6:1;
+  if(keyIs(e.code,"horn")&&window.CITY&&CITY.on)cityHorn()});
+addEventListener("keyup",e=>{CODES.delete(e.code)},true);
 addEventListener("blur",()=>CK.clear());
 function padRead(){if(!CTRL.pad||!navigator.getGamepads)return null;const g=[...navigator.getGamepads()].find(p=>p&&p.connected);if(!g)return null;const b=i=>g.buttons[i]?(g.buttons[i].value||+g.buttons[i].pressed):0;
   let x=g.axes[0]||0;x=Math.abs(x)<CTRL.dead?0:Math.sign(x)*(Math.abs(x)-CTRL.dead)/(1-CTRL.dead);const y=g.buttons[12]&&b(12)?1:0;
