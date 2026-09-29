@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202609301000";
+const BUILD="202609301800";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -5896,6 +5896,157 @@ body.is-vip .acctbox .av,body.is-vip .acctnav .av{box-shadow:0 0 0 2px #F2C200,0
 .vip-strip{display:block;margin:-6px 0 18px;padding:10px 14px;border-radius:12px;border:1px solid #E0B000;background:linear-gradient(90deg,rgba(242,194,0,.14),transparent);color:var(--ink);font-size:14px}
 @media (max-width:860px){.vip-perks{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:480px){.vip-perks{grid-template-columns:minmax(0,1fr)}.vip-hero{padding:26px 20px}}
+</style>`);
+
+/* ================= v41: upgrades & tuning, paint & number plates for cars you own, the VIP-only McMurtry Spéirling, and a monthly season pass ================= */
+/* ---------- the VIP car: never listed, never for sale, free to every VIP ---------- */
+const VIPCAR={i:-1,make:"McMurtry",model:"Spéirling",years:"2021–",body:"supercar",fuel:"E",engine:"60kWh battery, twin electric motors, downforce fan",bhp:1000,acc:1.5,top:150,price:1000,drive:"RWD",ph:-1,id:"mcmurtry-speirling",y0:2021,cur:true,dec:2020,fam:"McMurtry|Spéirling",vip:true};
+BY[VIPCAR.id]=VIPCAR;
+DZSIG.push([/McMurtry/,{shape:"hyper",fan:1,dim:[3.2,1.55,.42,.2,.24],intakes:null}]);
+const _grip41=gripOf;gripOf=function(c){const g=_grip41(c);if(c&&c.id===VIPCAR.id){g.mu*=1.38;g.aero=.2;g.brake=1.05}return g};
+const VIPSVG=`<svg viewBox="0 0 400 250" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><defs><linearGradient id="vsg" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2410"/><stop offset="1" stop-color="#0b0c0e"/></linearGradient><linearGradient id="vsb" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stop-color="#C9971C"/><stop offset=".5" stop-color="#F7D84A"/><stop offset="1" stop-color="#B8860B"/></linearGradient></defs>
+<rect width="400" height="250" fill="url(#vsg)"/><g opacity=".18" stroke="#F2C200"><path d="M0 200H400M0 170H400"/></g>
+<path d="M58 178 C70 150 120 138 170 134 C200 108 238 102 266 112 C300 122 330 140 346 160 L350 178 Z" fill="url(#vsb)"/><path d="M186 132 C206 112 236 108 258 116 C270 122 272 130 262 134 Z" fill="#11151b" stroke="#F7D84A" stroke-width="1.5"/>
+<path d="M300 150 L346 158 L348 170 L304 168 Z" fill="#0b0c0e"/><circle cx="320" cy="160" r="7" fill="#0b0c0e" stroke="#C9971C"/>
+<circle cx="116" cy="180" r="24" fill="#0b0c0e"/><circle cx="116" cy="180" r="11" fill="#555"/><circle cx="296" cy="180" r="24" fill="#0b0c0e"/><circle cx="296" cy="180" r="11" fill="#555"/>
+<text x="200" y="232" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" font-weight="800" fill="#F2C200" letter-spacing="3">★ VIP EXCLUSIVE</text></svg>`;
+const _ph41=ph;ph=function(c,cls=""){if(c&&c.id===VIPCAR.id)return `<div class="ph vipart ${cls}" role="img" aria-label="McMurtry Spéirling">${VIPSVG}</div>`;return _ph41(c,cls)};
+const _cp41=carPage;carPage=function(c){if(c&&c.id===VIPCAR.id&&!vipOn())return `<div class="wrap"><section class="vip-hero"><div class="eyebrow">VIP only</div><h1><span>★</span> Hidden car</h1><p>This car is only visible to VIP members.</p></section><div class="actions"><a class="btn primary" href="#vip">About VIP</a></div></div>`;
+  if(c&&c.id===VIPCAR.id){const o=crGet().own.find(x=>x.id===c.id);return `<div class="wrap"><section class="vip-hero on vipcar-hero"><div class="vch-art">${VIPSVG}</div><div><div class="eyebrow">VIP exclusive · free to every VIP</div><h1 style="font-size:clamp(40px,7vw,72px)">McMurtry Spéirling</h1>
+    <p>A tiny single-seat electric fan car from Gloucestershire. A fan underneath sucks it to the road — so much grip it could drive upside down — and it holds the Goodwood hill climb record. Only VIPs can see it or drive it.</p>
+    <div class="cotd-st" style="margin-top:14px;background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15)"><div><b class="num">~${c.bhp}</b><small>bhp</small></div><div><b class="num">~${c.acc}s</b><small>0–62 mph</small></div><div><b class="num">${c.top}+</b><small>mph</small></div><div><b class="num">Fan</b><small>downforce</small></div></div>
+    <div class="actions">${o?`<a class="btn primary" href="#custom-${c.id}">Customise</a><a class="btn" href="#duel" data-crrace="${c.id}">Race it</a>`:`<span class="note">It'll appear in your garage in a moment.</span>`}</div></div></section>
+    <p class="note">Figures are approximate. McMurtry Spéirling is a trademark of McMurtry Automotive; Torque Index is an unofficial fan site.</p></div>`}
+  return _cp41(c)};
+function vipCarGrant(){if(!vipOn())return;const c=crGet();if(c.own.some(o=>o.id===VIPCAR.id))return;c.own.unshift({id:VIPCAR.id,at:Date.now(),paid:0,races:0,vip:true,paint:"#D4A017",plate:"VIP 1"});crSet(c);
+  if(route().name==="car"&&route().id===VIPCAR.id)setTimeout(render,0);
+  toast(`<span class="ti2">★</span><div><b>Your VIP car has arrived</b><span>The McMurtry Spéirling is in your garage</span></div>`,"ach")}
+/* the free VIP car doesn't count toward collector achievements */
+(ACH.find(a=>a[0]==="ownhyp")||[])[3]=()=>crGet().own.some(o=>o.id!==VIPCAR.id&&crPrice(BY[o.id])>=1000000);
+/* hide it from anyone without VIP */
+const ownVis=o=>o&&BY[o.id]&&(o.id!==VIPCAR.id||vipOn());
+const _cg41=crGet;crGet=function(){const c=_cg41();c.own=c.own.filter(o=>BY[o.id]);return c};
+const _cgh41=crGarageHtml;crGarageHtml=function(){const c=crGet(),hid=c.own.filter(o=>!ownVis(o));if(!hid.length)return _cgh41();
+  const keep=store.get(CRK);const vis=Object.assign({},keep,{own:keep.own.filter(ownVis)});_ss15.call(store,CRK,vis);try{return _cgh41()}finally{_ss15.call(store,CRK,keep)}};
+const _sell41=crSell;crSell=function(id){if(id===VIPCAR.id){toast("Your VIP car can't be sold");return}return _sell41(id)};
+const _ttl41=dzTTList;dzTTList=function(){const c=_cg41();const hid=c.own.filter(o=>!ownVis(o));if(!hid.length)return _ttl41();const keep=store.get(CRK);_ss15.call(store,CRK,Object.assign({},keep,{own:keep.own.filter(ownVis)}));try{return _ttl41()}finally{_ss15.call(store,CRK,keep)}};
+const _pd41=profDraw;profDraw=async function(u){await _pd41(u);if(!vipOn())document.querySelectorAll(`#prv a[href="#car-${VIPCAR.id}"]`).forEach(a=>a.closest(".card,.ccard,article,a")?.remove())};
+
+/* ---------- upgrades ---------- */
+const UPG={eng:["Engine","More power: quicker and faster",[.06,.12,.2],[.08,.15,.25]],wgt:["Weight","Lighter: accelerates, brakes and turns better",[.03,.06,.1],[.06,.11,.18]],tyr:["Tyres","Stickier rubber: more grip everywhere",[.04,.08,.12],[.04,.08,.12]],brk:["Brakes","Bigger brakes: stop later",[.06,.12,.18],[.03,.06,.1]]};
+const upOf=o=>Object.assign({eng:0,wgt:0,tyr:0,brk:0},o&&o.up||{});
+function upCost(car,k,stage){return Math.max(2500,Math.round(crPrice(car)*UPG[k][3][stage-1]/100)*100)}
+function upCar(car,up){const e=UPG.eng[2][up.eng-1]||0,w=UPG.wgt[2][up.wgt-1]||0;return Object.assign({},car,{id:car.id+"~t"+up.eng+up.wgt+up.tyr+up.brk,bhp:Math.round(car.bhp*(1+e)),acc:car.acc?+(car.acc*(1-e*.55-w*.6)).toFixed(2):car.acc,top:Math.round(car.top*(1+e*.35))})}
+function tuneApply(car,o){const up=upOf(o);if(!up.eng&&!up.wgt&&!up.tyr&&!up.brk)return false;const M=car.M,e=UPG.eng[2][up.eng-1]||0,w=UPG.wgt[2][up.wgt-1]||0,t=UPG.tyr[2][up.tyr-1]||0,b=UPG.brk[2][up.brk-1]||0;
+  M.vmax*=1+e*.35;M.tau*=1-(e*.55+w*.6);M.trac*=1+t*.8+w*.3;M.brake*=1+b+w*.3;car.mu0*=1+t+w*.3;M.mu=car.mu0;return true}
+let TUNED_RACE=false;
+const _rs41=dzRaceStart;dzRaceStart=function(o){_rs41(o);const S=DZ2.S;TUNED_RACE=false;if(!S||!S.me)return;const own=crGet().own.find(x=>x.id===S.me.c.id&&ownVis(x));if(!own)return;
+  if(own.paint)S.me.paint=own.paint;if(own.plate)S.me.plate=own.plate;S.me.plst=own.plst||"uk";
+  const fair=o.mode==="tt"||(o.online&&NET.S&&NET.S.cd&&NET.S.cd.ranked);if(!fair&&tuneApply(S.me,own)){TUNED_RACE=true;setTimeout(()=>{if(DZ2.S===S)dzMsg("Upgrades fitted",1.4,"good")},900)}};
+/* tuned laps don't go on the public lap-record leaderboards */
+const _xapi41=xapi;xapi=function(path,...a){if(TUNED_RACE&&/^lb-lap\b/.test(path))return Promise.resolve({ok:false,status:0});return _xapi41(path,...a)};
+/* number plates on the car itself */
+const _cs41=dzCarShape;dzCarShape=function(x,c,paint,seat){_cs41(x,c,paint,seat);if(!c.plate)return;const [L,W]=(dzSig(c.c).dim||DZSHAPE[c.c.body]||DZSHAPE.saloon),l=L/2;const gold=c.plst==="gold",show=c.plst==="show";
+  x.fillStyle=gold||show?"#111":"#F4F4F4";x.fillRect(l-.03,-.26,.06,.52);x.fillStyle=gold||show?"#111":"#F2C200";x.fillRect(-l-.03,-.26,.06,.52);if(gold){x.fillStyle="#E0B000";x.fillRect(-l-.035,-.2,.07,.4);x.fillRect(l-.035,-.2,.07,.4)}};
+
+/* ---------- paint ---------- */
+const PAINTS=[["#F2F2F2","White"],["#16181B","Black"],["#B8BEC4","Silver"],["#6B7178","Grey"],["#C8102E","Red"],["#1E5AA8","Blue"],["#F2C200","Yellow"],["#E86A1A","Orange"],["#1F7A45","Green"],["#0B3D2C","Racing green"],["#5B2A86","Purple"],["#7FB8E6","Baby blue"]];
+const PAINTS_X={candy:["#E3162B","Candy red"],pearl:["#FBF7EE","Pearl white"],matte:["#2A2B2E","Matte black"],lime:["#9BE61E","Lime"],shock:["#0E7CFF","Electric blue"],pink:["#FF3E9A","Hot pink"],chrome:["#D9DEE3","Chrome"],burnt:["#B4471B","Burnt orange"],
+  gold:["#D4A017","VIP gold"],rose:["#E3A794","Rose gold"],midnight:["#2B1A4F","Midnight purple"],liquid:["#C8CFD6","Liquid silver"],blackgold:["#1A1508","Black & gold"]};
+/* ---------- season pass (monthly, 50 levels) ---------- */
+const PXP=1500,PMAX=50;
+const passSeason=()=>{const d=new Date();return d.getUTCFullYear()*100+d.getUTCMonth()+1};
+function passGet(){let p=store.get("ti-pass",null);const s=passSeason();if(!p||p.season!==s)p={season:s,xp:0,cf:[],cv:[],unl:(p&&p.unl)||[]};p.unl=p.unl||[];return p}
+const passLv=p=>Math.min(PMAX,Math.floor(p.xp/PXP));
+function passRew(L,vip){const r={cr:vip?4000+L*800:2000+L*400};
+  const fp={5:"candy",10:"pearl",15:"matte",20:"lime",30:"shock",35:"pink",40:"chrome",45:"burnt"},vp={5:"gold",15:"rose",25:"midnight",35:"liquid",45:"blackgold"};
+  if(!vip&&fp[L])r.paint=fp[L];if(vip&&vp[L])r.paint=vp[L];if(!vip&&L===25)r.plate="show";if(vip&&L===10)r.plate="gold";
+  if(L===25&&!vip)r.cr+=100000;if(L===50)r.cr+=vip?1000000:500000;return r}
+function passRewTxt(r){return [r.cr?crFmt(r.cr):"",r.paint?`🎨 ${PAINTS_X[r.paint][1]} paint`:"",r.plate?`🔖 ${r.plate==="gold"?"Gold":"Show"} plates`:""].filter(Boolean).join(" + ")}
+function crGrant(n,why){const c=_cg41();c.bal+=n;c.tot=(c.tot||0)+n;c.log.unshift([Date.now(),n,why]);c.log.length=Math.min(c.log.length,40);crSet(c)}
+function passClaim(L,vip){const p=passGet(),lv=passLv(p),arr=vip?p.cv:p.cf;if(L>lv||arr.includes(L)||(vip&&!vipOn()))return false;const r=passRew(L,vip);arr.push(L);
+  if(r.paint&&!p.unl.includes(r.paint))p.unl.push(r.paint);if(r.plate&&!p.unl.includes("plate-"+r.plate))p.unl.push("plate-"+r.plate);store.set("ti-pass",p);if(r.cr)crGrant(r.cr,`Season pass level ${L}${vip?" (VIP)":""}`);return true}
+/* XP: every credit reward also gives pass XP */
+const _cre41=crEarn;crEarn=function(n,why,quiet){const p=passGet(),was=passLv(p);if(n>0&&was<PMAX){p.xp+=Math.round(n);store.set("ti-pass",p);const now=passLv(p);if(now>was)setTimeout(()=>toast(`<span class="ti2">🎟️</span><div><b>Season pass level ${now}!</b><span><a href="#pass">Claim your reward</a></span></div>`,"ach"),900)}return _cre41(n,why,quiet)};
+const paintOk=k=>{const p=passGet();return p.unl.includes(k)};
+const plateOk=k=>k==="uk"||passGet().unl.includes("plate-"+k);
+function passPage(){const p=passGet(),lv=passLv(p),inL=p.xp-lv*PXP,vip=vipOn(),end=new Date(Date.UTC(Math.floor(p.season/100),p.season%100,1));
+  const unc=[...Array(lv).keys()].map(i=>i+1).filter(L=>!p.cf.includes(L)||(vip&&!p.cv.includes(L))).length;
+  return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#play">Play</a> / Season pass</div><h1>Season pass</h1><p>Every credit you earn also earns pass XP. Climb 50 levels this month for credits, special paints and number plates. VIPs unlock a second, bigger reward track. Resets ${end.toLocaleDateString("en-GB",{day:"numeric",month:"long"})}.</p></div></div>
+  <div class="ps-top"><div class="ps-lv"><small>Level</small><b class="num">${lv}</b><span>of ${PMAX}</span></div><div class="ps-bar"><div class="ps-fill" style="width:${lv>=PMAX?100:Math.round(inL/PXP*100)}%"></div><span>${lv>=PMAX?"Max level!":`${inL.toLocaleString()} / ${PXP.toLocaleString()} XP to level ${lv+1}`}</span></div>${unc?`<button class="btn primary" type="button" id="psAll">Claim all (${unc})</button>`:""}</div>
+  ${vip?"":`<a class="vip-strip" href="#vip">★ VIP unlocks the gold track: double credits, VIP gold paint, gold plates and 1,000,000 CR at level 50 →</a>`}
+  <div class="ps-track"><div class="ps-lab"><span>Free</span><span class="g">★ VIP</span></div>${[...Array(PMAX).keys()].map(i=>{const L=i+1,rf=passRew(L,false),rv=passRew(L,true),got=L<=lv;
+    const cell=(r,vp)=>{const done=(vp?p.cv:p.cf).includes(L),lock=vp&&!vip;return `<button type="button" class="ps-c ${vp?"v":""} ${done?"done":got&&!lock?"ready":""} ${r.paint||r.plate||r.cr>=100000?"big":""}" data-psc="${L}|${vp?1:0}" ${got&&!done&&!lock?"":"disabled"}>${r.paint?`<i class="sw" style="background:${PAINTS_X[r.paint][0]}"></i>`:r.plate?"🔖":"🪙"}<small>${passRewTxt(r)}</small>${done?"<em>✓</em>":lock?"<em>🔒</em>":""}</button>`};
+    return `<div class="ps-col ${got?"got":""}"><b>${L}</b>${cell(rf,false)}${cell(rv,true)}</div>`}).join("")}</div>
+  <p class="note">XP comes with every credit reward (1 XP for every 20 CR before bonuses). Claimed paints and plates stay unlocked forever.</p></div>`}
+document.addEventListener("click",e=>{const c=e.target.closest("[data-psc]"),all=e.target.closest("#psAll");if(!c&&!all)return;
+  if(all){const lv=passLv(passGet());let n=0;for(let L=1;L<=lv;L++){if(passClaim(L,false))n++;if(vipOn()&&passClaim(L,true))n++}toast(`Claimed ${n} reward${n===1?"":"s"}`)}
+  else{const [L,v]=c.dataset.psc.split("|");if(passClaim(+L,v==="1"))toast(`<span class="ti2">🎟️</span><div><b>Level ${L} reward claimed</b><span>${passRewTxt(passRew(+L,v==="1"))}</span></div>`,"ach")}
+  const y=scrollY;render();scrollTo(0,y)});
+
+/* ---------- customise page: upgrades, paint, plates ---------- */
+function custPage(r){const car=BY[r.id],c=crGet(),o=c.own.find(x=>x.id===r.id&&ownVis(x));if(!car||!o)return `<div class="wrap"><div class="bb-intro"><div class="bb-big" style="font-size:32px">You don't own this car</div><p>Buy it in the showroom to customise it.</p><div class="actions" style="justify-content:center"><a class="btn primary" href="#showroom">Showroom</a></div></div></div>`;
+  const up=upOf(o),tc=upCar(car,up),p=passGet(),vip=vipOn();const cur=CR.track,w=CR.weather;CR.weather="dry";setTrack("silverstone");let l0=null,l1=null;try{l0=raceSim(car).f.T;l1=raceSim(tc).f.T}catch(e){}setTrack(cur);CR.weather=w;
+  const sw=(hex,name,key,lock)=>`<button type="button" class="sw-b ${(o.paint||"").toLowerCase()===hex.toLowerCase()?"on":""}" ${lock?"disabled":`data-tpaint="${hex}"`} title="${esc(name)}${lock?" — "+lock:""}"><i style="background:${hex}"></i><small>${esc(name)}</small>${lock?"<em>🔒</em>":""}</button>`;
+  return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#garage">Garage</a> / Customise</div><h1>${esc(car.make)} ${esc(car.model)}</h1><p>Upgrades work in races against the computer and casual online races. Time trials, the Daily race, the Weekly Cup and ranked races stay stock so records are fair.</p></div></div>
+  <div class="tn-g"><aside class="tn-prev"><canvas id="tnCv" width="220" height="380" aria-label="Your car from above"></canvas><div class="tn-plate ${o.plst||"uk"}">${esc(o.plate||"TI 0000")}</div>
+    <div class="tn-sum"><div><small>0–62</small><b class="num">${acc(car.acc)}${tc.acc!==car.acc?` → ${acc(tc.acc)}`:""}</b></div><div><small>Power</small><b class="num">${car.bhp}${tc.bhp!==car.bhp?` → ${tc.bhp}`:""} bhp</b></div><div><small>Silverstone lap</small><b class="num">${l0?dzFmt(l0):"—"}${l1&&l1<l0-.01?` → ${dzFmt(l1)}`:""}</b></div></div>
+    <div class="actions"><a class="btn primary big" href="#duel" data-crrace="${car.id}">Race it →</a></div></aside>
+   <div><section class="tn-s"><h2 class="cd-h">Upgrades</h2><div class="tn-ups">${Object.entries(UPG).map(([k,[n,d]])=>{const s=up[k];return `<div class="tn-up"><div><b>${n}</b><small>${d}</small><div class="tn-st">${[1,2,3].map(i=>`<i class="${i<=s?"on":""}"></i>`).join("")}</div></div>
+      ${s<3?`<button type="button" class="btn ${c.bal>=upCost(car,k,s+1)?"primary":""}" data-tup="${k}" ${c.bal>=upCost(car,k,s+1)?"":"disabled"}>Stage ${s+1} · ${crFmt(upCost(car,k,s+1))}</button>`:`<span class="own-tag">Maxed ✓</span>`}</div>`}).join("")}</div>
+      <p class="note">You have ${crFmt(c.bal)}. Upgrades stay with the car; selling it sells them too.</p></section>
+    <section class="tn-s"><h2 class="cd-h">Paint</h2><div class="sw-g">${sw("", "Original", "", null).replace('data-tpaint=""','data-tpaint="none"').replace('<i style="background:"></i>','<i class="orig"></i>')}${PAINTS.map(([h,n])=>sw(h,n)).join("")}
+      ${Object.entries(PAINTS_X).map(([k,[h,n]])=>{const vp=["gold","rose","midnight","liquid","blackgold"].includes(k);const lv=Object.entries({candy:5,pearl:10,matte:15,lime:20,shock:30,pink:35,chrome:40,burnt:45,gold:5,rose:15,midnight:25,liquid:35,blackgold:45})[Object.keys(PAINTS_X).indexOf(k)][1];
+        return sw(h,n,k,paintOk(k)?null:`${vp?"VIP pass":"Season pass"} level ${lv}`)}).join("")}</div></section>
+    <section class="tn-s"><h2 class="cd-h">Number plate</h2><form id="tnPlF" class="vip-f" autocomplete="off"><input id="tnPl" class="sel" maxlength="8" value="${esc(o.plate||"")}" placeholder="e.g. JS 24 GTI" aria-label="Number plate text" autocapitalize="characters" spellcheck="false"><button class="btn primary" type="submit">Save plate</button></form>
+      <div class="seg" role="group" style="margin-top:10px">${[["uk","UK standard"],["show","Show plate"],["gold","Gold plate"]].map(([k,n])=>`<button type="button" ${plateOk(k)?`data-tplst="${k}"`:"disabled"} aria-pressed="${(o.plst||"uk")===k}">${n}${plateOk(k)?"":" 🔒"}</button>`).join("")}</div>
+      <p class="note">Letters, numbers and spaces, up to 8 characters. Show plates unlock at pass level 25; gold plates at VIP pass level 10.</p></section></div></div></div>`}
+function custDraw(){const r=route();if(r.name!=="custom")return;const car=BY[r.id],o=crGet().own.find(x=>x.id===r.id);const cv=$("#tnCv");if(!cv||!car||!o)return;const x=cv.getContext("2d"),dpr=Math.min(2,devicePixelRatio||1);cv.width=220*dpr;cv.height=380*dpr;
+  const go=paint=>{x.setTransform(dpr,0,0,dpr,0,0);x.fillStyle="#4A4F54";x.fillRect(0,0,220,380);x.strokeStyle="rgba(255,255,255,.5)";x.lineWidth=2;x.setLineDash([16,12]);x.beginPath();x.moveTo(110,0);x.lineTo(110,380);x.stroke();x.setLineDash([]);
+    const [L]=(dzSig(car).dim||DZSHAPE[car.body]||DZSHAPE.saloon),s=Math.min(58,300/L);x.translate(110,195);x.rotate(-Math.PI/2);x.scale(s,s);dzCarShape(x,{c:car,steer:0,plate:o.plate||"",plst:o.plst||"uk"},paint,"#F2C200")};
+  if(o.paint)go(o.paint);else{go("rgb(160,164,170)");dzPaint(car,p=>go(p))}}
+function ownEdit(id,f){const c=_cg41(),o=c.own.find(x=>x.id===id);if(!o)return;f(o,c);crSet(c);const y=scrollY;render();scrollTo(0,y)}
+document.addEventListener("click",e=>{if(route().name!=="custom")return;const id=route().id,t=e.target.closest("[data-tup],[data-tpaint],[data-tplst]");if(!t)return;const d=t.dataset;
+  if(d.tup)ownEdit(id,(o,c)=>{const up=upOf(o),s=up[d.tup]+1,cost=upCost(BY[id],d.tup,s);if(s>3||c.bal<cost)return;c.bal-=cost;up[d.tup]=s;o.up=up;o.paid=(o.paid||0)+cost;c.log.unshift([Date.now(),-cost,`${UPG[d.tup][0]} stage ${s} · ${BY[id].model}`]);toast(`${UPG[d.tup][0]} stage ${s} fitted`)});
+  if(d.tpaint)ownEdit(id,o=>{o.paint=d.tpaint==="none"?null:d.tpaint});if(d.tplst)ownEdit(id,o=>{o.plst=d.tplst})});
+document.addEventListener("submit",e=>{if(e.target.id!=="tnPlF")return;e.preventDefault();const v=$("#tnPl").value.toUpperCase().replace(/[^A-Z0-9 ]/g,"").replace(/\s+/g," ").trim().slice(0,8);ownEdit(route().id,o=>{o.plate=v||null});toast(v?`Plate saved: ${esc(v)}`:"Plate removed")});
+/* garage cards and car pages get a Customise button */
+const _cgh41b=crGarageHtml;crGarageHtml=function(){let h=_cgh41b();return h.replace(/<a class="btn primary" href="#duel" data-crrace="([^"]+)">Race it<\/a>/g,(m,id)=>{const o=crGet().own.find(x=>x.id===id)||{};return `<a class="btn primary" href="#custom-${id}">Customise</a><a class="btn" href="#duel" data-crrace="${id}">Race</a>${o.plate?`<span class="gp-plate ${o.plst||"uk"}">${esc(o.plate)}</span>`:""}${o.paint?`<i class="gp-dot" style="background:${o.paint}"></i>`:""}${Object.values(upOf(o)).some(Boolean)?`<span class="gp-up" title="Upgrades">⚙︎ ${Object.values(upOf(o)).reduce((a,b)=>a+b,0)}/12</span>`:""}`}).replace(/<button class="btn" type="button" data-crsell="mcmurtry-speirling">Sell<\/button>/,`<span class="vipb">VIP</span>`)};
+const _ccb41=crCarBtn;crCarBtn=function(c){return crOwns(c.id)?`<a class="btn cr-cb primary" href="#custom-${c.id}">🔧 Customise</a>`+_ccb41(c):_ccb41(c)};
+const _r41=route;route=function(){const h=location.hash;if(h.startsWith("#custom-"))return{name:"custom",id:h.slice(8)};if(h==="#pass")return{name:"pass"};return _r41()};
+PAGES.custom=custPage;PAGES.pass=passPage;GT.custom="Customise";GT.pass="Season pass";PAL_PAGES.push(["Season pass","#pass"]);
+const _ft41=footer;footer=function(){const h=_ft41(),i=h.lastIndexOf("</ul>");return i<0?h:h.slice(0,i)+`<li><a href="#pass">🎟️ Season pass</a></li>`+h.slice(i)};
+const _ar41=afterRender;afterRender=function(r){_ar41(r);vipCarGrant();if(r.name==="custom")custDraw();
+  if(["garage","showroom","play","home"].includes(r.name)&&!document.querySelector(".ps-strip")){const p=passGet(),lv=passLv(p),unc=[...Array(lv).keys()].filter(i=>!p.cf.includes(i+1)).length;
+    const html=`<a class="ps-strip" href="#pass"><span>🎟️ Season pass</span><b>Level ${lv}</b><i><em style="width:${lv>=PMAX?100:Math.round((p.xp-lv*PXP)/PXP*100)}%"></em></i>${unc?`<strong>${unc} to claim</strong>`:""}</a>`;
+    const at=r.name==="home"?document.querySelector(".h3-today"):r.name==="play"?document.querySelector("#view .dailyb"):document.querySelector("#view .cr-bar");if(at)at.insertAdjacentHTML(r.name==="play"?"beforebegin":"afterend",html)}};
+const _an41=acctNav;acctNav=function(){_an41();vipCarGrant()};
+document.head.insertAdjacentHTML("beforeend",`<style id="v41css">
+.vipart{background:#0b0c0e;display:block;overflow:hidden}.vipart svg{width:100%;height:100%;display:block;object-fit:cover}
+.vipcar-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:26px;align-items:center}.vch-art{border-radius:16px;overflow:hidden}.vch-art svg{display:block;width:100%}
+.tn-g{display:grid;grid-template-columns:260px minmax(0,1fr);gap:28px;align-items:start}
+.tn-prev{position:sticky;top:84px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;text-align:center}.tn-prev canvas{width:200px;height:auto;border-radius:12px;display:block;margin:0 auto}
+.tn-plate{display:inline-block;margin:12px auto 6px;padding:5px 12px;border-radius:5px;font-family:"Arial Narrow",Arial,sans-serif;font-weight:800;letter-spacing:.08em;font-size:20px;background:#F2C200;color:#111;border:2px solid #111}
+.tn-plate.show,.gp-plate.show{background:#111;color:#E9ECEF;border-color:#555}.tn-plate.gold,.gp-plate.gold{background:#111;color:#F2C200;border-color:#C9971C}
+.tn-sum{display:grid;gap:6px;margin:8px 0 12px;text-align:left}.tn-sum div{display:flex;justify-content:space-between;gap:8px;border-top:1px solid var(--line-2);padding-top:6px}.tn-sum small{color:var(--muted)}.tn-sum b{font-size:13.5px}
+.tn-s{margin-bottom:22px}.tn-ups{display:grid;gap:10px}.tn-up{display:flex;justify-content:space-between;align-items:center;gap:14px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px}.tn-up small{display:block;color:var(--muted);font-size:13px}
+.tn-st{display:flex;gap:4px;margin-top:6px}.tn-st i{width:26px;height:6px;border-radius:3px;background:var(--line-2)}.tn-st i.on{background:#1E9E62}
+.sw-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}.sw-b{position:relative;display:flex;flex-direction:column;align-items:center;gap:5px;padding:10px 6px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink)}
+.sw-b i{width:36px;height:36px;border-radius:50%;box-shadow:inset 0 -6px 10px rgba(0,0,0,.25),0 0 0 1px rgba(0,0,0,.15)}.sw-b i.orig{background:conic-gradient(#C8102E,#F2C200,#1F7A45,#1E5AA8,#C8102E)}.sw-b small{font-size:11.5px;text-align:center;line-height:1.2}
+.sw-b.on{border-color:var(--ink);box-shadow:0 0 0 2px var(--ink)}.sw-b:disabled{opacity:.5}.sw-b em{position:absolute;top:4px;right:6px;font-style:normal;font-size:11px}
+.gp-plate{display:inline-block;padding:1px 6px;border-radius:3px;font-weight:800;font-size:11px;letter-spacing:.06em;background:#F2C200;color:#111;border:1px solid #111;font-family:Arial,sans-serif}.gp-dot{display:inline-block;width:14px;height:14px;border-radius:50%;border:1px solid rgba(0,0,0,.25)}.gp-up{font-size:12px;color:#1E9E62;font-weight:700}
+.srcard .src-b{flex-wrap:wrap}
+.ps-top{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:18px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px 18px;margin-bottom:14px}
+.ps-lv{text-align:center}.ps-lv small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.06em}.ps-lv b{font-size:38px;line-height:1}.ps-lv span{display:block;color:var(--muted);font-size:12px}
+.ps-bar{position:relative;height:28px;border-radius:14px;background:var(--line-2);overflow:hidden}.ps-fill{height:100%;background:linear-gradient(90deg,#1E9E62,#2BE070)}.ps-bar span{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:12.5px;font-weight:700}
+.ps-track{display:flex;gap:8px;overflow-x:auto;padding:4px 2px 14px;scroll-snap-type:x proximity}.ps-lab{min-width:44px;display:grid;grid-template-rows:24px 96px 96px;gap:8px;flex:none;font-weight:800;font-size:12px}.ps-lab span{display:flex;align-items:center}.ps-lab span:first-child{grid-row:2}.ps-lab .g{color:#C9971C}
+.ps-col{display:grid;grid-template-rows:24px 96px 96px;gap:8px;flex:none;width:104px;scroll-snap-align:start}.ps-col>b{text-align:center;font-size:13px;color:var(--muted)}.ps-col.got>b{color:var(--ink)}
+.ps-c{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;border:1.5px solid var(--line);border-radius:12px;background:var(--surface);color:var(--ink);padding:6px;font-size:18px}.ps-c small{font-size:10.5px;line-height:1.2;text-align:center}
+.ps-c.v{border-color:#E0C060;background:linear-gradient(180deg,rgba(242,194,0,.12),transparent)}.ps-c.big{box-shadow:inset 0 0 0 1px rgba(242,194,0,.5)}.ps-c.ready{border-color:#1E9E62;box-shadow:0 0 0 2px rgba(30,158,98,.35);cursor:pointer}.ps-c.done{opacity:.55}.ps-c:disabled{cursor:default}.ps-c em{position:absolute;top:4px;right:6px;font-style:normal;font-size:11px}
+.ps-c .sw{width:22px;height:22px;border-radius:50%;display:block;box-shadow:inset 0 -4px 6px rgba(0,0,0,.3)}
+.ps-strip{display:grid;grid-template-columns:auto auto minmax(80px,1fr) auto;gap:12px;align-items:center;margin:0 0 18px;padding:10px 14px;border-radius:12px;border:1px solid var(--line);background:var(--surface);color:var(--ink);font-size:14px}.ps-strip i{height:8px;border-radius:4px;background:var(--line-2);overflow:hidden}.ps-strip em{display:block;height:100%;background:#1E9E62}.ps-strip strong{color:#1E9E62;font-size:13px}
+.h3-today+.ps-strip,.ps-strip+.nw-home{margin-top:6px}
+@media (max-width:860px){.tn-g,.vipcar-hero{grid-template-columns:minmax(0,1fr)}.tn-prev{position:static}.ps-top{grid-template-columns:auto minmax(0,1fr)}.ps-top .btn{grid-column:1/-1}}
 </style>`);
 
 render();syncCmp();
