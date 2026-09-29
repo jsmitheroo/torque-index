@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610011400";
+const BUILD="202610011600";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -6060,6 +6060,13 @@ const _step41=dzStep;dzStep=function(S,car,dt,G){const f=[Math.cos(car.h),Math.s
   if(car.brk>0&&car.thr===0&&pre<.8){vL=Math.max(-DZREV.max,Math.min(pre,.2)-DZREV.acc*car.brk*dt);car.rev=true}
   else if(car.thr>0&&pre<-.4){vL=Math.min(0,pre+DZREV.stop*dt);car.rev=false}else{car.rev=vL<-.3;return}
   car.vx=f2[0]*vL+r2[0]*vT;car.vy=f2[1]*vL+r2[1]*vT};
+
+/* ---------- finishing ends the race straight away; cars still running get a projected finishing time ---------- */
+dzFinished=function(S,car){if(car!==S.me)return;
+  if(S.o.online){act({k:"cdfin",t:+car.fin.toFixed(3),best:car.best});setTimeout(()=>{if(DZ2.S===S)dzEnd(false)},60);return}
+  const G=S.G,total=S.laps*G.N;S.cars.forEach(c=>{if(c===car||c.fin!=null||c.remote)return;const done=Math.max(1,c.prog),avg=done*G.ds/Math.max(1,S.t),left=Math.max(0,total-c.prog)*G.ds;
+    c.fin=S.t+left/Math.max(5,avg);if(c.best==null&&c.laps&&c.laps.length)c.best=Math.min(...c.laps)});
+  setTimeout(()=>{if(DZ2.S===S)dzEnd(false)},60)};
 
 render();syncCmp();
 </script>
