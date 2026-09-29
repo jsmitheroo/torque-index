@@ -3464,7 +3464,7 @@ const RCODE=/^[A-HJ-NP-Z2-9]{5}$/;
 const newCode=()=>{const A="ABCDEFGHJKLMNPQRSTUVWXYZ23456789";let s="";for(let i=0;i<5;i++)s+=A[rnd(A.length)];return s};
 const myName=()=>((TTN[0]||"").trim()||"Player").slice(0,16);
 const other=s=>s==="a"?"b":"a";
-const pName=s=>{const p=NET.players.find(x=>x.seat===s);let n=p?p.name:(s==="a"?"Host":"Guest");const o=NET.players.find(x=>x.seat!==s&&x.seat!=="s");if(p&&o&&o.name===p.name)n+=s==="a"?" (host)":NET.players.filter(x=>"abcd".includes(x.seat)).length>2?" ("+s.toUpperCase()+")":" (guest)";return esc(n)};
+const pName=s=>{const p=NET.players.find(x=>x.seat===s);let n=p?p.name:(s==="a"?"Host":"Guest");const o=NET.players.find(x=>x.seat!==s&&x.seat!=="s");if(p&&o&&o.name===p.name)n+=s==="a"?" (host)":NET.players.filter(x=>"abcdefgh".includes(x.seat)).length>2?" ("+s.toUpperCase()+")":" (guest)";return esc(n)};
 async function netCheck(){if(NET.ok!==null)return NET.ok;if(!/^https?:$/.test(location.protocol)||window.claude){NET.ok=false;return false}
   try{const c=new AbortController();const t=setTimeout(()=>c.abort(),3000);const r=await fetch("/api/ping",{signal:c.signal,cache:"no-store"});clearTimeout(t);NET.ok=r.ok&&(await r.json()).ok===true}catch(e){NET.ok=false}return NET.ok}
 function netConnect(code,create){netClose(true);NET.code=code;NET.want=true;NET.err=null;NET.S=null;NET.seat=null;NET.players=[];NET.create=create;
@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202609281600";
+const BUILD="202609291200";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -4243,7 +4243,7 @@ function dzGripNow(car,w){const wet=w||"dry",f=DZTG[wet][car.tyre]||1,wear=Math.
 function dzRaceStart(o){ // o: {track,laps,mine:{car,name,tyre},rivals:[{car,name,skill,tyre}],rival (online),online,mySeat,weather,mode,ghost,onLap,onEnd}
   if(o.rival&&!o.online&&!o.rivals)o.rivals=[o.rival];
   dzOverlay(o);const G=dzGeom(o.track),cv=$("#dzCv"),mm=$("#dzMm");const dpr=typeof dzDpr==="function"?dzDpr():Math.min(2,devicePixelRatio||1);const W=o.weather||"dry";
-  const SEATI={a:0,b:1,c:2,d:3};const mySlot=o.slots?o.slots.me:(o.mySeat?SEATI[o.mySeat]:0);
+  const SEATI={a:0,b:1,c:2,d:3,e:4,f:5,g:6,h:7};const mySlot=o.slots?o.slots.me:(o.mySeat?SEATI[o.mySeat]:0);
   const me=dzCar(o.mine.car,G,mySlot);me.col=DZCOL[o.mySeat||"a"];me.name=o.mine.name;me.tyre=o.mine.tyre||"M";const cars=[me];let rival=null;const AI=[];
   if(o.online&&o.rival&&!o.remotes)o.remotes=[{seat:o.mySeat==="b"?"a":"b",car:o.rival.car,name:o.rival.name}];
   (o.remotes||[]).forEach(r=>{const c=dzCar(r.car,G,SEATI[r.seat]);c.col=DZCOL[r.seat];c.name=r.name;c.remote=true;c.seat=r.seat;cars.push(c);if(!rival)rival=c});
@@ -4327,7 +4327,7 @@ document.addEventListener("click",e=>{if(route().name!=="duel")return;const t=e.
 
 /* ---------- online ---------- */
 GAMES.cd=["Circuit duel","Buy a car on a budget, then drive a real circuit yourself."];
-const dzSeatsOn=()=>NET.players.filter(p=>p.online&&"abcd".includes(p.seat)).map(p=>p.seat).sort();
+const dzSeatsOn=()=>NET.players.filter(p=>p.online&&"abcdefgh".includes(p.seat)).map(p=>p.seat).sort();
 function dzHostStart(){const S=NET.S,o=S.opts,B=DZBUD[Math.floor(Math.random()*DZBUD.length)];const trk=DZT.includes(o.track)?o.track:"monaco";const seats=dzSeatsOn();const blank=()=>Object.fromEntries(seats.map(x=>[x,null]));
   S.cd={run:Date.now(),B,market:dzMarket(B),track:trk,laps:o.laps||1,seats,cars:blank(),phase:"pick",fin:blank(),best:blank(),firstFin:null};S.phase="cd";pushState()}
 function dzHostAct(from,d){const S=NET.S,C=S.cd;if(!C||!C.seats.includes(from))return;const all=o=>C.seats.every(x=>o[x]!=null);
@@ -4934,7 +4934,7 @@ function watchHtml(){const S=NET.S,g=GAMES[S.game]||["Game"];const A=pName("a"),
   return `<div class="result watchv"><div class="eyebrow">${g[0]} · ${A} v ${B}</div>${body}<p class="note">${NET.seat==="s"?"You're watching this room.":"This game is for two drivers — you're watching. Circuit duel lets everyone race."}</p></div>`}
 const _rd27=roomDraw;roomDraw=function(light){_rd27(light);const S=NET.S,el=$("#roomv");if(!S||!el||route().name!=="room")return;if(!document.querySelector(".rchat")){el.insertAdjacentHTML("afterend",chatHtml());const L=$("#rchatL");if(L)L.scrollTop=L.scrollHeight}if(light)return;
   if(["tt","drag","bb","gp"].includes(S.phase)&&!["a","b"].includes(NET.seat)){const b=el.querySelector(".rbody");if(b)b.innerHTML=watchHtml()}
-  if(S.phase==="lobby"&&NET.players.filter(p=>p.online&&"abcd".includes(p.seat)).length>2&&S.game!=="cd"){const r=el.querySelector(".ropts");if(r&&!r.querySelector(".r4"))r.insertAdjacentHTML("beforeend",`<p class="note r4">${GAMES[S.game][0]} is for two: the host and driver B play, everyone else watches. Pick <b>Circuit duel</b> to race all ${NET.players.filter(p=>p.online).length}.</p>`)}
+  if(S.phase==="lobby"&&NET.players.filter(p=>p.online&&"abcdefgh".includes(p.seat)).length>2&&S.game!=="cd"){const r=el.querySelector(".ropts");if(r&&!r.querySelector(".r4"))r.insertAdjacentHTML("beforeend",`<p class="note r4">${GAMES[S.game][0]} is for two: the host and driver B play, everyone else watches. Pick <b>Circuit duel</b> to race all ${NET.players.filter(p=>p.online).length}.</p>`)}
   if(!document.querySelector(".rchat"))el.insertAdjacentHTML("afterend",chatHtml());
   if(S.phase==="cd"&&S.cd.phase==="race"&&$("#dzLiveMap"))liveMapStart()};
 
@@ -5582,6 +5582,246 @@ document.head.insertAdjacentHTML("beforeend",`<style id="v38css">
 a,button,[role=button],.seg button,label,summary{touch-action:manipulation}
 html{-webkit-tap-highlight-color:transparent}
 @supports (content-visibility:auto){#view section.sec:not(.h3-today):not(.cp38){content-visibility:auto;contain-intrinsic-size:auto 520px}}
+</style>`);
+
+
+/* ================= v39: credits you earn from every game, a garage of cars you own, 8-driver online races with ranked seasons, car news with alerts, works offline ================= */
+/* ---------- credits (CR) ---------- */
+const CRK="ti-cr";
+function crGet(){const c=store.get(CRK,null)||{bal:5000,own:[],earn:{day,n:0},log:[],start:Date.now(),login:null,tot:5000};if(!c.earn||c.earn.day!==day)c.earn={day,n:0};c.own=(c.own||[]).filter(o=>BY[o.id]);return c}
+function crSet(c){store.set(CRK,c);crNav()}
+const CRCAP=40000;
+const crFmt=n=>Math.round(n).toLocaleString("en-GB")+" CR";
+function crEarn(n,why,quiet){n=Math.round(n);if(!(n>0))return 0;const c=crGet();const room=Math.max(0,CRCAP-c.earn.n);const g=Math.min(n,room);if(!g){if(!quiet&&!crEarn.capped){crEarn.capped=1;toast("Daily credit limit reached — come back tomorrow","")}return 0}
+  c.bal+=g;c.tot=(c.tot||0)+g;c.earn.n+=g;c.log.unshift([Date.now(),g,why]);c.log.length=Math.min(c.log.length,40);crSet(c);
+  if(!quiet){clearTimeout(crEarn.t);crEarn.acc=(crEarn.acc||0)+g;crEarn.why=why;crEarn.t=setTimeout(()=>{if(!DZ2.S)toast(`<span class="ti2">🪙</span><div><b>+${crFmt(crEarn.acc)}</b><span>${esc(crEarn.why)}</span></div>`,"cr");else dzMsg("+"+crFmt(crEarn.acc),1.4,"good");crEarn.acc=0},600)}
+  checkAch();return g}
+function crPrice(c){let p=c.price;if(!p){const age=YNOW-(c.y0||2000);p=Math.max(4,c.bhp*.09)*(age>45?2.2:age>30?1.3:age>15?.7:1)*(c.body==="supercar"?3:1)}return Math.max(600,Math.round(p*100/50)*50)}
+const crOwns=id=>crGet().own.some(o=>o.id===id);
+function crBuy(id){const c=crGet(),car=BY[id],p=crPrice(car);if(!car||crOwns(id))return;if(c.bal<p){toast(`You need ${crFmt(p-c.bal)} more for the ${esc(car.model)}`);return}
+  c.bal-=p;c.own.unshift({id,at:Date.now(),paid:p,races:0});c.log.unshift([Date.now(),-p,"Bought "+car.make+" "+car.model]);c.log.length=Math.min(c.log.length,40);crSet(c);
+  toast(`<span class="ti2">🔑</span><div><b>It's yours!</b><span>${esc(car.make)} ${esc(car.model)} is in your garage</span></div>`,"ach");checkAch();crxRefresh()}
+function crSell(id){const c=crGet(),o=c.own.find(x=>x.id===id);if(!o)return;const back=Math.round((o.paid||crPrice(BY[id]))*.7);if(!confirm(`Sell the ${BY[id].model} for ${crFmt(back)}? (70% of what you paid)`))return;
+  c.own=c.own.filter(x=>x.id!==id);c.bal+=back;c.log.unshift([Date.now(),back,"Sold "+BY[id].make+" "+BY[id].model]);crSet(c);crxRefresh()}
+function crxRefresh(){const r=route();if(["garage","showroom","car"].includes(r.name))render()}
+/* credits badge in the header */
+function crNav(){const f=document.querySelector(".favnav");if(!f)return;let a=$("#crNav");if(!a){f.insertAdjacentHTML("beforebegin",`<a class="crnav" id="crNav" href="#showroom" aria-label="Your credits"><span aria-hidden="true">🪙</span><b></b></a>`);a=$("#crNav")}
+  const b=crGet().bal;a.querySelector("b").textContent=b>=1e6?(b/1e6).toFixed(1)+"m":b>=1e4?Math.round(b/1000)+"k":b.toLocaleString("en-GB");a.title=crFmt(b)}
+/* what each game pays */
+const CRPAY={cd:120,gp:90,gp6:40,drag:50,quiz:40,quiz10:150,hl7:120,hlg:40,bb:100,ttwin:180,tourn:250,match:50,budget:50,cdl:60,cdlw:160,roll:10,monaco:40,wet:40,rev:40,tune:15,cmp3:10,red:25,champ:600};
+const CRWHY={cd:"Circuit duel",gp:"Grand Prix",gp6:"Full-grid Grand Prix",drag:"Drag race",quiz:"Guess the car",quiz10:"Quiz streak",hl7:"Higher or lower streak",hlg:"Higher or lower",bb:"Budget battle",ttwin:"Top Trumps win",tourn:"Tournament",match:"Car match",budget:"Budget garage",cdl:"Car-dle",cdlw:"Car-dle solved",roll:"Car roulette",monaco:"Monaco bonus",wet:"Rain bonus",rev:"Reverse-grid bonus",tune:"Tuning shop",cmp3:"Comparison",red:"Redline",champ:"Championship finished"};
+const _bump39=bump;bump=function(k,n=1){_bump39(k,n);if(CRPAY[k])crEarn(CRPAY[k]*Math.min(3,n),CRWHY[k]||"Playing")};
+/* bigger rewards for results */
+const _dres39=duelResult;duelResult=function(r){_dres39(r);if(r.quit||!r.me||r.me.fin==null)return;const all=[r.me,...(r.rivals||[r.rival]).filter(Boolean)];const pos=[...all].sort((a,b)=>(a.fin??1e9)-(b.fin??1e9)).indexOf(r.me)+1;
+  const own=crOwns(r.me.c.id),base=[0,600,350,220,140,100,80][pos]||60,mult=(DZL.laps||1)*(DZL.lv==="hard"?1.3:1)*(own?1.25:1);crEarn(base*mult,`P${pos} in Circuit duel${own?" · your own car +25%":""}`);
+  if(own){const c=crGet(),o=c.own.find(x=>x.id===r.me.c.id);if(o){o.races=(o.races||0)+1;crSet(c)}}};
+const _dend39=dailyEnd;dailyEnd=function(){_dend39();const st=store.get("ti-daily",{});crEarn(60*(st.right||0),"Daily 5")};
+/* daily race medals pay once a day each */
+function crMedalPay(){const R=drRec(),m=drMedal(R.best);if(!m)return;const paid=store.get("ti-dr-paid",{});if(paid.day!==day){paid.day=day;paid.m=[]}if(paid.m.includes(m))return;
+  const v={bronze:300,silver:600,gold:1200};let g=0;["bronze","silver","gold"].forEach(k=>{if(!paid.m.includes(k)&&["bronze","silver","gold"].indexOf(k)<=["bronze","silver","gold"].indexOf(m)){g+=v[k];paid.m.push(k)}});store.set("ti-dr-paid",paid);crEarn(g,"Daily race "+DRM[m][1])}
+const _dzHud39=dzHud;dzHud=function(S){_dzHud39(S);if(S.o&&S.o.mode==="tt"&&S.o.track===DRX.track&&S.me.c.id===DRX.car&&S.me.laps&&S.me.laps.length!==S._crl){S._crl=S.me.laps.length;setTimeout(crMedalPay,50)}};
+/* a little something for coming back each day */
+function crLogin(){const c=crGet();if(c.login===day)return;const streak=c.login===day-1?Math.min(7,(c.lstreak||0)+1):1;c.login=day;c.lstreak=streak;store.set(CRK,c);setTimeout(()=>crEarn(150+streak*50,`Daily login bonus · day ${streak} in a row`),2500)}
+
+/* ---------- showroom: buy cars with credits ---------- */
+const SR={q:"",body:"all",sort:"price",aff:false,n:48};
+function showroomPage(){const c=crGet();return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#garage">Garage</a> / Showroom</div><h1>Showroom</h1><p>Win credits in any game — races, quizzes, Top Trumps, the Daily race — then buy any of the ${CARS.length.toLocaleString()} cars for your garage. Cars you own earn 25% extra credits when you race them.</p></div></div>
+  <div class="cr-bar"><div><small>Your credits</small><b class="num">${crFmt(c.bal)}</b></div><div><small>Cars owned</small><b class="num">${c.own.length}</b></div><div><small>Garage value</small><b class="num">${crFmt(c.own.reduce((a,o)=>a+crPrice(BY[o.id]),0))}</b></div><div><small>Earned today</small><b class="num">${crFmt(c.earn.n)}</b><span>limit ${crFmt(CRCAP)}</span></div></div>
+  <div class="sr-f"><input type="search" class="sel" id="srQ" placeholder="Search make or model…" value="${esc(SR.q)}" autocomplete="off"><div class="seg seg-wrap" role="group">${[["all","All"],...Object.entries(BODY)].map(([k,n])=>`<button type="button" data-srb="${k}" aria-pressed="${SR.body===k}">${n}</button>`).join("")}</div>
+   <div class="seg" role="group">${[["price","Cheapest"],["-price","Priciest"],["bhp","Most power"]].map(([k,n])=>`<button type="button" data-srs="${k}" aria-pressed="${SR.sort===k}">${n}</button>`).join("")}</div><label class="rw-l"><input type="checkbox" id="srAff" ${SR.aff?"checked":""}> Only what I can afford</label></div>
+  <div id="srL" class="grid sr-grid">${srList()}</div></div>`}
+function srList(){const c=crGet(),q=SR.q.trim().toLowerCase();let L=CARS.filter(x=>(SR.body==="all"||x.body===SR.body)&&(!q||(x.make+" "+x.model).toLowerCase().includes(q))&&(!SR.aff||crPrice(x)<=c.bal));
+  L.sort(SR.sort==="bhp"?(a,b)=>b.bhp-a.bhp:SR.sort==="-price"?(a,b)=>crPrice(b)-crPrice(a):(a,b)=>crPrice(a)-crPrice(b));const own=new Set(c.own.map(o=>o.id));
+  return L.slice(0,SR.n).map(x=>srCard(x,own.has(x.id),c.bal)).join("")+(L.length>SR.n?`<div class="sr-more"><button class="btn" type="button" id="srMore">Show more (${(L.length-SR.n).toLocaleString()} left)</button></div>`:"")||`<p class="note c">No cars match.</p>`}
+function srCard(x,own,bal){const p=crPrice(x);return `<div class="srcard ${own?"own":""}"><a href="#car-${x.id}">${ph(x)}</a><div class="src-t"><b>${esc(x.make)} ${esc(x.model)}</b><small>${esc(x.years)} · ${x.bhp} bhp · ${acc(x.acc)}</small>
+  <div class="src-b"><em class="num">${crFmt(p)}</em>${own?`<span class="own-tag">In your garage ✓</span>`:`<button class="btn ${bal>=p?"primary":""}" type="button" data-crbuy="${x.id}" ${bal>=p?"":"disabled"}>${bal>=p?"Buy":"Need "+crFmt(p-bal)}</button>`}</div></div></div>`}
+document.addEventListener("input",e=>{if(e.target.id==="srQ"){SR.q=e.target.value;SR.n=48;$("#srL").innerHTML=srList()}});
+document.addEventListener("change",e=>{if(e.target.id==="srAff"){SR.aff=e.target.checked;SR.n=48;$("#srL").innerHTML=srList()}});
+document.addEventListener("click",e=>{const t=e.target.closest("[data-srb],[data-srs],#srMore,[data-crbuy],[data-crsell]");if(!t)return;const d=t.dataset;
+  if(d.crbuy){e.preventDefault();return crBuy(d.crbuy)}if(d.crsell){e.preventDefault();return crSell(d.crsell)}
+  if(d.srb)SR.body=d.srb;if(d.srs)SR.sort=d.srs;if(t.id==="srMore")SR.n+=48;else SR.n=48;if(route().name==="showroom"){const y=scrollY;render();scrollTo(0,y)}});
+/* garage page: owned cars on top of the saved ♥ list */
+function crGarageHtml(){const c=crGet();const rows=c.own.map(o=>BY[o.id]);
+  return `<section class="sec cr-gar"><div class="sec-h"><h2>Cars you own</h2><a class="more" href="#showroom">Showroom →</a></div>
+  <div class="cr-bar"><div><small>Credits</small><b class="num">${crFmt(c.bal)}</b></div><div><small>Cars owned</small><b class="num">${c.own.length}</b></div><div><small>Garage value</small><b class="num">${crFmt(c.own.reduce((a,o)=>a+crPrice(BY[o.id]),0))}</b></div><div><small>Earned all-time</small><b class="num">${crFmt(c.tot||0)}</b></div></div>
+  ${rows.length?`<div class="grid sr-grid">${c.own.map(o=>{const x=BY[o.id];return `<div class="srcard own"><a href="#car-${x.id}">${ph(x)}</a><div class="src-t"><b>${esc(x.make)} ${esc(x.model)}</b><small>${x.bhp} bhp · ${o.races||0} race${o.races===1?"":"s"} · bought ${new Date(o.at).toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</small>
+    <div class="src-b"><a class="btn primary" href="#duel" data-crrace="${x.id}">Race it</a><button class="btn" type="button" data-crsell="${x.id}">Sell</button></div></div></div>`}).join("")}</div>`
+   :`<div class="bb-intro"><div class="bb-big" style="font-size:clamp(24px,4vw,34px)">Your garage is empty</div><p>You have ${crFmt(c.bal)} to spend. Play any game to earn more.</p><div class="actions" style="justify-content:center"><a class="btn primary" href="#showroom">Go to the showroom</a></div></div>`}
+  ${c.log.length?`<details class="cr-log"><summary>Recent credits</summary><ul>${c.log.slice(0,20).map(([t,n,w])=>`<li><span>${esc(w)}</span><b class="${n>0?"up":"dn"}">${n>0?"+":""}${n.toLocaleString("en-GB")}</b></li>`).join("")}</ul></details>`:""}</section>`}
+document.addEventListener("click",e=>{const a=e.target.closest("[data-crrace]");if(!a)return;e.preventDefault();DZL.mode="quick";DZL.ttcar=a.dataset.crrace;location.hash="duel";setTimeout(()=>{if(route().name==="duel")duelMenu()},300)});
+/* car page: buy / sell button */
+function crCarBtn(c){const own=crOwns(c.id),p=crPrice(c),bal=crGet().bal;return own?`<button class="btn cr-cb own" type="button" data-crsell="${c.id}">🔑 In your garage · sell</button>`:`<button class="btn cr-cb ${bal>=p?"primary":""}" type="button" data-crbuy="${c.id}" ${bal>=p?"":"disabled"} title="${bal>=p?"":"You need "+crFmt(p-bal)+" more"}">🪙 Buy for ${crFmt(p)}</button>`}
+/* quick race: owned cars shown first */
+const _ttl39=dzTTList;dzTTList=function(){const own=crGet().own.map(o=>o.id);if((DZL.ttq||"").trim()||!own.length)return _ttl39();
+  return `<div class="cd-own"><b>Your garage</b> <small>+25% credits</small></div>`+own.slice(0,12).map(id=>{const c=BY[id];return `<button type="button" class="cd-carbtn ${DZL.ttcar===c.id?"on":""}" data-dzttc="${c.id}">${ph(c)}<span class="cd-cb"><b>${esc(c.make)} ${esc(c.model)}</b><small>🔑 ${c.bhp} bhp · ${acc(c.acc)}</small></span></button>`}).join("")+`<div class="cd-own"><b>Any car</b></div>`+_ttl39()};
+/* achievements for collectors */
+if(typeof ACH!=="undefined"){ACH.push(["own1","Keys in hand","Buy your first car",()=>crGet().own.length>=1],["own5","Collector","Own 5 cars",()=>crGet().own.length>=5],["own15","Car park","Own 15 cars",()=>crGet().own.length>=15],
+  ["ownhyp","Hypercar owner","Own a car worth 100,000 CR or more",()=>crGet().own.some(o=>crPrice(BY[o.id])>=100000)],["cr50","Big earner","Earn 50,000 CR in total",()=>(crGet().tot||0)>=50000])}
+
+/* ---------- online: up to 8 drivers per room, weather, ranked races ---------- */
+SEATS.push("e","f","g","h");Object.assign(DZCOL,{e:"#16A3A3",f:"#E86A1A",g:"#1F8F55",h:"#C2185B"});
+dzLobbyOpts=function(o,seg){const host=NET.seat==="a";return `<label class="dz-sel"><span>Circuit</span><select class="sel" data-roptsel="track" ${host?"":"disabled"}>${DZREGN.slice(1).map(([r,n])=>`<optgroup label="${n}">${DZT.filter(k=>DZREG[k]===r).map(k=>`<option value="${k}" ${o.track===k?"selected":""}>${esc(TRACKS[k].name)}</option>`).join("")}</optgroup>`).join("")}</select></label>
+  ${seg("laps",[[1,"1 lap"],[2,"2 laps"],[3,"3 laps"]],o.laps)}${seg("weather",[["dry","Dry"],["damp","Damp"],["wet","Wet"],["change","Changing"],["night","Night"],["fog","Fog"]],o.weather||"dry")}
+  ${seg("ranked",[["off","Casual"],["on","Ranked"]],o.ranked||"off")}
+  <p class="note">Up to 8 drivers. A random budget and showroom each race; you each drive on your own device.${o.ranked==="on"?" <b>Ranked:</b> signed-in drivers win or lose rating points for this month's season.":""}</p>`};
+document.addEventListener("change",e=>{const s=e.target.closest("[data-roptsel]");if(!s||NET.seat!=="a")return;act({k:"opt",o:s.dataset.roptsel,v:s.value})});
+const _hs39=dzHostStart;dzHostStart=function(){_hs39();const S=NET.S,C=S.cd;if(!C)return;C.wx=S.opts.weather||"dry";C.ranked=S.opts.ranked==="on";C.users={};if(C.ranked&&AUTH.user)C.users.a=AUTH.user.username;pushState()};
+const _ha39=dzHostAct;dzHostAct=function(from,d){const C=NET.S&&NET.S.cd;if(d&&d.k==="cduser"){if(C&&C.seats.includes(from)&&typeof d.u==="string"&&/^[A-Za-z0-9_]{3,20}$/.test(d.u)){C.users=C.users||{};C.users[from]=d.u;pushState()}return}return _ha39(from,d)};
+dzOnlineGo=function(){const S=NET.S,C=S.cd,me=NET.seat;if(!C.seats.includes(me)||C.fin[me]!=null)return;if(DZ2.S||NET.dzRun===C.run)return;NET.dzRun=C.run;
+  dzRaceStart({track:C.track,laps:C.laps,online:true,weather:C.wx||"dry",mySeat:me,mine:{car:BY[C.cars[me]],name:pName(me),tyre:dzBestTyre(C.wx||"dry",C.laps)},remotes:C.seats.filter(x=>x!==me).map(x=>({seat:x,car:BY[C.cars[x]],name:pName(x)})),
+    onEnd:r=>{if(r.quit&&r.me.fin==null)act({k:"cdquit"});roomDraw()}})};
+const _hc39=dzHostClose;dzHostClose=function(run){const C=NET.S&&NET.S.cd;const was=C&&C.phase;_hc39(run);if(!C||was!=="race"||C.phase!=="done"||!C.ranked||C.rk)return;
+  const ord=dzOrder(C).filter(s=>C.fin[s]!=null&&C.fin[s]>=0).concat(dzOrder(C).filter(s=>!(C.fin[s]!=null&&C.fin[s]>=0)));const users=ord.map(s=>C.users&&C.users[s]||null);
+  if(users.filter(Boolean).length<2){C.rk={note:"Ranked needs at least two signed-in drivers — this one didn't count."};pushState();return}
+  xapi("ranked-post","POST",{run:C.run,code:NET.code,order:users}).then(r=>{if(NET.S&&NET.S.cd===C){C.rk=r.ok?{ch:r.changes||{},season:r.season}:{note:r.error||"Couldn't record the ranked result."};pushState()}})};
+/* guests tell the host who they are, and everyone collects credits for their finish */
+const _rd39=roomDraw;roomDraw=function(light){_rd39(light);const S=NET.S;if(!S||S.phase!=="cd"||!S.cd)return;const C=S.cd,me=NET.seat;
+  if(C.ranked&&AUTH.user&&C.seats.includes(me)&&me!=="a"&&NET.rkSent!==C.run&&!(C.users&&C.users[me])){NET.rkSent=C.run;act({k:"cduser",u:AUTH.user.username})}
+  if(C.phase==="done"&&C.seats.includes(me)&&NET.crPaid!==C.run&&C.fin[me]!=null&&C.fin[me]>=0){NET.crPaid=C.run;const pos=dzOrder(C).indexOf(me)+1,n=C.seats.length;crEarn(Math.round((n-pos+1)/n*500+100)*(C.ranked?1.5:1),`P${pos} of ${n} online${C.ranked?" · ranked":""}`)}
+  if(C.phase==="done"&&!light){const el=document.querySelector("#roomv .result");if(el&&!el.querySelector(".rk-res")){let h="";
+    if(C.ranked&&C.rk&&C.rk.ch){const rows=Object.entries(C.rk.ch);h=`<div class="rk-res"><div class="eyebrow">Ranked · ${rkSeasonName(C.rk.season)}</div><table class="bb-table"><tbody>${rows.map(([u,[a,b]])=>`<tr class="${AUTH.user&&AUTH.user.username===u?"me":""}"><td>${rkBadge(b)} ${esc(u)}</td><td class="num">${Math.round(b)}</td><td class="num ${b>=a?"up":"dn"}">${b>=a?"+":""}${Math.round(b-a)}</td></tr>`).join("")}</tbody></table></div>`}
+    else if(C.ranked&&C.rk&&C.rk.note)h=`<p class="note rk-res">${esc(C.rk.note)}</p>`;else if(C.ranked)h=`<p class="note rk-res">Recording ranked result…</p>`;
+    if(h)el.querySelector("table").insertAdjacentHTML("afterend",h)}}
+  if(C.phase==="pick"&&C.ranked&&!light){const b=document.querySelector("#roomv .bb-opp");if(b&&!b.querySelector(".rk-tag"))b.insertAdjacentHTML("afterbegin",`<span class="rk-tag">Ranked</span> `)}};
+/* ---------- ranked seasons (monthly) ---------- */
+const RKT=[[1550,"Diamond","💎"],[1400,"Platinum","🔷"],[1250,"Gold","🥇"],[1100,"Silver","🥈"],[0,"Bronze","🥉"]];
+const rkTier=r=>RKT.find(t=>r>=t[0]);
+const rkBadge=r=>{const t=rkTier(r);return `<span class="rk-b" title="${t[1]}">${t[2]}</span>`};
+function rkSeasonName(s){if(!s)return "this season";const y=Math.floor(s/100),m=s%100;return new Date(Date.UTC(y,m-1,1)).toLocaleDateString("en-GB",{month:"long",year:"numeric"})+" season"}
+async function rkDraw(el,tabs){const r=await xapi("ranked");if(route().name!=="leaderboards")return;if(!r.ok){el.innerHTML=tabs+`<p class="note c">Ranked isn't available right now.</p>`;return}
+  const ends=new Date(r.ends),m=r.mine;
+  el.innerHTML=tabs+`<div class="rk-top"><div><div class="eyebrow">${rkSeasonName(r.season)} · ends ${ends.toLocaleDateString("en-GB",{day:"numeric",month:"short"})}</div><h2 class="cd-h" style="margin-top:4px">Ranked Circuit duel</h2><p class="note">Turn on <b>Ranked</b> in an online room's Circuit duel. Beat higher-rated drivers to climb. Everyone starts each season near 1,000.</p></div>
+   ${m?`<div class="rk-me">${rkBadge(m.r)}<div><b class="num">${Math.round(m.r)}</b><small>${rkTier(m.r)[1]} · ${m.n} race${m.n===1?"":"s"} · ${m.w} win${m.w===1?"":"s"}${m.rank?" · #"+m.rank:""}</small></div></div>`:AUTH.user?`<div class="rk-me"><div><b>Unranked</b><small>Race a ranked room to get a rating</small></div></div>`:""}</div>
+   <div class="rk-tiers">${[...RKT].reverse().map(t=>`<span>${t[2]} ${t[1]}${t[0]?" "+t[0]+"+":""}</span>`).join("")}</div>
+   ${lbTable(r.top||[],x=>`<td>${rkBadge(x.r)} <a class="ulink" href="#u-${esc(x.username)}">${esc(x.username)}</a></td><td class="num">${Math.round(x.r)}</td><td class="num">${x.w}/${x.n}</td>`,["Driver","Rating","Wins/races"])}
+   <div class="actions" style="justify-content:center"><a class="btn primary" href="#online">Start a ranked room</a></div>${AUTH.user?"":signNote("get a ranked rating")}`}
+const _lb39=lbDraw;lbDraw=async function(){if(LB.tab!=="ranked"){await _lb39();rkTab();return}const el=$("#lbv");if(!el)return;
+  const tabs=`<div class="dz-tabs lb-tabs" role="tablist">${[["laps","Lap records","Fastest laps per circuit"],["cup","Weekly Cup","Same car, same circuit"],["wins","Most wins","Games won"]].map(([k,n,d])=>`<button type="button" role="tab" aria-selected="false" data-lbtab="${k}"><b>${n}</b><span>${d}</span></button>`).join("")}</div>`;
+  el.innerHTML=tabs+`<p class="note c">Loading…</p>`;rkTab();const on=await netCheck();if(!on){el.innerHTML=tabs+offlineNote("Ranked seasons");rkTab();return}
+  await rkDraw(el,tabs);rkTab()};
+function rkTab(){const t=document.querySelector("#lbv .lb-tabs");if(!t)return;if(!t.querySelector('[data-lbtab="ranked"]'))t.insertAdjacentHTML("afterbegin",`<button type="button" role="tab" data-lbtab="ranked"><b>Ranked</b><span>Monthly season ratings</span></button>`);
+  t.querySelectorAll("[data-lbtab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.lbtab===LB.tab))}
+
+/* ---------- car news, with alerts for the makes you follow ---------- */
+const NEWS={items:null,at:0,busy:null,f:"all"};
+const MAKE_RX=Object.keys(MAKES).sort((a,b)=>b.length-a.length).map(m=>[m,new RegExp("(^|[^A-Za-z])"+m.replace(/[.*+?^${}()|[\]\\]/g,"\\$&").replace(/-/g,"[- ]")+"(?![A-Za-z])","i")]);
+const MAKE_ALIAS={"VW":"Volkswagen","Merc":"Mercedes-Benz","Mercedes":"Mercedes-Benz","Range Rover":"Land Rover","Lambo":"Lamborghini","Chevy":"Chevrolet","Alfa":"Alfa Romeo","Aston":"Aston Martin"};
+function newsTag(it){const t=it.t+" "+(it.x||"");const out=new Set();MAKE_RX.forEach(([m,rx])=>{if(rx.test(it.t))out.add(m)});Object.entries(MAKE_ALIAS).forEach(([a,m])=>{if(MAKES[m]&&new RegExp("\\b"+a+"\\b").test(it.t))out.add(m)});
+  const all=[...out];it.makes=all.filter(m=>!all.some(o=>o!==m&&o.includes(m))).slice(0,3);it.newm=/\b(revealed?|unveil(ed|s)?|launch(ed|es)?|new|debuts?|first look|confirmed|teased?|prices?|priced)\b/i.test(it.t);
+  it.cars=[];it.makes.forEach(m=>{MAKES[m].forEach(c=>{const base=c.model.split(" (")[0];if(base.length>=2&&new RegExp("(^|\\W)"+base.replace(/[.*+?^${}()|[\]\\]/g,"\\$&")+"(\\W|$)","i").test(t)&&it.cars.length<3&&!it.cars.some(x=>x.fam===c.fam))it.cars.push(c)})});return it}
+const followGet=()=>store.get("ti-follow",[]).filter(m=>MAKES[m]);
+function followToggle(m){let f=followGet();f=f.includes(m)?f.filter(x=>x!==m):[m,...f];store.set("ti-follow",f);toast(f.includes(m)?`Following ${esc(m)} — you'll get alerts for its news`:`Stopped following ${esc(m)}`);newsBadge()}
+async function newsLoad(force){if(NEWS.items&&!force&&Date.now()-NEWS.at<15*60e3)return NEWS.items;if(NEWS.busy)return NEWS.busy;
+  NEWS.busy=(async()=>{if(!(await netCheck())){const c=store.get("ti-news-cache",null);NEWS.items=c?c.items.map(newsTag):[];NEWS.off=true;return NEWS.items}
+    try{const r=await fetch("/api/news",{cache:"no-store"});const j=await r.json();NEWS.items=(j.items||[]).map(newsTag);NEWS.at=Date.now();NEWS.src=j.sources||[];try{localStorage.setItem("ti-news-cache",JSON.stringify({at:Date.now(),items:(j.items||[]).slice(0,40)}))}catch(e){}}
+    catch(e){const c=store.get("ti-news-cache",null);NEWS.items=c?c.items.map(newsTag):[]}return NEWS.items})();const r=await NEWS.busy;NEWS.busy=null;return r}
+function newsUnseen(){const seen=store.get("ti-news-seen",0),f=followGet();if(!NEWS.items||!f.length)return [];return NEWS.items.filter(it=>it.d>seen&&it.makes.some(m=>f.includes(m)))}
+function newsBadge(){const n=newsUnseen().length;document.querySelectorAll('a[href="#news"]').forEach(a=>{let b=a.querySelector(".nw-b");if(n&&!b){a.insertAdjacentHTML("beforeend",`<i class="nw-b">${n>9?"9+":n}</i>`)}else if(b){if(n)b.textContent=n>9?"9+":n;else b.remove()}})}
+async function newsAlert(){const f=followGet();if(!f.length)return;await newsLoad();const U=newsUnseen();newsBadge();if(!U.length)return;const key="ti-news-alerted",last=store.get(key,0),top=Math.max(...U.map(u=>u.d));if(top<=last)return;store.set(key,top);
+  const ms=[...new Set(U.flatMap(u=>u.makes.filter(m=>f.includes(m))))].slice(0,3);toast(`<span class="ti2">📰</span><div><b>${U.length} new stor${U.length===1?"y":"ies"}</b><span>About ${ms.map(esc).join(", ")} · <a href="#news">Read</a></span></div>`,"ach")}
+const nwAgo=t=>{const s=(Date.now()-t)/1000;return s<3600?Math.max(1,Math.round(s/60))+" min ago":s<86400?Math.round(s/3600)+" h ago":Math.round(s/86400)+" d ago"};
+function newsCard(it,big){return `<article class="nw ${big?"big":""} ${it.newm?"nm":""}"><a class="nw-a" href="${esc(it.l)}" target="_blank" rel="noopener"><div class="nw-m"><span class="nw-s">${esc(it.s)}</span><span>${nwAgo(it.d)}</span>${it.newm?`<span class="nw-n">New model</span>`:""}</div><h3>${esc(it.t)}</h3>${it.x&&big?`<p>${esc(it.x)}</p>`:""}</a>
+  ${it.makes.length||it.cars.length?`<div class="nw-t">${it.makes.map(m=>`<a class="chip" href="#make-${slug(m)}">${esc(m)}</a>`).join("")}${it.cars.map(c=>`<a class="chip" href="#car-${c.id}">${esc(c.model)}</a>`).join("")}</div>`:""}</article>`}
+function newsPage(){return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / News</div><h1>Car news</h1><p>The latest headlines from the motoring press, linked to the cars and makers in the index. Follow a maker to get an alert when there's news about it.</p></div></div><div id="nwv"><p class="note c">Loading the latest news…</p></div></div>`}
+async function newsDraw(){const el=$("#nwv");if(!el)return;const L=await newsLoad();if(!$("#nwv"))return;const f=followGet();
+  if(!L.length){el.innerHTML=`<div class="bb-intro"><div class="bb-big" style="font-size:30px">No news right now</div><p>${NEWS.off?"News switches on with the website, and needs an internet connection.":"The news sources didn't respond. Try again in a few minutes."}</p></div>`;return}
+  const counts={};L.forEach(it=>it.makes.forEach(m=>counts[m]=(counts[m]||0)+1));const hot=Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,12).map(a=>a[0]);
+  const F=NEWS.f==="all"?L:NEWS.f==="follow"?L.filter(it=>it.makes.some(m=>f.includes(m))):NEWS.f==="new"?L.filter(it=>it.newm):L.filter(it=>it.makes.includes(NEWS.f));
+  el.innerHTML=`<div class="nw-f"><div class="seg seg-wrap" role="group">${[["all","All"],["new","New models"],["follow",`Following${f.length?" · "+f.length:""}`]].map(([k,n])=>`<button type="button" data-nwf="${k}" aria-pressed="${NEWS.f===k}">${n}</button>`).join("")}</div>
+    <div class="nw-hot">${hot.map(m=>`<button type="button" class="chip ${NEWS.f===m?"on":""}" data-nwf="${esc(m)}">${esc(m)} <small>${counts[m]}</small></button>`).join("")}</div></div>
+   <div class="nw-fol"><b>Alerts for:</b> ${f.length?f.map(m=>`<button type="button" class="chip on" data-follow="${esc(m)}">${esc(m)} ✕</button>`).join(""):`<span class="note">nobody yet — follow a maker below or on any maker's page.</span>`}
+    <select class="sel" id="nwAdd" aria-label="Follow a maker"><option value="">+ Follow a maker…</option>${Object.keys(MAKES).sort().filter(m=>!f.includes(m)).map(m=>`<option>${esc(m)}</option>`).join("")}</select></div>
+   ${F.length?`<div class="nw-g">${F.slice(0,60).map((it,i)=>newsCard(it,i<2)).join("")}</div>`:`<p class="note c">No stories match this filter right now.</p>`}
+   <p class="note">Headlines link to the original articles. Sources: ${esc((NEWS.src||[]).join(", ")||"motoring news sites")}.</p>`;
+  store.set("ti-news-seen",Math.max(...L.map(i=>i.d)));newsBadge()}
+document.addEventListener("click",e=>{const n=e.target.closest("[data-nwf]"),f=e.target.closest("[data-follow]");if(n){NEWS.f=n.dataset.nwf;newsDraw()}if(f){e.preventDefault();followToggle(f.dataset.follow);if(route().name==="news")newsDraw();else if(route().name==="make")render()}});
+document.addEventListener("change",e=>{if(e.target.id==="nwAdd"&&e.target.value){followToggle(e.target.value);newsDraw()}});
+/* follow buttons on maker pages, news on maker and home pages */
+function newsMake(m){const box=document.querySelector("#view .phead");if(!box||box.querySelector(".fol-b"))return;const on=followGet().includes(m);
+  box.insertAdjacentHTML("beforeend",`<div class="fol-b"><button type="button" class="btn ${on?"":"primary"}" data-follow="${esc(m)}">${on?"✓ Following":"🔔 Follow "+esc(m)}</button></div>`);
+  newsLoad().then(L=>{const M=L.filter(it=>it.makes.includes(m)).slice(0,4);if(!M.length||document.querySelector(".nw-mk"))return;const s=[...document.querySelectorAll("#view section.sec")][0];
+    const html=`<section class="sec nw-mk"><div class="sec-h"><h2>Latest ${esc(m)} news</h2><a class="more" href="#news">All news →</a></div><div class="nw-g">${M.map(it=>newsCard(it)).join("")}</div></section>`;if(s)s.insertAdjacentHTML("beforebegin",html)})}
+function newsHome(){newsLoad().then(L=>{if(route().name!=="home"||!L.length||document.querySelector(".nw-home"))return;const t=document.querySelector(".h3-today");if(!t)return;
+  t.insertAdjacentHTML("afterend",`<section class="sec nw-home"><div class="sec-h"><h2>Car news</h2><a class="more" href="#news">All news →</a></div><div class="nw-g nw-rail">${L.slice(0,6).map(it=>newsCard(it)).join("")}</div></section>`)})}
+
+/* ---------- works offline: save every photo, offline banner ---------- */
+function offlinePage(){return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / Use offline</div><h1>Use Torque Index offline</h1><p>Torque Index already keeps itself on your device after your first visit, so it opens instantly and every car, spec and game works without a connection. Photos are saved as you see them — or save them all now.</p></div></div><div id="ofv" class="game"></div></div>`}
+async function offlineDraw(){const el=$("#ofv");if(!el)return;const sw="serviceWorker" in navigator&&!!navigator.serviceWorker.controller;let have=0;const N=D.ph?Math.max(...D.ph.filter(Boolean).map(p=>p[0]))+1:90;
+  try{const c=await caches.open("ti-img-v1");const k=await c.keys();have=k.filter(r=>/\/sprites\//.test(r.url)).length}catch(e){}
+  const mb=Math.round(45*(N-have)/N);
+  el.innerHTML=`<div class="of-box"><div class="of-row"><b>App saved on this device</b><span class="${sw?"up":"dn"}">${sw?"Yes ✓":"Not yet — reload once on the live site"}</span></div>
+   <div class="of-row"><b>Photos saved</b><span>${Math.min(have,N)} of ${N} photo sheets</span></div><div class="of-bar"><i style="width:${Math.round(Math.min(have,N)/N*100)}%"></i></div>
+   <div class="actions">${have>=N?`<span class="own-tag">All photos saved ✓</span>`:`<button class="btn primary big" type="button" id="ofGo">Save all photos (about ${mb} MB)</button>`}</div>
+   <p class="note">Tip: on iPad or iPhone tap Share → <b>Add to Home Screen</b> to use it like an app. Online races, leaderboards, news and accounts still need a connection.</p></div>`}
+document.addEventListener("click",async e=>{if(!e.target.closest("#ofGo"))return;const b=e.target.closest("#ofGo");b.disabled=true;const N=Math.max(...D.ph.filter(Boolean).map(p=>p[0]))+1;let done=0;const c=await caches.open("ti-img-v1");
+  const q=[...Array(N).keys()];const worker=async()=>{while(q.length){const i=q.shift(),u=`sprites/s${i}.webp`;try{if(!(await c.match(u))){const r=await fetch(u);if(r.ok)await c.put(u,r)}}catch(err){}done++;b.textContent=`Saving… ${done}/${N}`}};
+  await Promise.all([worker(),worker(),worker()]);toast("All photos saved for offline use");offlineDraw()});
+function offPill(){const off=navigator.onLine===false;let p=$("#offPill");if(off&&!p){document.body.insertAdjacentHTML("beforeend",`<div class="offpill" id="offPill" role="status">You're offline — cars, specs and games still work</div>`)}else if(!off&&p)p.remove()}
+addEventListener("online",offPill);addEventListener("offline",offPill);
+
+/* ---------- profiles show ranked rating and owned cars ---------- */
+const _pd39=profDraw;profDraw=async function(u){await _pd39(u);const el=$("#prv");if(!el||el.querySelector(".pr-rk"))return;let r;try{r=await xapi("profile?u="+encodeURIComponent(u))}catch(e){return}if(!r||!r.ok||!$("#prv"))return;
+  const st=el.querySelector(".pr-stats");if(st&&r.rk&&r.rk.n)st.insertAdjacentHTML("afterbegin",`<div class="pr-rk"><b class="num">${rkBadge(r.rk.r)} ${Math.round(r.rk.r)}</b><span>${rkTier(r.rk.r)[1]} · ranked</span></div>`);
+  if(r.owned&&r.owned.length){const ids=r.owned.filter(id=>BY[id]);if(ids.length)el.insertAdjacentHTML("beforeend",`<section class="sec"><div class="sec-h"><h2>Cars owned</h2><span class="eyebrow">${ids.length} bought with credits</span></div><div class="grid">${ids.slice(0,24).map(id=>card(BY[id])).join("")}</div></section>`)}};
+/* ---------- routing, nav and page hooks ---------- */
+const _ft39=footer;footer=function(){const h=_ft39(),i=h.lastIndexOf("</ul>");return i<0?h:h.slice(0,i)+`<li><a href="#showroom">Showroom</a></li><li><a href="#news">Car news</a></li><li><a href="#offline">Use offline</a></li>`+h.slice(i)};
+const _r39=route;route=function(){const h=location.hash;if(h==="#showroom")return{name:"showroom"};if(h==="#news")return{name:"news"};if(h==="#offline")return{name:"offline"};return _r39()};
+PAGES.showroom=showroomPage;PAGES.news=newsPage;PAGES.offline=offlinePage;GT.showroom="Showroom";GT.news="Car news";GT.offline="Use offline";
+PAL_PAGES.push(["Showroom — buy cars with credits","#showroom"],["Car news","#news"],["Use offline","#offline"]);
+const _ar39=afterRender;afterRender=function(r){_ar39(r);crNav();
+  if(r.name==="news")newsDraw();if(r.name==="offline")offlineDraw();if(r.name==="home")newsHome();
+  if(r.name==="make"&&MAKE_SLUG[r.id])newsMake(MAKE_SLUG[r.id]);
+  if(r.name==="garage"&&!document.querySelector(".cr-gar")){const g=document.querySelector("#view .grid");const w=g&&g.closest(".wrap");if(w)w.insertAdjacentHTML("afterbegin",`<div class="cr-gw">${crGarageHtml()}${FAV.length?`<h2 class="cd-h cr-saved">Saved cars ♥</h2>`:""}</div>`)}
+  if(r.name==="car"&&BY[r.id]){const b=[...document.querySelectorAll("#view .actions")].find(a=>/Add to compare/.test(a.textContent));if(b&&!b.querySelector(".cr-cb"))b.insertAdjacentHTML("beforeend",crCarBtn(BY[r.id]))}
+  if(["showroom","news","offline"].includes(r.name))document.querySelectorAll('#links a[data-r="explore"],.tabbar a[data-r="explore"]').forEach(a=>a.setAttribute("aria-current","page"));
+  newsBadge()};
+(function(){const l=$("#links");if(l&&!l.querySelector('[href="#news"]')){const ex=l.querySelector('[data-r="explore"]');(ex||l.lastElementChild).insertAdjacentHTML("afterend",`<a href="#news" data-r="news">News</a>`)}
+  if(typeof HUB!=="undefined"&&HUB[0]&&HUB[0][2])HUB[0][2].push(["news","Car news","Headlines + alerts for makers you follow","search"]);})();
+crNav();crLogin();offPill();setTimeout(newsAlert,4000);setInterval(()=>{if(document.visibilityState==="visible")newsAlert()},20*60e3);
+
+document.head.insertAdjacentHTML("beforeend",`<style id="v39css">
+.crnav{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;font-weight:700;font-size:13px;color:var(--ink);white-space:nowrap}.crnav b{font-variant-numeric:tabular-nums}
+.toast.cr .ti2{font-size:20px}
+.cr-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-radius:14px;background:var(--surface);margin:0 0 18px}
+.cr-bar>div{padding:12px 16px;border-left:1px solid var(--line-2)}.cr-bar>div:first-child{border-left:0}.cr-bar small{display:block;color:var(--muted);font-size:11.5px;text-transform:uppercase;letter-spacing:.06em}.cr-bar b{font-size:20px;display:block}.cr-bar span{font-size:12px;color:var(--muted)}
+.sr-f{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:16px}.sr-f #srQ{flex:1 1 220px;max-width:340px}
+.sr-grid{grid-template-columns:repeat(auto-fill,minmax(220px,1fr))}
+.srcard{background:var(--surface);border:1px solid var(--line);border-radius:14px;overflow:hidden;display:flex;flex-direction:column}.srcard.own{border-color:color-mix(in srgb,#1E9E62 55%,var(--line))}
+.srcard .ph{aspect-ratio:16/10;width:100%;border-radius:0}.src-t{padding:10px 12px 12px;display:flex;flex-direction:column;gap:3px;flex:1}.src-t b{font-size:14.5px;line-height:1.25}.src-t small{color:var(--muted);font-size:12.5px}
+.src-b{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-top:auto;padding-top:8px}.src-b em{font-style:normal;font-weight:800}.src-b .btn{padding:7px 12px}
+.own-tag{font-size:12.5px;font-weight:700;color:#1E9E62}
+.sr-more{grid-column:1/-1;text-align:center;padding:8px}
+.cr-log{margin:14px 0 6px;border:1px solid var(--line);border-radius:12px;background:var(--surface);padding:10px 14px}.cr-log summary{cursor:pointer;font-weight:700}.cr-log ul{list-style:none;margin:8px 0 0;padding:0}.cr-log li{display:flex;justify-content:space-between;padding:6px 0;border-top:1px solid var(--line-2);font-size:14px}
+.cr-log .up,.num.up,td.up{color:#1E9E62}.cr-log .dn,td.dn{color:#C8102E}
+.cr-saved{margin-top:30px}
+.cd-own{grid-column:1/-1;font-size:13px;margin:6px 0 2px}.cd-own small{color:#1E9E62;font-weight:700}
+.rp.e{border-left:3px solid #16A3A3}.rp.f{border-left:3px solid #E86A1A}.rp.g{border-left:3px solid #1F8F55}.rp.h{border-left:3px solid #C2185B}
+.rplayers.n5,.rplayers.n6,.rplayers.n7,.rplayers.n8{grid-template-columns:repeat(4,minmax(0,1fr))}
+@media (max-width:900px){.rplayers.n5,.rplayers.n6,.rplayers.n7,.rplayers.n8{grid-template-columns:repeat(2,minmax(0,1fr))}}
+.rk-tag{background:#7B2FF7;color:#fff;border-radius:999px;padding:2px 9px;font-size:12px;font-weight:800}
+.rk-res{margin:10px auto}.rk-b{font-size:15px}
+.rk-top{display:flex;justify-content:space-between;gap:18px;align-items:center;flex-wrap:wrap}.rk-me{display:flex;gap:12px;align-items:center;background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:12px 16px}.rk-me .rk-b{font-size:30px}.rk-me b{font-size:26px;display:block}.rk-me small{color:var(--muted)}
+.rk-tiers{display:flex;flex-wrap:wrap;gap:8px;margin:12px 0}.rk-tiers span{border:1px solid var(--line);border-radius:999px;padding:4px 10px;font-size:12.5px;background:var(--surface)}
+#links a .nw-b,.nw-b{display:inline-block;min-width:17px;height:17px;border-radius:9px;background:#E0412F;color:#fff;font-size:10.5px;font-style:normal;font-weight:800;line-height:17px;text-align:center;margin-left:4px;padding:0 4px;vertical-align:1px}
+.nw-f{display:flex;flex-wrap:wrap;gap:10px;align-items:center;margin-bottom:10px}.nw-hot{display:flex;flex-wrap:wrap;gap:6px}.nw-hot small{opacity:.6}
+.chip.on{background:var(--ink);color:var(--surface);border-color:var(--ink)}
+.nw-fol{display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin:4px 0 18px;font-size:14px}.nw-fol select{max-width:220px}
+.nw-g{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.nw{background:var(--surface);border:1px solid var(--line);border-radius:14px;display:flex;flex-direction:column;transition:border-color .2s}.nw:hover{border-color:var(--ink)}
+.nw.big{grid-column:span 2}.nw.big h3{font-size:22px}.nw-a{display:block;padding:14px 16px 10px;color:var(--ink)}.nw h3{font-family:var(--display);font-weight:800;font-size:17px;line-height:1.25;margin:6px 0 4px;letter-spacing:-.01em}.nw p{margin:6px 0 0;color:var(--muted);font-size:14px;line-height:1.45}
+.nw-m{display:flex;flex-wrap:wrap;gap:8px;font-size:12px;color:var(--muted)}.nw-s{font-weight:800;color:var(--ink);text-transform:uppercase;letter-spacing:.05em}.nw-n{background:#F2C200;color:#1b1d22;border-radius:6px;padding:0 6px;font-weight:800}
+.nw-t{display:flex;flex-wrap:wrap;gap:6px;padding:0 16px 14px;margin-top:auto}.nw-t .chip{font-size:12px;padding:3px 9px}
+.nw-rail{grid-template-columns:repeat(3,minmax(0,1fr))}
+.fol-b{margin-top:12px}
+.of-box{max-width:620px;margin:0 auto;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 22px}.of-row{display:flex;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line-2)}.of-row .up{color:#1E9E62;font-weight:700}.of-row .dn{color:var(--muted)}
+.of-bar{height:10px;border-radius:6px;background:var(--line-2);margin:14px 0;overflow:hidden}.of-bar i{display:block;height:100%;background:#1E9E62}
+.offpill{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(76px + env(safe-area-inset-bottom,0px));z-index:90;background:#1b1d22;color:#fff;border-radius:999px;padding:8px 14px;font-size:13px;font-weight:600;box-shadow:0 6px 20px rgba(0,0,0,.25)}
+@media (max-width:860px){.nw.big{grid-column:auto}.nw-rail{grid-template-columns:minmax(0,1fr)}.cr-bar{grid-template-columns:repeat(2,minmax(0,1fr))}.cr-bar>div:nth-child(3){border-left:0}.cr-bar>div:nth-child(n+3){border-top:1px solid var(--line-2)}}
+@media (max-width:1280px){#links a[data-r="news"]{display:none}}
+@media (max-width:1300px) and (min-width:641px){header .brand>span{display:none}}
+@media (max-width:1180px) and (min-width:641px){.crnav b{display:none}.crnav{padding:6px 8px}header .qs{max-width:112px;min-width:0}}
+@media (max-width:1060px) and (min-width:961px){header .qs{display:none}}
+@media (max-width:640px){.crnav{padding:6px 8px;font-size:12px}}
 </style>`);
 
 render();syncCmp();

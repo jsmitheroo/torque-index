@@ -42,6 +42,7 @@ export default {
     if (url.pathname === "/api/ping") {
       return withHeaders(new Response(JSON.stringify({ ok: true }), { headers: { "content-type": "application/json", "cache-control": "no-store" } }), url.host);
     }
+    if (url.pathname === "/api/news") return withHeaders(await carNews(url), url.host);
     const m = url.pathname.match(/^\/api\/room\/([A-Za-z0-9]+)$/);
     if (m) {
       // Only pages on this site may open a room connection (stops other websites using your server).
@@ -52,7 +53,7 @@ export default {
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
       return stub.fetch(request);
     }
-    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
+    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
     if (a) {
       // Accounts: writes must come from this site (blocks cross-site form tricks).
       if (request.method !== "GET") {
@@ -102,7 +103,7 @@ export class Room extends DurableObject {
     const watch = url.searchParams.get("watch") === "1";
     if (!seat && !watch) {
       const taken = Object.values(meta.seats);
-      seat = ["a", "b", "c", "d"].find(s => !taken.includes(s)) || null;   // up to four players
+      seat = ["a", "b", "c", "d", "e", "f", "g", "h"].find(s => !taken.includes(s)) || null;   // up to eight players
       if (seat) meta.seats[pid] = seat;
     }
     if (!seat) seat = "s";                                                   // everyone else watches
@@ -162,7 +163,7 @@ export class Room extends DurableObject {
       if (!msg.state || typeof msg.state !== "object") return;
       await this.ctx.storage.put("state", msg.state);
       this.broadcast({ t: "state", state: msg.state }, ws);
-    } else if (msg.t === "act" && ["a", "b", "c", "d"].includes(me.seat)) { // a move from a player, relayed to everyone else
+    } else if (msg.t === "act" && ["a", "b", "c", "d", "e", "f", "g", "h"].includes(me.seat)) { // a move from a player, relayed to everyone else
       this.broadcast({ t: "act", from: me.seat, data: msg.data }, ws);
     } else if (msg.t === "chat") {                         // room chat: plain text only, short
       const text = String(msg.text || "").replace(/[\u0000-\u001f\u007f]/g, "").trim().slice(0, 200);
@@ -214,6 +215,8 @@ export class Accounts extends DurableObject {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS cup(week INTEGER, uid TEXT, t REAL, created INTEGER, PRIMARY KEY(week,uid))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS friends(a TEXT, b TEXT, status TEXT, created INTEGER, PRIMARY KEY(a,b))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS invites(id INTEGER PRIMARY KEY AUTOINCREMENT, to_uid TEXT, from_uid TEXT, code TEXT, created INTEGER)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS ranks(season INTEGER, uid TEXT, r REAL, n INTEGER, w INTEGER, PRIMARY KEY(season,uid))`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS rruns(k TEXT PRIMARY KEY, res TEXT, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS dailyr(day INTEGER, uid TEXT, car TEXT, t REAL, created INTEGER, PRIMARY KEY(day,uid))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS reviews(car TEXT, uid TEXT, rating INTEGER, text TEXT, created INTEGER, PRIMARY KEY(car,uid))`);
     try { this.sql.exec(`ALTER TABLE users ADD COLUMN seen INTEGER`); } catch (e) {}
@@ -300,7 +303,7 @@ export class Accounts extends DurableObject {
       if (!u || !same(await hashPw(String(body.password || ""), u.salt), u.hash)) return json({ error: "That password isn't right.", field: "password" }, 401);
       this.sql.exec(`DELETE FROM sessions WHERE uid=?`, s.uid);
       this.sql.exec(`DELETE FROM users WHERE id=?`, s.uid);
-      for (const t of ["laps","wins","cup","reviews","notifs","dailyr"]) this.sql.exec(`DELETE FROM ${t} WHERE uid=?`, s.uid);
+      for (const t of ["laps","wins","cup","reviews","notifs","dailyr","ranks"]) this.sql.exec(`DELETE FROM ${t} WHERE uid=?`, s.uid);
       this.sql.exec(`DELETE FROM friends WHERE a=? OR b=?`, s.uid, s.uid);this.sql.exec(`DELETE FROM invites WHERE to_uid=? OR from_uid=?`, s.uid, s.uid);
       return json({ ok: true }, 200, null, { "set-cookie": this.cookie("", secure, 0) });
     }
@@ -311,6 +314,15 @@ export class Accounts extends DurableObject {
 
   notify(uid, kind, text, link) { this.sql.exec(`INSERT INTO notifs(uid,kind,text,link,created) VALUES(?,?,?,?,?)`, uid, kind, String(text).slice(0, 200), link || "", Date.now()); this.sql.exec(`DELETE FROM notifs WHERE uid=? AND id NOT IN (SELECT id FROM notifs WHERE uid=? ORDER BY id DESC LIMIT 50)`, uid, uid); }
 
+  /* ranked seasons: one per calendar month (UTC), soft reset towards 1000 */
+  season(t = Date.now()) { const d = new Date(t); return d.getUTCFullYear() * 100 + d.getUTCMonth() + 1; }
+  prevSeason(s) { const y = Math.floor(s / 100), m = s % 100; return m === 1 ? (y - 1) * 100 + 12 : s - 1; }
+  rating(uid, season) {
+    const row = this.sql.exec(`SELECT r, n, w FROM ranks WHERE season=? AND uid=?`, season, uid).toArray()[0];
+    if (row) return row;
+    const prev = this.sql.exec(`SELECT r FROM ranks WHERE season=? AND uid=?`, this.prevSeason(season), uid).toArray()[0];
+    return { r: prev ? 1000 + (prev.r - 1000) / 2 : 1000, n: 0, w: 0 };
+  }
   /* ---------- leaderboards, weekly cup, reviews (anyone can read) ---------- */
   async publicRoutes(route, q, s) {
     const TRACK_RE = /^[a-z]{2,16}$/, CAR_RE = /^[a-z0-9-]{2,90}$/;
@@ -319,6 +331,13 @@ export class Accounts extends DurableObject {
       const top = this.sql.exec(`SELECT u.username, l.car, l.t, l.created FROM laps l JOIN users u ON u.id=l.uid WHERE l.track=? ORDER BY l.t ASC LIMIT 25`, track).toArray();
       const mine = s ? this.sql.exec(`SELECT car, t FROM laps WHERE uid=? AND track=?`, s.uid, track).toArray()[0] || null : null;
       return json({ top, mine });
+    }
+    if (route === "ranked") {
+      const season = this.season(), y = Math.floor(season / 100), m = season % 100;
+      const top = this.sql.exec(`SELECT u.username, k.r, k.n, k.w FROM ranks k JOIN users u ON u.id=k.uid WHERE k.season=? AND k.n>0 ORDER BY k.r DESC LIMIT 50`, season).toArray();
+      let mine = null;
+      if (s) { const row = this.sql.exec(`SELECT r, n, w FROM ranks WHERE season=? AND uid=?`, season, s.uid).toArray()[0]; if (row && row.n > 0) mine = { ...row, rank: this.sql.exec(`SELECT COUNT(*)+1 AS k FROM ranks WHERE season=? AND n>0 AND r>?`, season, row.r).toArray()[0].k }; }
+      return json({ season, ends: Date.UTC(m === 12 ? y + 1 : y, m === 12 ? 0 : m, 1), top, mine });
     }
     if (route === "daily") {
       const day = Math.floor(Date.now() / 864e5), d = +(q.get("day") || day);
@@ -351,7 +370,9 @@ export class Accounts extends DurableObject {
       const friends = this.sql.exec(`SELECT COUNT(*) AS n FROM friends WHERE (a=? OR b=?) AND status='ok'`, u.id, u.id).toArray()[0].n;
       let rel = null;
       if (s && s.uid !== u.id) { const f = this.sql.exec(`SELECT a, status FROM friends WHERE (a=? AND b=?) OR (a=? AND b=?)`, s.uid, u.id, u.id, s.uid).toArray()[0]; rel = f ? (f.status === "ok" ? "friends" : f.a === s.uid ? "requested" : "incoming") : "none"; }
-      return json({ username: u.username, created: u.created, avatar: av, garage: pubGarage && Array.isArray(d["ti-fav"]) ? d["ti-fav"].slice(0, 24) : null, laps, wins, reviews, ach, friends, me: s ? s.uid === u.id : false, rel });
+      const rk = this.sql.exec(`SELECT r, n, w FROM ranks WHERE season=? AND uid=?`, this.season(), u.id).toArray()[0] || null;
+      const owned = d["ti-cr"] && Array.isArray(d["ti-cr"].own) ? d["ti-cr"].own.map(o => o && o.id).filter(x => typeof x === "string").slice(0, 60) : [];
+      return json({ rk, owned: pubGarage ? owned : null, username: u.username, created: u.created, avatar: av, garage: pubGarage && Array.isArray(d["ti-fav"]) ? d["ti-fav"].slice(0, 24) : null, laps, wins, reviews, ach, friends, me: s ? s.uid === u.id : false, rel });
     }
     if (route === "reviews") {
       const car = String(q.get("car") || ""); if (!CAR_RE.test(car)) return json({ error: "Bad car" }, 400);
@@ -382,6 +403,26 @@ export class Accounts extends DurableObject {
       const game = String(body.game || ""); if (!/^(bb|cd|champ)$/.test(game)) return json({ error: "Bad game" }, 400);
       this.sql.exec(`INSERT INTO wins(uid,game,n) VALUES(?,?,1) ON CONFLICT(uid,game) DO UPDATE SET n=n+1`, s.uid, game);
       return json({ ok: true });
+    }
+    if (route === "ranked-post") {
+      if (!this.limit("rk:" + s.uid, 40, 3600e3)) return json({ error: "Slow down" }, 429);
+      const run = +body.run, code = String(body.code || "").toUpperCase(), order = Array.isArray(body.order) ? body.order.slice(0, 8) : [];
+      if (!(run > 0) || !/^[A-Z0-9]{4,8}$/.test(code) || Math.abs(now - run) > 3 * 3600e3) return json({ error: "Bad race" }, 400);
+      const key = code + ":" + run, done = this.sql.exec(`SELECT res FROM rruns WHERE k=?`, key).toArray()[0];
+      if (done) return json(JSON.parse(done.res));
+      const seen = new Set(), ppl = [];
+      for (const u of order) { if (typeof u !== "string") continue; const row = this.sql.exec(`SELECT id, username FROM users WHERE username=?`, u).toArray()[0]; if (row && !seen.has(row.id)) { seen.add(row.id); ppl.push(row); } }
+      if (ppl.length < 2) return json({ error: "Ranked needs two or more signed-in drivers." }, 400);
+      if (!seen.has(s.uid)) return json({ error: "You weren't in that race." }, 403);
+      const season = this.season(), R = ppl.map(p => ({ ...p, ...this.rating(p.id, season) })), n = R.length, K = 40 / (n - 1), d = new Array(n).fill(0);
+      for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) { const e = 1 / (1 + Math.pow(10, (R[j].r - R[i].r) / 400)); d[i] += K * (1 - e); d[j] -= K * (1 - e); }
+      const changes = {};
+      R.forEach((p, i) => { const nr = Math.max(100, p.r + d[i]); changes[p.username] = [Math.round(p.r * 10) / 10, Math.round(nr * 10) / 10];
+        this.sql.exec(`INSERT OR REPLACE INTO ranks(season,uid,r,n,w) VALUES(?,?,?,?,?)`, season, p.id, nr, p.n + 1, p.w + (i === 0 ? 1 : 0)); });
+      const res = { ok: true, season, changes };
+      this.sql.exec(`INSERT INTO rruns(k,res,created) VALUES(?,?,?)`, key, JSON.stringify(res), now);
+      this.sql.exec(`DELETE FROM rruns WHERE created<?`, now - 7 * 864e5);
+      return json(res);
     }
     if (route === "daily-post") {
       if (!this.limit("dp:" + s.uid, 200, 3600e3)) return json({ error: "Slow down" }, 429);
@@ -454,4 +495,52 @@ export class Accounts extends DurableObject {
     if (route === "invite-clear") { this.sql.exec(`DELETE FROM invites WHERE id=? AND to_uid=?`, +body.id, s.uid); return json({ ok: true }); }
     return null;
   }
+}
+
+/* ---------- car news: headlines from motoring RSS feeds, cached for 20 minutes ---------- */
+const FEEDS = [
+  ["Autocar", "https://www.autocar.co.uk/rss"],
+  ["Carscoops", "https://www.carscoops.com/feed/"],
+  ["Motor1", "https://www.motor1.com/rss/news/all/"],
+  ["Electrek", "https://electrek.co/guides/cars/feed/"],
+  ["Autoblog", "https://www.autoblog.com/rss.xml"],
+  ["CAR", "https://www.carmagazine.co.uk/rss/"],
+];
+function xmlText(s) {
+  if (!s) return "";
+  s = s.replace(/<!\[CDATA\[([\s\S]*?)\]\]>/g, "$1").replace(/<[^>]+>/g, " ");
+  s = s.replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n)).replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCharCode(parseInt(n, 16)))
+    .replace(/&quot;/g, '"').replace(/&apos;|&#039;|&rsquo;|&lsquo;/g, "'").replace(/&ldquo;|&rdquo;/g, '"').replace(/&ndash;/g, "–").replace(/&mdash;/g, "—").replace(/&nbsp;/g, " ").replace(/&hellip;/g, "…").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&").replace(/&#(\d+);/g, (_, n) => String.fromCharCode(+n));
+  return s.replace(/\s+/g, " ").trim();
+}
+function tag(block, name) { const m = block.match(new RegExp("<" + name + "(?:\\s[^>]*)?>([\\s\\S]*?)</" + name + ">", "i")); return m ? m[1] : ""; }
+async function oneFeed([src, url]) {
+  try {
+    const r = await fetch(url, { headers: { "user-agent": "Mozilla/5.0 (compatible; TorqueIndexNews/1.0)", accept: "application/rss+xml, application/atom+xml, application/xml, text/xml" }, cf: { cacheTtl: 900 }, signal: AbortSignal.timeout(7000) });
+    if (!r.ok) return [];
+    const xml = (await r.text()).slice(0, 1500000), out = [];
+    const blocks = xml.match(/<item[\s>][\s\S]*?<\/item>/gi) || xml.match(/<entry[\s>][\s\S]*?<\/entry>/gi) || [];
+    for (const b of blocks.slice(0, 30)) {
+      const t = xmlText(tag(b, "title"));
+      let l = xmlText(tag(b, "link"));
+      if (!/^https?:\/\//.test(l)) { const h = b.match(/<link[^>]*href="([^"]+)"/i); l = h ? h[1] : ""; }
+      const d = Date.parse(xmlText(tag(b, "pubDate") || tag(b, "published") || tag(b, "updated") || tag(b, "dc:date"))) || 0;
+      let x = xmlText(tag(b, "description") || tag(b, "summary"));
+      if (x.length > 180) x = x.slice(0, 177).replace(/\s+\S*$/, "") + "…";
+      if (t && /^https?:\/\//.test(l) && d) out.push({ t: t.slice(0, 200), l: l.slice(0, 500), d, s: src, x });
+    }
+    return out;
+  } catch (e) { return []; }
+}
+async function carNews(url) {
+  const cache = caches.default, key = new Request("https://torque-index-news.cache/v1");
+  const hit = await cache.match(key);
+  if (hit && url.searchParams.get("fresh") !== "1") return hit;
+  const lists = await Promise.all(FEEDS.map(oneFeed));
+  const seen = new Set(), items = [];
+  lists.flat().sort((a, b) => b.d - a.d).forEach(it => { const k = it.t.toLowerCase().replace(/[^a-z0-9]+/g, " ").slice(0, 60); if (!seen.has(k) && it.d < Date.now() + 36e5) { seen.add(k); items.push(it); } });
+  const body = JSON.stringify({ at: Date.now(), sources: FEEDS.filter((f, i) => lists[i].length).map(f => f[0]), items: items.slice(0, 80) });
+  const res = new Response(body, { headers: { "content-type": "application/json", "cache-control": items.length ? "public, max-age=1200" : "public, max-age=120" } });
+  await cache.put(key, res.clone());
+  return res;
 }
