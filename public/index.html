@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610051500";
+const BUILD="202610051700";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -5900,7 +5900,7 @@ body.is-vip .acctbox .av,body.is-vip .acctnav .av{box-shadow:0 0 0 2px #F2C200,0
 
 /* ================= v41: upgrades & tuning, paint & number plates for cars you own, the VIP-only McMurtry Spéirling, and a monthly season pass ================= */
 /* ---------- the VIP car: never listed, never for sale, free to every VIP ---------- */
-const VIPCAR={i:-1,make:"McMurtry",model:"Spéirling",years:"2021–",body:"supercar",fuel:"E",engine:"60kWh battery, twin electric motors, downforce fan",bhp:1000,acc:1.5,top:150,price:1000,drive:"RWD",ph:-1,id:"mcmurtry-speirling",y0:2021,cur:true,dec:2020,fam:"McMurtry|Spéirling",vip:true};
+const VIPCAR={i:-1,make:"McMurtry",model:"Spéirling",years:"2021–",body:"supercar",fuel:"E",engine:"60kWh battery, twin electric motors, downforce fan",bhp:1000,acc:1.5,top:280,price:1000,drive:"RWD",ph:-1,id:"mcmurtry-speirling",y0:2021,cur:true,dec:2020,fam:"McMurtry|Spéirling",vip:true};
 BY[VIPCAR.id]=VIPCAR;
 DZSIG.push([/McMurtry/,{shape:"hyper",fan:1,dim:[3.2,1.55,.42,.2,.24],intakes:null}]);
 const _grip41=gripOf;gripOf=function(c){const g=_grip41(c);if(c&&c.id===VIPCAR.id){g.mu*=2.2;g.aero=.6;g.brake=1.35}/* fan car: huge grip even at walking pace, and more as speed builds */return g};
@@ -5918,7 +5918,7 @@ const _ph41=ph;ph=function(c,cls=""){if(c&&c.id===VIPCAR.id)return `<div class="
 const _cp41=carPage;carPage=function(c){if(c&&c.id===VIPCAR.id&&!vipOn())return `<div class="wrap"><section class="vip-hero"><div class="eyebrow">VIP only</div><h1><span>★</span> Hidden car</h1><p>This car is only visible to VIP members.</p></section><div class="actions"><a class="btn primary" href="#vip">About VIP</a></div></div>`;
   if(c&&c.id===VIPCAR.id){const o=crGet().own.find(x=>x.id===c.id);return `<div class="wrap"><section class="vip-hero on vipcar-hero"><div><div class="vch-art vipart">${vipImg()}</div><p class="vch-cr">${VIPCREDIT}</p></div><div><div class="eyebrow">VIP exclusive · free to every VIP</div><h1 style="font-size:clamp(40px,7vw,72px)">McMurtry Spéirling</h1>
     <p>A tiny single-seat electric fan car from Gloucestershire. A fan underneath sucks it to the road — so much grip it could drive upside down — and it holds the Goodwood hill climb record. Only VIPs can see it or drive it.</p>
-    <div class="cotd-st" style="margin-top:14px;background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15)"><div><b class="num">~${c.bhp}</b><small>bhp</small></div><div><b class="num">~${c.acc}s</b><small>0–62 mph</small></div><div><b class="num">${c.top}+</b><small>mph</small></div><div><b class="num">Fan</b><small>downforce</small></div></div>
+    <div class="cotd-st" style="margin-top:14px;background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15)"><div><b class="num">~${c.bhp}</b><small>bhp</small></div><div><b class="num">~${c.acc}s</b><small>0–62 mph</small></div><div><b class="num">${c.top}</b><small>mph top</small></div><div><b class="num">Fan</b><small>downforce</small></div></div>
     <div class="actions">${o?`<a class="btn primary" href="#custom-${c.id}">Customise</a><a class="btn" href="#duel" data-crrace="${c.id}">Race it</a>`:`<span class="note">It'll appear in your garage in a moment.</span>`}</div></div></section>
     <p class="note">Figures are approximate. McMurtry Spéirling is a trademark of McMurtry Automotive; Torque Index is an unofficial fan site.</p></div>`}
   return _cp41(c)};
