@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610041400";
+const BUILD="202610041700";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -6397,6 +6397,65 @@ const _lb44=lbDraw;lbDraw=async function(){if(LB.tab!=="earn"){await _lb44();ear
     ${lbTable(r.top||[],x=>`<td><a class="ulink" href="#u-${esc(x.username)}">${esc(x.username)}</a></td><td class="num">${crFmt(x.tot)}</td><td class="num">${x.cars||0}</td>`,["Player","Earned","Cars"])}${AUTH.user?"":signNote("appear on this leaderboard")}`:`<p class="note c">This leaderboard isn't available right now.</p>`);
   rkTab();earnTab()};
 function earnTab(){const t=document.querySelector("#lbv .lb-tabs");if(!t)return;if(!t.querySelector('[data-lbtab="earn"]'))t.insertAdjacentHTML("beforeend",EARNTAB);t.querySelectorAll("[data-lbtab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.lbtab===LB.tab))}
+
+/* ================= v45: two new sections — Cars (garage, showroom, auctions, trades) and Social (friends, profile, leaderboards, clubs) ================= */
+const CARS_R=["cars","garage","showroom","auctions","trades","tradenew","custom","show3d","pass"],SOC_R=["social","friends","profile","profile2","leaderboards","clubs","club","online","room"];
+const SVG_CAR=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 16v-3l2-5h14l2 5v3"/><path d="M3 16h18v2H3z"/><circle cx="7" cy="18" r="1.6"/><circle cx="17" cy="18" r="1.6"/></svg>`;
+const SVG_SOC=`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2"/><path d="M3 20c.6-3.4 3-5.4 6-5.4s5.4 2 6 5.4"/><circle cx="17" cy="9" r="2.4"/><path d="M16 14.6c2.6 0 4.4 1.8 5 4.4"/></svg>`;
+(function navAdd(){const l=$("#links");if(l&&!l.querySelector('[data-r="cars"]')){const pl=l.querySelector('[data-r="play"]');(pl||l.lastElementChild).insertAdjacentHTML("afterend",`<a href="#cars" data-r="cars">Cars</a><a href="#social" data-r="social">Social</a>`)}
+  const t=document.querySelector(".tabbar");if(t&&!t.querySelector('[data-r="cars"]')){t.querySelector('[data-r="explore"]')?.remove();t.insertAdjacentHTML("beforeend",`<a href="#cars" data-r="cars">${SVG_CAR}Cars</a><a href="#social" data-r="social">${SVG_SOC}Social</a>`)}})();
+function navMark(r){const grp=CARS_R.includes(r.name)?"cars":SOC_R.includes(r.name)?"social":null;if(!grp)return;
+  document.querySelectorAll("#links a, .tabbar a").forEach(a=>a.setAttribute("aria-current",a.dataset.r===grp?"page":"false"))}
+/* ---------- Cars hub ---------- */
+function carsPage(){const c=crGet(),own=c.own.filter(ownVis),p=passGet(),lv=passLv(p),val=own.reduce((a,o)=>a+crPrice(BY[o.id]),0);
+  const tile=(h,i,t,s,x)=>`<a class="hub-t" href="#${h}"><span class="hub-i">${i}</span><div><b>${t}</b><small>${s}</small></div>${x?`<em class="hub-x" ${x.id?`id="${x.id}"`:""}>${x.t||""}</em>`:""}</a>`;
+  return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / Cars</div><h1>Cars</h1><p>Everything you own and everywhere to get more: your garage, the showroom, player auctions and trades with friends.</p></div></div>
+  <div class="cr-bar"><div><small>Credits</small><b class="num">${crFmt(c.bal)}</b></div><div><small>Cars owned</small><b class="num">${own.length}</b></div><div><small>Garage value</small><b class="num">${crFmt(val)}</b></div><div><small>Season pass</small><b class="num">Level ${lv}</b></div></div>
+  <div class="hub-g">${tile("garage","🔑","My garage",own.length?`${own.length} car${own.length===1?"":"s"} — customise, race, view in 3D`:"Empty — buy your first car",{t:own.length||""})}
+   ${tile("showroom","🪙","Showroom",`Buy any of ${CARS.length.toLocaleString()} cars with credits`)}
+   ${tile("auctions","🔨","Auctions","Bid on other players' cars, or sell yours",{id:"hubAu"})}
+   ${tile("trades","🤝","Trades","Swap cars and credits with friends",{id:"hubTr"})}
+   ${tile("pass","🎟️","Season pass",`Level ${lv} of ${PMAX} this month`)}
+   ${vipOn()?tile(`car-${VIPCAR.id}`,"★","Your VIP car","McMurtry Spéirling"):tile("vip","★","VIP","+50% credits, gold badge and a hidden car")}</div>
+  ${own.length?`<section class="sec"><div class="sec-h"><h2>Your cars</h2><a class="more" href="#garage">Garage →</a></div><div class="rail h3-rail">${own.slice(0,12).map(o=>{const x=BY[o.id];return `<a class="hub-car" href="#custom-${x.id}">${ph(x)}<b>${esc(x.make)} ${esc(x.model)}</b><small>${o.plate?`<span class="gp-plate ${o.plst||"uk"}">${esc(o.plate)}</span> `:""}${x.bhp} bhp</small></a>`}).join("")}</div></section>`:""}</div>`}
+async function carsDraw(){if(!(await netCheck())||!AUTH.user)return;const [a,t]=await Promise.all([xapi("auctions"),xapi("trades")]);
+  const au=$("#hubAu"),tr=$("#hubTr");if(au&&a.ok)au.textContent=a.live.length?`${a.live.length} live`:"";if(tr&&t.ok&&t.incoming.length){tr.textContent=`${t.incoming.length} new`;tr.classList.add("hot")}}
+/* ---------- Social hub ---------- */
+function socialPage(){const u=AUTH.user;const tile=(h,i,t,s,id)=>`<a class="hub-t" href="#${h}"><span class="hub-i">${i}</span><div><b>${t}</b><small>${s}</small></div><em class="hub-x" ${id?`id="${id}"`:""}></em></a>`;
+  return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / Social</div><h1>Social</h1><p>Your friends, your profile, the leaderboards and clubs — everything you do with other players.</p></div></div>
+  ${u?`<a class="soc-me" href="#u-${esc(u.username)}">${typeof avFrom==="function"?avFrom(store.get("ti-avatar",null),u.username,56):""}<div><small>Signed in as</small><b class="ulink">${esc(u.username)}</b><span>View your public profile →</span></div></a>`:AUTH.ready&&AUTH.online?signNote("add friends, join clubs and get on the leaderboards"):""}
+  <div class="hub-g">${tile("friends","👋","Friends","Add friends, see who's online, invite them to race","hubFr")}
+   ${tile(u?`u-${u.username}`:"profile","🪪","Profile",u?"Your public profile, badges and cars":"Your achievements and stats")}
+   ${tile("leaderboards","🏆","Leaderboards","Lap records, Weekly Cup, ranked, top earners")}
+   ${tile("clubs","🛡️","Clubs","Team up and climb the club table","hubCl")}
+   ${tile("online","🎮","Online rooms","Race up to 8 friends live")}
+   ${tile("profile","🏅","Achievements","Everything you've unlocked")}</div>
+  <section class="sec"><div class="sec-h"><h2>Friends online</h2><a class="more" href="#friends">All friends →</a></div><div id="socOn"><p class="note">${u?"Loading…":"Sign in to see your friends."}</p></div></section></div>`}
+async function socialDraw(){if(!(await netCheck())||!AUTH.user)return;const [s,c]=await Promise.all([xapi("social"),xapi("clubs")]);const el=$("#socOn");if(!el)return;
+  if(s.ok){const on=(s.friends||[]).filter(f=>f.online),fr=$("#hubFr");if(fr){const n=(s.incoming||[]).length;fr.textContent=n?`${n} request${n===1?"":"s"}`:on.length?`${on.length} online`:"";if(n)fr.classList.add("hot")}
+    el.innerHTML=on.length?`<div class="soc-on">${on.map(f=>`<div><i class="dot-on"></i><a class="ulink" href="#u-${esc(f.username)}">${esc(f.username)}</a><a class="btn" href="#trade-${esc(f.username)}">Trade</a><button class="btn primary" type="button" data-prinv="${esc(f.username)}">Invite to race</button></div>`).join("")}</div>`
+      :`<p class="note">${(s.friends||[]).length?"None of your friends are online right now.":"No friends yet — add some on the <a href=\"#friends\">Friends page</a>."}</p>`}
+  const cl=$("#hubCl");if(cl&&c.ok&&c.mine){const m=c.list.find(x=>x.id===c.mine);if(m)cl.innerHTML=`<span class="clubt" style="--cc:${m.col}">${esc(m.tag)}</span>`}}
+const _r45=route;route=function(){if(location.hash==="#cars")return{name:"cars"};if(location.hash==="#social")return{name:"social"};return _r45()};
+PAGES.cars=carsPage;PAGES.social=socialPage;GT.cars="Cars";GT.social="Social";PAL_PAGES.push(["Cars — garage, showroom, auctions, trades","#cars"],["Social — friends, profile, leaderboards, clubs","#social"]);
+const _ar45=afterRender;afterRender=function(r){_ar45(r);if(r.name==="cars")carsDraw();if(r.name==="social")socialDraw();navMark(r)};
+document.head.insertAdjacentHTML("beforeend",`<style id="v45css">
+.tabbar{grid-template-columns:repeat(6,1fr)!important}.tabbar a{font-size:10.5px}
+@media (max-width:1280px){#links a[data-r="home"]{display:none}}
+@media (max-width:1760px){#links a[data-r="news"]{display:none}}
+@media (max-width:1580px) and (min-width:641px){header .brand>span{display:none}}
+@media (max-width:1130px) and (min-width:961px){header .qs{display:none}}
+.hub-g{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin:4px 0 26px}
+.hub-t{position:relative;display:grid;grid-template-columns:48px minmax(0,1fr);gap:14px;align-items:center;padding:18px;background:var(--surface);border:1px solid var(--line);border-radius:16px;color:var(--ink);transition:border-color .2s,transform .2s}.hub-t:hover{border-color:var(--ink);transform:translateY(-2px)}
+.hub-i{width:48px;height:48px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;background:var(--line-2)}.hub-t b{display:block;font-size:17px}.hub-t small{color:var(--muted);font-size:13px;line-height:1.35}
+.hub-x{position:absolute;top:12px;right:14px;font-style:normal;font-size:12px;font-weight:800;color:var(--muted)}.hub-x.hot{color:#fff;background:#E0412F;border-radius:999px;padding:1px 8px}
+.hub-car{display:flex;flex-direction:column;gap:3px;width:210px;flex:none;color:var(--ink)}.hub-car .ph{aspect-ratio:16/10;border-radius:12px}.hub-car b{font-size:14px;margin-top:4px}.hub-car small{color:var(--muted);font-size:12.5px}
+.soc-me{display:flex;gap:14px;align-items:center;padding:14px 18px;margin-bottom:14px;background:var(--surface);border:1px solid var(--line);border-radius:16px;color:var(--ink)}.soc-me small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase}.soc-me b{font-size:20px;display:block}.soc-me span{color:var(--muted);font-size:13px}
+.soc-on{display:grid;gap:8px}.soc-on>div{display:flex;align-items:center;gap:10px;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:10px 14px}.soc-on .ulink{flex:1;font-weight:700}.dot-on{width:9px;height:9px;border-radius:50%;background:#2BE070;box-shadow:0 0 6px #2BE070}
+@media (max-width:860px){.hub-g{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media (max-width:640px){header .nav .favnav,.nav .favnav{display:none!important}}
+@media (max-width:520px){.hub-g{grid-template-columns:minmax(0,1fr)}.soc-on>div{flex-wrap:wrap}}
+</style>`);
 
 render();syncCmp();
 </script>
