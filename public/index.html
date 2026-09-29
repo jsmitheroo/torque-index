@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610011800";
+const BUILD="202610012000";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -5614,7 +5614,7 @@ const CRWHY={cd:"Circuit duel",gp:"Grand Prix",gp6:"Full-grid Grand Prix",drag:"
 const _bump39=bump;bump=function(k,n=1){_bump39(k,n);if(CRPAY[k])crEarn(CRPAY[k]*Math.min(3,n),CRWHY[k]||"Playing")};
 /* bigger rewards for results */
 const _dres39=duelResult;duelResult=function(r){_dres39(r);if(r.quit||!r.me||r.me.fin==null)return;const all=[r.me,...(r.rivals||[r.rival]).filter(Boolean)];const pos=[...all].sort((a,b)=>(a.fin??1e9)-(b.fin??1e9)).indexOf(r.me)+1;
-  const own=crOwns(r.me.c.id),base=[0,600,350,220,140,100,80][pos]||60,mult=(DZL.laps||1)*(DZL.lv==="insane"?3:DZL.lv==="hard"?1.3:1)*(own?1.25:1);crEarn(base*mult,`P${pos} in Circuit duel${DZL.lv==="insane"?" · INSANE ×3":""}${own?" · your own car +25%":""}`);
+  const own=crOwns(r.me.c.id),base=[0,600,350,220,140,100,80][pos]||60,mult=(DZL.laps||1)*(DZL.lv==="impossible"?6:DZL.lv==="insane"?3:DZL.lv==="hard"?1.3:1)*(own?1.25:1);crEarn(base*mult,`P${pos} in Circuit duel${DZL.lv==="impossible"?" · IMPOSSIBLE ×6":DZL.lv==="insane"?" · INSANE ×3":""}${own?" · your own car +25%":""}`);
   if(own){const c=crGet(),o=c.own.find(x=>x.id===r.me.c.id);if(o){o.races=(o.races||0)+1;crSet(c)}}};
 const _dend39=dailyEnd;dailyEnd=function(){_dend39();const st=store.get("ti-daily",{});crEarn(60*(st.right||0),"Daily 5")};
 /* daily race medals pay once a day each */
@@ -6069,17 +6069,20 @@ dzFinished=function(S,car){if(car!==S.me)return;
   setTimeout(()=>{if(DZ2.S===S)dzEnd(false)},60)};
 
 /* ---------- INSANE difficulty: flat-out computer drivers in boosted cars, and you always start from the back ---------- */
-const insaneOn=o=>!o.online&&o.mode!=="tt"&&o.mode!=="quali"&&(o.mode==="champ"?(DZL.C&&DZL.C.lv==="insane"):DZL.lv==="insane")&&(o.rivals||[]).length>0;
+const lvNow=o=>o.mode==="champ"?(DZL.C&&DZL.C.lv):DZL.lv;
+const insaneOn=o=>!o.online&&o.mode!=="tt"&&o.mode!=="quali"&&["insane","impossible"].includes(lvNow(o))&&(o.rivals||[]).length>0;
 const _rs41i=dzRaceStart;dzRaceStart=function(o){const ins=insaneOn(o);if(ins){const n=o.rivals.length;o.slots={me:n,rivals:[...Array(n).keys()]}}_rs41i(o);const S=DZ2.S;if(!S)return;S.insane=ins;if(!ins)return;
-  S.AI.forEach(c=>{const M=c.M;c.mu0*=1.2;M.mu=c.mu0;M.vmax*=1.1;M.tau*=.78;M.trac*=1.25;M.brake*=1.15;M.aero+=.1;c.skill=1;dzAiPlan(c,S.G,1);if(c.vmax0!=null)c.vmax0=M.vmax});
-  setTimeout(()=>{if(DZ2.S===S)dzMsg("INSANE — you start last",2,"bad")},300)};
+  const imp=lvNow(o)==="impossible",B=imp?{mu:1.42,v:1.24,tau:.58,trac:1.6,brk:1.35,aero:.28}:{mu:1.2,v:1.1,tau:.78,trac:1.25,brk:1.15,aero:.1};S.impossible=imp;
+  S.AI.forEach(c=>{const M=c.M;c.mu0*=B.mu;M.mu=c.mu0;M.vmax*=B.v;M.tau*=B.tau;M.trac*=B.trac;M.brake*=B.brk;M.aero+=B.aero;c.skill=1;dzAiPlan(c,S.G,1);if(c.vmax0!=null)c.vmax0=M.vmax});
+  setTimeout(()=>{if(DZ2.S===S)dzMsg(imp?"IMPOSSIBLE — good luck":"INSANE — you start last",2,"bad")},300)};
 /* the Insane button in every "Computer" picker */
 const _dm41=duelMenu;duelMenu=function(){_dm41();document.querySelectorAll("#game .seg").forEach(s=>{if(!s.querySelector("[data-cdlv]")||s.querySelector('[data-cdlv="insane"]'))return;
-  s.insertAdjacentHTML("beforeend",`<button type="button" data-cdlv="insane" class="ins-b" aria-pressed="${DZL.lv==="insane"}">🔥 Insane</button>`);
-  if(DZL.lv==="insane")s.parentElement.insertAdjacentHTML("beforeend",`<p class="note ins-n">Insane: the computer drives flat out in boosted cars and you always start at the back. Win and you get <b>3× credits</b>.</p>`)})};
-if(typeof ACH!=="undefined")ACH.push(["insane","Certified insane","Win a Circuit duel race on Insane",()=>(ST.insw||0)>=1]);
-const _dres41=duelResult;duelResult=function(r){_dres41(r);if(r.quit||!r.me||r.me.fin==null||DZL.lv!=="insane")return;const all=[r.me,...(r.rivals||[r.rival]).filter(Boolean)];if([...all].sort((a,b)=>(a.fin??1e9)-(b.fin??1e9))[0]===r.me){bump("insw");const b=$("#game .result .big");if(b)b.textContent="INSANE WIN!"}};
-document.head.insertAdjacentHTML("beforeend",`<style>.seg .ins-b{color:#C8102E;font-weight:800}.seg .ins-b[aria-pressed=true]{background:#C8102E;color:#fff}.ins-n{flex-basis:100%;color:#C8102E}</style>`);
+  const hot=DZL.lv==="insane"||DZL.lv==="impossible";s.insertAdjacentHTML("beforeend",`<button type="button" data-cdlv="insane" class="ins-b" aria-pressed="${DZL.lv==="insane"}">🔥 Insane</button>${hot?`<button type="button" data-cdlv="impossible" class="imp-b" aria-pressed="${DZL.lv==="impossible"}">💀 Impossible</button>`:""}`);
+  if(DZL.lv==="insane")s.parentElement.insertAdjacentHTML("beforeend",`<p class="note ins-n">Insane: the computer drives flat out in boosted cars and you always start at the back. Win and you get <b>3× credits</b>.</p>`);
+  if(DZL.lv==="impossible")s.parentElement.insertAdjacentHTML("beforeend",`<p class="note ins-n">Impossible: even bigger boosts than Insane — the computer's cars are in a different league. You start last. Win and you get <b>6× credits</b> and a legendary achievement.</p>`)})};
+if(typeof ACH!=="undefined")ACH.push(["insane","Certified insane","Win a Circuit duel race on Insane",()=>(ST.insw||0)>=1],["impossible","The impossible","Win a Circuit duel race on Impossible",()=>(ST.impw||0)>=1]);
+const _dres41=duelResult;duelResult=function(r){_dres41(r);if(r.quit||!r.me||r.me.fin==null||!["insane","impossible"].includes(DZL.lv))return;const all=[r.me,...(r.rivals||[r.rival]).filter(Boolean)];if([...all].sort((a,b)=>(a.fin??1e9)-(b.fin??1e9))[0]===r.me){const imp=DZL.lv==="impossible";bump(imp?"impw":"insw");const b=$("#game .result .big");if(b)b.textContent=imp?"IMPOSSIBLE WIN!":"INSANE WIN!"}};
+document.head.insertAdjacentHTML("beforeend",`<style>.seg .ins-b{color:#C8102E;font-weight:800}.seg .ins-b[aria-pressed=true]{background:#C8102E;color:#fff}.ins-n{flex-basis:100%;color:#C8102E}.seg .imp-b{color:#fff;background:#111;font-weight:900}.seg .imp-b[aria-pressed=true]{background:linear-gradient(90deg,#3a0000,#C8102E);color:#fff}</style>`);
 
 render();syncCmp();
 </script>
