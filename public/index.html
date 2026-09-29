@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610031000";
+const BUILD="202610041000";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -6165,6 +6165,220 @@ body.is-owner .acctbox .av,body.is-owner .acctnav .av{box-shadow:0 0 0 2px #2FA8
 .ann a{color:#fff;text-decoration:underline;white-space:nowrap}.ann button{position:absolute;right:10px;top:50%;transform:translateY(-50%);border:0;background:rgba(255,255,255,.18);color:#fff;border-radius:50%;width:28px;height:28px}
 @media (max-width:760px){.adm-g{grid-template-columns:minmax(0,1fr)}}
 </style>`);
+
+/* ================= v43: car auctions, trading with friends, clubs, more owner tools, 3D showroom ================= */
+/* ---------- moving cars between players ---------- */
+const carMeta=o=>({up:o.up||null,paint:o.paint||null,plate:o.plate||null,plst:o.plst||null,paid:o.paid||null});
+function crTake(id){const c=_cg41(),i=c.own.findIndex(o=>o.id===id);if(i<0)return null;const [o]=c.own.splice(i,1);crSet(c);return o}
+function crPut(o){const c=_cg41();if(c.own.some(x=>x.id===o.id))return false;c.own.unshift(o);crSet(c);return true}
+function crSpend(n,why){const c=_cg41();if(c.bal<n)return false;c.bal-=n;c.log.unshift([Date.now(),-n,why]);c.log.length=Math.min(c.log.length,40);crSet(c);return true}
+function crAddCar(id,meta,note){const car=BY[id];if(!car)return;const m=meta||{};const c=_cg41();
+  if(c.own.some(o=>o.id===id)){const back=m.paid||crPrice(car);crGrant(back,`${note||"Car received"} — you already own one, so you got ${crFmt(back)}`);return}
+  c.own.unshift({id,at:Date.now(),paid:m.paid||crPrice(car),races:0,up:m.up||undefined,paint:m.paint||undefined,plate:m.plate||undefined,plst:m.plst||undefined});crSet(c)}
+grantsPoll=async function(){if(!AUTH.user||!AUTH.online)return;const r=await xapi("grants");if(!r.ok||!r.grants||!r.grants.length)return;
+  r.grants.forEach(g=>{if(g.cr)crGrant(g.cr,g.note||"Gift");if(g.car)crAddCar(g.car,g.meta,g.note);const car=g.car&&BY[g.car];
+    toast(`<span class="ti2">${g.car?"🔑":"🎁"}</span><div><b>${car?esc(car.make+" "+car.model):"+"+crFmt(g.cr)}</b><span>${esc(g.note||"Gift")}${car&&g.cr?" · +"+crFmt(g.cr):""}</span></div>`,"ach")});
+  if(["garage","auctions","trades"].includes(route().name))render()};
+const ownList=()=>crGet().own.filter(o=>ownVis(o)&&o.id!==VIPCAR.id);
+const needAcct=what=>!AUTH.ready?`<p class="note c">Loading…</p>`:!AUTH.online?offlineNote(what):!AUTH.user?signNote(what.toLowerCase()):"";
+const tLeft=ms=>{if(ms<=0)return "ended";const s=Math.floor(ms/1000),d=Math.floor(s/86400),h=Math.floor(s%86400/3600),m=Math.floor(s%3600/60);return d?`${d}d ${h}h`:h?`${h}h ${m}m`:m?`${m}m ${s%60}s`:`${s}s`};
+
+/* ---------- auctions ---------- */
+const AU={data:null,t:null};
+function auctionsPage(){return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#garage">Garage</a> / Auctions</div><h1>Car auctions</h1><p>Sell cars from your garage to other players, or bid on theirs with credits. Upgrades, paint and plates go with the car. If you're outbid you get your credits back straight away. Sellers pay a 5% fee.</p></div></div><div id="auv"><p class="note c">Loading…</p></div></div>`}
+async function auDraw(){const el=$("#auv");if(!el)return;const na=needAcct("Auctions");if(na&&!AUTH.user){el.innerHTML=na;return}
+  const r=await xapi("auctions");if(!$("#auv"))return;if(!r.ok){el.innerHTML=`<p class="note c">Auctions aren't available right now.</p>`;return}AU.data=r;AU.skew=r.now-Date.now();
+  const me=AUTH.user.username,own=ownList(),bal=crGet().bal;
+  const card=a=>{const car=BY[a.car];if(!car)return "";const min=a.bid?a.bid+Math.max(500,Math.round(a.bid*.05)):a.start,mine=a.seller===me,lead=a.bidder===me,m=a.meta||{};
+    return `<div class="srcard au ${lead?"lead":""}"><a href="#car-${car.id}">${ph(car)}</a><div class="src-t"><b>${esc(car.make)} ${esc(car.model)}</b><small>Seller <a class="ulink" href="#u-${esc(a.seller)}">${esc(a.seller)}</a>${m.up&&Object.values(m.up).some(Boolean)?` · ⚙︎ ${Object.values(m.up).reduce((x,y)=>x+y,0)}/12 upgrades`:""}${m.plate?` · <span class="gp-plate ${m.plst||"uk"}">${esc(m.plate)}</span>`:""}${m.paint?` <i class="gp-dot" style="background:${m.paint}"></i>`:""}</small>
+      <div class="au-row"><div><small>${a.bid?"Top bid":"Starts at"}</small><b class="num">${crFmt(a.bid||a.start)}</b>${a.bidder?`<span>${lead?"You're winning":"by "+esc(a.bidder)} · ${a.bids} bid${a.bids===1?"":"s"}</span>`:""}</div><div><small>Ends in</small><b class="num au-t" data-end="${a.ends}">${tLeft(a.ends-Date.now()-AU.skew)}</b><span>worth ${crFmt(crPrice(car))} new</span></div></div>
+      ${mine?(a.bids?`<p class="note">Your auction</p>`:`<button class="btn" type="button" data-aucancel="${a.id}">Cancel · car back to garage</button>`):lead?`<p class="own-tag">You're the highest bidder</p>`
+       :`<form class="au-bid" data-aubid="${a.id}"><input class="sel" type="number" min="${min}" step="500" value="${min}" aria-label="Your bid"><button class="btn primary" type="submit" ${bal>=min?"":"disabled"}>Bid</button></form>`}</div></div>`};
+  const mineL=r.live.filter(a=>a.seller===me),lead=r.live.filter(a=>a.bidder===me),others=r.live.filter(a=>a.seller!==me);
+  el.innerHTML=`<div class="cr-bar"><div><small>Your credits</small><b class="num">${crFmt(bal)}</b></div><div><small>Live auctions</small><b class="num">${r.live.length}</b></div><div><small>You're winning</small><b class="num">${lead.length}</b></div><div><small>You're selling</small><b class="num">${mineL.length}</b></div></div>
+   <details class="au-sell" ${own.length?"":"open"}><summary>🔨 Sell a car at auction</summary>${own.length?`<form id="auSell" class="au-sf"><select id="auCar" class="sel">${own.map(o=>`<option value="${o.id}">${esc(BY[o.id].make+" "+BY[o.id].model)} — paid ${crFmt(o.paid||crPrice(BY[o.id]))}</option>`).join("")}</select>
+     <input id="auStart" class="sel" type="number" min="500" step="500" placeholder="Starting price" value="${Math.max(500,Math.round(crPrice(BY[own[0].id])*.5/500)*500)}"><select id="auHrs" class="sel"><option value="1">1 hour</option><option value="6">6 hours</option><option value="24" selected>24 hours</option><option value="72">3 days</option></select><button class="btn primary" type="submit">List it</button></form><p class="note">The car leaves your garage while it's listed. No bids? It comes back.</p>`:`<p class="note">You don't have any cars to sell. <a href="#showroom">Visit the showroom</a>.</p>`}</details>
+   ${mineL.length?`<h2 class="cd-h">Your auctions</h2><div class="grid sr-grid">${mineL.map(card).join("")}</div>`:""}
+   <h2 class="cd-h">Live now</h2>${others.length?`<div class="grid sr-grid">${others.map(card).join("")}</div>`:`<p class="note c">No auctions right now — be the first to list a car.</p>`}
+   ${r.recent.length?`<h2 class="cd-h">Recently sold</h2><table class="bb-table"><tbody>${r.recent.map(a=>`<tr><td>${BY[a.car]?esc(BY[a.car].make+" "+BY[a.car].model):esc(a.car)}</td><td class="num">${crFmt(a.bid)}</td><td>${esc(a.bidder||"")}</td></tr>`).join("")}</tbody></table>`:""}`;
+  clearInterval(AU.t);AU.t=setInterval(()=>{if(!$("#auv")){clearInterval(AU.t);return}document.querySelectorAll(".au-t").forEach(t=>t.textContent=tLeft(+t.dataset.end-Date.now()-AU.skew))},1000);
+  clearTimeout(AU.rt);AU.rt=setTimeout(()=>{if(route().name==="auctions"&&!document.activeElement.closest?.(".au-bid,#auSell"))auDraw()},20000)}
+document.addEventListener("change",e=>{if(e.target.id==="auCar"){const s=$("#auStart");if(s)s.value=Math.max(500,Math.round(crPrice(BY[e.target.value])*.5/500)*500)}});
+document.addEventListener("submit",async e=>{const f=e.target;
+  if(f.id==="auSell"){e.preventDefault();const id=$("#auCar").value,start=+$("#auStart").value,hours=+$("#auHrs").value;const car=BY[id];if(!confirm(`List your ${car.model} starting at ${crFmt(start)}? It leaves your garage until the auction ends.`))return;
+    const o=crTake(id);if(!o)return;const r=await xapi("auction-list","POST",{car:id,start,hours,meta:carMeta(o)});if(!r.ok){crPut(o);toast(r.error||"Couldn't list it");return}toast(`🔨 ${esc(car.model)} is up for auction`);auDraw()}
+  if(f.dataset&&f.dataset.aubid){e.preventDefault();const amt=Math.round(+f.querySelector("input").value);if(crGet().bal<amt){toast("You don't have enough credits");return}
+    if(!crSpend(amt,"Auction bid"))return;const r=await xapi("auction-bid","POST",{id:+f.dataset.aubid,amount:amt});if(!r.ok){crGrant(amt,"Bid not placed — refunded");toast(r.error||"Couldn't bid");auDraw();return}toast(`Bid placed: ${crFmt(amt)}`);auDraw()}});
+document.addEventListener("click",async e=>{const c=e.target.closest("[data-aucancel]");if(!c)return;const r=await xapi("auction-cancel","POST",{id:+c.dataset.aucancel});if(!r.ok)toast(r.error||"Couldn't cancel");await grantsPoll();auDraw()});
+
+/* ---------- trading with friends ---------- */
+function tradesPage(){return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#garage">Garage</a> / Trades</div><h1>Trade with friends</h1><p>Swap cars and credits with your friends. What you offer is held safely until they answer — if they say no, it comes straight back.</p></div></div><div id="trv"><p class="note c">Loading…</p></div></div>`}
+async function trDraw(){const el=$("#trv");if(!el)return;const na=needAcct("Trading");if(na&&!AUTH.user){el.innerHTML=na;return}
+  const [r,so]=await Promise.all([xapi("trades"),xapi("social")]);if(!$("#trv"))return;if(!r.ok){el.innerHTML=`<p class="note c">Trading isn't available right now.</p>`;return}
+  const side=x=>[x.car&&BY[x.car]?`🔑 ${esc(BY[x.car].make+" "+BY[x.car].model)}`:"",x.cr?`🪙 ${crFmt(x.cr)}`:""].filter(Boolean).join(" + ")||"nothing";
+  const fr=(so.friends||[]).map(f=>f.username);
+  el.innerHTML=`<section class="tr-new"><h2 class="cd-h">Start a trade</h2>${fr.length?`<div class="tr-fr">${fr.map(u=>`<a class="btn" href="#trade-${esc(u)}">${esc(u)}</a>`).join("")}</div>`:`<p class="note">Add friends first on the <a href="#friends">Friends page</a>.</p>`}</section>
+   <h2 class="cd-h">Offers for you</h2>${r.incoming.length?r.incoming.map(t=>`<div class="tr-c"><div><b>${esc(t.from)}</b> offers <b>${side(t.give)}</b><br>for your <b>${side(t.want)}</b></div><div class="actions"><button class="btn primary" type="button" data-tracc="${t.id}">Accept</button><button class="btn" type="button" data-trdec="${t.id}">Decline</button></div></div>`).join(""):`<p class="note">No offers right now.</p>`}
+   <h2 class="cd-h">Your offers</h2>${r.outgoing.length?r.outgoing.map(t=>`<div class="tr-c"><div>To <b>${esc(t.to)}</b>: your <b>${side(t.give)}</b> for their <b>${side(t.want)}</b></div><div class="actions"><button class="btn" type="button" data-trcan="${t.id}">Cancel</button></div></div>`).join(""):`<p class="note">You haven't sent any.</p>`}
+   ${r.recent.length?`<h2 class="cd-h">History</h2><table class="bb-table"><tbody>${r.recent.map(t=>`<tr><td>${esc(t.from)} → ${esc(t.to)}</td><td>${side(t.give)} ⇄ ${side(t.want)}</td><td>${{done:"✓ Done",declined:"Declined",cancelled:"Cancelled"}[t.status]||t.status}</td></tr>`).join("")}</tbody></table>`:""}`;
+  AU.tr=r}
+document.addEventListener("click",async e=>{const a=e.target.closest("[data-tracc],[data-trdec],[data-trcan]");if(!a)return;const d=a.dataset;
+  if(d.tracc){const t=AU.tr.incoming.find(x=>x.id===+d.tracc);if(!t)return;const w=t.want;let o=null;
+    if(w.car&&!crGet().own.some(x=>x.id===w.car)){toast(`You don't own the ${esc(BY[w.car]?.model||w.car)} any more`);return}if(w.cr&&crGet().bal<w.cr){toast("You don't have enough credits");return}
+    if(!confirm("Accept this trade?"))return;if(w.car)o=crTake(w.car);if(w.cr&&!crSpend(w.cr,"Trade with "+t.from)){if(o)crPut(o);return}
+    const r=await xapi("trade-respond","POST",{id:t.id,act:"accept",meta:o?carMeta(o):null});if(!r.ok){if(o)crPut(o);if(w.cr)crGrant(w.cr,"Trade failed — refunded");toast(r.error||"Couldn't accept");trDraw();return}
+    toast("🤝 Trade done!");await grantsPoll();trDraw();return}
+  const r=await xapi("trade-respond","POST",{id:+(d.trdec||d.trcan),act:d.trdec?"decline":"cancel"});if(!r.ok)toast(r.error||"Couldn't do that");await grantsPoll();trDraw()});
+function tradeNewPage(r){return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#trades">Trades</a> / New</div><h1>Trade with ${esc(r.id)}</h1><p>Pick what you'll give and what you want back. They'll get a notification.</p></div></div><div id="tnv"><p class="note c">Loading their garage…</p></div></div>`}
+async function tradeDraw(u){const el=$("#tnv");if(!el)return;const na=needAcct("Trading");if(na&&!AUTH.user){el.innerHTML=na;return}const p=await xapi("profile?u="+encodeURIComponent(u));if(!$("#tnv"))return;
+  if(!p.ok){el.innerHTML=`<p class="note c">No player called ${esc(u)}.</p>`;return}const theirs=(p.owned||[]).filter(id=>BY[id]&&id!==VIPCAR.id),mine=ownList();
+  const opts=(L,name,f)=>`<select class="sel" id="${name}"><option value="">No car</option>${L.map(x=>{const id=f(x);return `<option value="${id}">${esc(BY[id].make+" "+BY[id].model)}</option>`}).join("")}</select>`;
+  el.innerHTML=`<div class="tn-2"><section class="adm"><h2>You give</h2>${opts(mine,"tgCar",o=>o.id)}<input class="sel" id="tgCr" type="number" min="0" step="1000" placeholder="Credits (optional)"><p class="note">You have ${crFmt(crGet().bal)}.</p></section>
+   <div class="tn-sw">⇄</div><section class="adm"><h2>You get</h2>${theirs.length?opts(theirs.map(id=>({id})),"twCar",o=>o.id):`<p class="note">${esc(p.username)} hasn't got any cars to show${p.owned===null?" (their garage is private)":""}.</p><input type="hidden" id="twCar" value="">`}<input class="sel" id="twCr" type="number" min="0" step="1000" placeholder="Credits (optional)"></section></div>
+   <div class="actions" style="justify-content:center"><button class="btn primary big" type="button" id="tnSend" data-u="${esc(p.username)}">Send offer</button></div><p class="adm-out c" id="tnO"></p>`}
+document.addEventListener("click",async e=>{const b=e.target.closest("#tnSend");if(!b)return;const gc=$("#tgCar").value,gcr=Math.round(+$("#tgCr").value||0),wc=$("#twCar").value,wcr=Math.round(+$("#twCr").value||0);
+  if(!gc&&!gcr){$("#tnO").textContent="Offer a car or some credits.";return}if(!wc&&!wcr){$("#tnO").textContent="Ask for a car or some credits.";return}if(gcr>crGet().bal){$("#tnO").textContent="You don't have that many credits.";return}
+  let o=null;if(gc)o=crTake(gc);if(gcr&&!crSpend(gcr,"Trade offer to "+b.dataset.u)){if(o)crPut(o);return}
+  const r=await xapi("trade-offer","POST",{to:b.dataset.u,give:{car:gc||null,meta:o?carMeta(o):null,cr:gcr},want:{car:wc||null,cr:wcr}});
+  if(!r.ok){if(o)crPut(o);if(gcr)crGrant(gcr,"Offer not sent — refunded");$("#tnO").textContent=r.error||"Couldn't send";return}toast("Trade offer sent");location.hash="trades"});
+
+/* ---------- clubs ---------- */
+const CLUBS={};
+const _vl43=vipLoad;vipLoad=async function(){if(!(await netCheck()))return;const r=await xapi("vips");if(!r.ok)return;VIPS.clear();(r.vips||[]).forEach(u=>VIPS.add(u.toLowerCase()));OWNERS.clear();(r.owners||[]).forEach(u=>OWNERS.add(u.toLowerCase()));
+  Object.keys(CLUBS).forEach(k=>delete CLUBS[k]);Object.entries(r.clubs||{}).forEach(([u,v])=>CLUBS[u.toLowerCase()]=v);vipDecoSoon()};
+const _vd43=vipDeco;vipDeco=function(){_vd43();if(!Object.keys(CLUBS).length)return;document.querySelectorAll(DZ2.S?"#dzTower span":"a.ulink, .rp b, .lb-table td, .rk-res td").forEach(el=>{if(el.dataset.clubd)return;
+  const own=el.firstChild&&el.firstChild.nodeType===3?el.firstChild.textContent:el.textContent;const n=vipName(own),c=CLUBS[n];if(!c)return;if(el.matches(".lb-table td, .rk-res td")&&el.querySelector("a.ulink"))return;el.dataset.clubd="1";
+  el.insertAdjacentHTML("afterbegin",`<span class="clubt" style="--cc:${/^#[0-9a-f]{6}$/i.test(c[1])?c[1]:"#1E6FD9"}">${esc(c[0])}</span>`)})};
+function clubsPage(){return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#play">Play</a> / Clubs</div><h1>Clubs</h1><p>Team up with up to 30 players. Your club earns points every month: 3 for each ranked race a member drives, 10 more for a win, and 2 for each member's first Daily race lap of the day.</p></div></div><div id="clv"><p class="note c">Loading…</p></div></div>`}
+async function clDraw(){const el=$("#clv");if(!el)return;if(!(await netCheck())){el.innerHTML=offlineNote("Clubs");return}const r=await xapi("clubs");if(!$("#clv"))return;if(!r.ok){el.innerHTML=`<p class="note c">Clubs aren't available right now.</p>`;return}
+  const mine=r.list.find(c=>c.id===r.mine);
+  el.innerHTML=`${mine?`<a class="cl-mine" href="#club-${esc(mine.tag)}" style="--cc:${mine.col}"><span class="clubt big" style="--cc:${mine.col}">${esc(mine.tag)}</span><div><small>Your club</small><b>${esc(mine.name)}</b><span>${mine.members} member${mine.members===1?"":"s"} · ${mine.pts.toLocaleString()} pts this month</span></div><em>Open →</em></a>`
+    :AUTH.user?`<details class="au-sell" open><summary>➕ Start a club</summary><form id="clNew" class="au-sf"><input id="clName" class="sel" maxlength="24" placeholder="Club name" required><input id="clTag" class="sel" maxlength="4" placeholder="Tag (e.g. TRQ)" required style="text-transform:uppercase"><input id="clCol" type="color" value="#1E6FD9" aria-label="Club colour"><button class="btn primary" type="submit">Create</button></form><p class="adm-out" id="clO"></p></details>`:signNote("join a club")}
+   <h2 class="cd-h">Club leaderboard · ${rkSeasonName(r.season)}</h2>${r.list.length?`<table class="bb-table lb-table"><thead><tr><th>#</th><th>Club</th><th>Members</th><th>Points</th><th></th></tr></thead><tbody>${r.list.map((c,i)=>`<tr class="${c.id===r.mine?"me":""}"><td>${i<3?["🥇","🥈","🥉"][i]:i+1}</td><td><a href="#club-${esc(c.tag)}"><span class="clubt" style="--cc:${c.col}">${esc(c.tag)}</span> ${esc(c.name)}</a></td><td class="num">${c.members}/30</td><td class="num">${c.pts.toLocaleString()}</td><td>${AUTH.user&&!r.mine&&c.members<30?`<button class="btn" type="button" data-cljoin="${c.id}">Join</button>`:""}</td></tr>`).join("")}</tbody></table>`:`<p class="note c">No clubs yet — start the first one.</p>`}`}
+function clubPage(r){return `<div class="wrap"><div id="c1v"><p class="note c">Loading…</p></div></div>`}
+async function c1Draw(tag){const el=$("#c1v");if(!el)return;const r=await xapi("club?tag="+encodeURIComponent(tag));if(!$("#c1v"))return;if(!r.ok){el.innerHTML=`<div class="bb-intro"><div class="bb-big" style="font-size:30px">Club not found</div><p><a href="#clubs">All clubs</a></p></div>`;return}const c=r.club;
+  el.innerHTML=`<section class="cl-hero" style="--cc:${c.col}"><span class="clubt big" style="--cc:${c.col}">${esc(c.tag)}</span><div><div class="eyebrow"><a href="#clubs">Clubs</a></div><h1>${esc(c.name)}</h1><p>${r.members.length}/30 members · ${r.pts.toLocaleString()} points in the ${rkSeasonName(r.season)} · led by <a class="ulink" href="#u-${esc(c.owner)}">${esc(c.owner)}</a></p>
+    <div class="actions">${r.mine?`<button class="btn" type="button" id="clLeave">Leave club</button>`:AUTH.user&&r.members.length<30?`<button class="btn primary" type="button" data-cljoin="${c.id}">Join club</button>`:""}<button class="btn" type="button" data-rcopy="${esc(location.href)}">Copy invite link</button></div></div></section>
+   <h2 class="cd-h">Members</h2>${lbTable(r.members,x=>`<td><a class="ulink" href="#u-${esc(x.username)}">${esc(x.username)}</a></td><td class="num">${rkBadge(x.r)} ${Math.round(x.r)}</td><td class="num">${x.w}/${x.n}</td>`,["Driver","Ranked","Wins/races"])}`}
+document.addEventListener("submit",async e=>{if(e.target.id!=="clNew")return;e.preventDefault();const r=await xapi("club-create","POST",{name:$("#clName").value,tag:$("#clTag").value,col:$("#clCol").value});if(!r.ok){$("#clO").textContent=r.error||"Couldn't create";return}vipLoad();location.hash="club-"+r.tag});
+document.addEventListener("click",async e=>{const j=e.target.closest("[data-cljoin]");if(j){const r=await xapi("club-join","POST",{id:+j.dataset.cljoin});if(!r.ok){toast(r.error||"Couldn't join");return}toast("Welcome to the club!");vipLoad();location.hash="club-"+r.tag;return}
+  if(e.target.closest("#clLeave")&&confirm("Leave this club?")){await xapi("club-leave","POST",{});vipLoad();location.hash="clubs"}});
+
+/* ---------- more owner features: owner plate & paints, credit events, gifting cars ---------- */
+const EVT={e:null};
+const _an43=annLoad;annLoad=async function(){await _an43();if(!(await netCheck()))return;const r=await xapi("announce");EVT.e=r.ok&&r.event&&r.event.until>Date.now()?r.event:null;document.querySelector(".evb")?.remove();
+  if(EVT.e)document.body.insertAdjacentHTML("afterbegin",`<div class="evb" role="status">🔥 <b>${EVT.e.mult}× credits event</b>${EVT.e.text?" — "+esc(EVT.e.text):""} · ends in ${tLeft(EVT.e.until-Date.now())}</div>`)};
+const _cre43=crEarn;crEarn=function(n,why,quiet){if(EVT.e&&EVT.e.until>Date.now()){n*=EVT.e.mult;why=(why||"")+` · ${EVT.e.mult}× event`}return _cre43(n,why,quiet)};
+const _cs43=dzCarShape;dzCarShape=function(x,c,paint,seat){_cs43(x,c,paint,seat);if(!c.plate||c.plst!=="owner")return;const [L]=(dzSig(c.c).dim||DZSHAPE[c.c.body]||DZSHAPE.saloon),l=L/2;x.fillStyle="#0A5BD3";x.fillRect(l-.035,-.26,.07,.52);x.fillRect(-l-.035,-.26,.07,.52);x.fillStyle="#fff";x.fillRect(-l-.04,-.18,.08,.36);x.fillRect(l-.04,-.18,.08,.36)};
+function ownerCustom(){if(!ownerOn()||route().name!=="custom")return;const seg=[...document.querySelectorAll("#view .tn-s .seg")].find(s=>s.querySelector("[data-tplst]"));const cur=(crGet().own.find(o=>o.id===route().id)||{}).plst;
+  if(seg&&!seg.querySelector('[data-tplst="owner"]'))seg.insertAdjacentHTML("beforeend",`<button type="button" data-tplst="owner" aria-pressed="${cur==="owner"}">✦ Owner plate</button>`);
+  const g=document.querySelector("#view .sw-g");if(g&&!g.querySelector(".own-sw"))g.insertAdjacentHTML("beforeend",[["#0A5BD3","Owner blue"],["#2FA8FF","Owner sky"],["#4B3CD8","Owner indigo"]].map(([h,n])=>`<button type="button" class="sw-b own-sw" data-tpaint="${h}" title="${n}"><i style="background:${h}"></i><small>✦ ${n}</small></button>`).join(""))}
+function ownerAdmin(){if(!ownerOn()||route().name!=="admin"||document.querySelector("#admEv"))return;const g=document.querySelector(".adm-g");if(!g)return;
+  g.insertAdjacentHTML("afterbegin",`<section class="adm"><h2>🔥 Credits event</h2><p class="note">Boost everyone's credit rewards for a while. Shows a banner while it's on.</p><form id="admEv"><div class="adm-row"><select id="admEvM" class="sel"><option value="2">2× credits</option><option value="1.5">1.5× credits</option><option value="3">3× credits</option></select><select id="admEvH" class="sel"><option value="2">2 hours</option><option value="24" selected>24 hours</option><option value="48">Weekend (48h)</option><option value="168">1 week</option></select></div><input id="admEvT" class="sel" maxlength="80" placeholder="Message (optional)"><div class="actions"><button class="btn primary" type="submit">Start event</button><button class="btn" type="button" id="admEvS">Stop event</button></div></form><p class="adm-out" id="admEvO"></p></section>`);
+  const give=document.querySelector("#admGive .adm-row");if(give)give.insertAdjacentHTML("afterend",`<input id="admGCar" class="sel" list="admCarL" placeholder="Give a car (optional) — type a model"><datalist id="admCarL">${CARS.map(c=>`<option value="${esc(c.make+" "+c.model)}">`).join("")}</datalist>`)}
+document.addEventListener("submit",async e=>{if(e.target.id!=="admEv")return;e.preventDefault();const r=await xapi("admin-event","POST",{mult:+$("#admEvM").value,hours:+$("#admEvH").value,text:$("#admEvT").value});$("#admEvO").textContent=r.ok?"Event started ✓":(r.error||"Couldn't start");annLoad()});
+document.addEventListener("click",async e=>{if(e.target.id!=="admEvS")return;const r=await xapi("admin-event","POST",{mult:1});$("#admEvO").textContent=r.ok?"Event stopped ✓":"Couldn't stop";annLoad()});
+/* send the chosen car with a gift (runs before the admin panel's own submit handler) */
+document.addEventListener("submit",e=>{if(e.target.id!=="admGive")return;const v=($("#admGCar")||{}).value;if(!v)return;const c=CARS.find(x=>(x.make+" "+x.model).toLowerCase()===v.trim().toLowerCase());if(!c){e.preventDefault();e.stopImmediatePropagation();$("#admGO").textContent="Pick a car from the list.";return}
+  e.preventDefault();e.stopImmediatePropagation();xapi("admin-grant","POST",{username:$("#admGU").value,credits:+$("#admGC").value||0,vipDays:+$("#admGV").value,note:$("#admGN").value.trim(),car:c.id}).then(r=>{$("#admGO").textContent=r.ok?`Sent to ${r.username}: the ${c.model}${r.credits?" + "+crFmt(r.credits):""}${r.vipDays?" + VIP":""} ✓`:(r.error||"Couldn't send");if(r.ok)e.target.reset()})},true);
+
+/* ---------- 3D showroom ---------- */
+let THREE_P=null;function loadThree(){if(window.THREE)return Promise.resolve();return THREE_P||(THREE_P=new Promise((ok,no)=>{const s=document.createElement("script");s.src="vendor/three.min.js";s.onload=ok;s.onerror=()=>{THREE_P=null;no()};document.head.appendChild(s)}))}
+function show3dPage(r){const c=BY[r.id];if(!c||(c.id===VIPCAR.id&&!vipOn()))return notFound();const o=crGet().own.find(x=>x.id===c.id);
+  return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#car-${c.id}">${esc(c.make)} ${esc(c.model)}</a> / 3D showroom</div><h1>${esc(c.make)} ${esc(c.model)}</h1><p>Drag to spin it, pinch or scroll to zoom. ${o?"Shown in your own paint and plates.":"Buy it to paint it your way."}</p></div></div>
+  <div class="s3d" id="s3d"><canvas id="s3dC"></canvas><div class="s3d-l" id="s3dL">Loading the showroom…</div><div class="s3d-ui"><button class="btn" type="button" id="s3dSpin" aria-pressed="true">⟳ Auto-spin</button>${o?`<a class="btn" href="#custom-${c.id}">Customise</a>`:""}<a class="btn" href="#car-${c.id}">Car page</a></div></div>
+  <p class="note">A stylised model built from the car's size and shape — not an exact replica.</p></div>`}
+const BODYH={supercar:1.15,coupe:1.32,convertible:1.28,hatch:1.46,saloon:1.44,estate:1.48,suv:1.72,mpv:1.76,pickup:1.82};
+async function s3dDraw(id){const box=$("#s3d");if(!box)return;try{await loadThree()}catch(e){$("#s3dL").textContent="Couldn't load the 3D showroom.";return}if(!$("#s3d"))return;const T=window.THREE,car=BY[id],o=crGet().own.find(x=>x.id===id)||{};
+  const cv=$("#s3dC"),W=box.clientWidth,H=Math.round(Math.min(560,Math.max(300,W*.56)));cv.style.height=H+"px";
+  const R=new T.WebGLRenderer({canvas:cv,antialias:true,alpha:false});R.setPixelRatio(Math.min(2,devicePixelRatio||1));R.setSize(W,H,false);R.shadowMap.enabled=true;R.outputEncoding=T.sRGBEncoding;R.toneMapping=T.ACESFilmicToneMapping;R.toneMappingExposure=1.05;
+  const sc=new T.Scene();sc.background=new T.Color(0x0d0f12);sc.fog=new T.Fog(0x0d0f12,14,30);const cam=new T.PerspectiveCamera(34,W/H,.1,100);
+  sc.add(new T.HemisphereLight(0xdfe8ff,0x20242a,.55));const key=new T.SpotLight(0xffffff,1.0,40,.75,.8);key.position.set(4,10,5);key.castShadow=true;key.shadow.mapSize.set(1024,1024);sc.add(key);
+  const rim=new T.DirectionalLight(0x9fc4ff,.7);rim.position.set(-6,4,-6);sc.add(rim);const fill=new T.DirectionalLight(0xffe2c4,.35);fill.position.set(-4,2,6);sc.add(fill);
+  const floor=new T.Mesh(new T.CircleGeometry(9,64),new T.MeshStandardMaterial({color:0x14171b,roughness:.55,metalness:.15}));floor.rotation.x=-Math.PI/2;floor.receiveShadow=true;sc.add(floor);
+  const ring=new T.Mesh(new T.RingGeometry(3.9,3.96,96),new T.MeshBasicMaterial({color:0xF2C200}));ring.rotation.x=-Math.PI/2;ring.position.y=.005;sc.add(ring);
+  const sg=dzSig(car),d=sg.dim||DZSHAPE[car.body]||DZSHAPE.saloon,[L,Wd,hood,roofS]=d,l=L/2,w=Wd/2,Hh=(sg.shape==="box"?1.9:sg.shape==="open"||sg.shape==="atom"?1.05:sg.shape==="hyper"?1.05:BODYH[car.body]||1.44)*(car.id===VIPCAR.id?.85:1);
+  const gc=car.body==="suv"||sg.shape==="box"?.24:car.body==="supercar"?.1:.15,belt=gc+(Hh-gc)*(car.body==="supercar"?.62:.56),ws=l-L*hood,rs=ws-L*.16,re=rs-L*(roofS||.25),g=new T.Group();sc.add(g);
+  let paint=o.paint;if(!paint){paint="#9aa1a8";dzPaint(car,p=>{paint=p;const m=p.match(/\d+/g);if(m)bodyM.color.setRGB(m[0]/255,m[1]/255,m[2]/255).convertSRGBToLinear()})}
+  const bodyM=new T.MeshPhysicalMaterial({color:new T.Color(paint).convertSRGBToLinear(),metalness:.55,roughness:.28,clearcoat:1,clearcoatRoughness:.08});
+  const glassM=new T.MeshPhysicalMaterial({color:0x10161d,metalness:.1,roughness:.05,transmission:0,opacity:.92,transparent:true,clearcoat:1}),blackM=new T.MeshStandardMaterial({color:0x121316,roughness:.6}),chromeM=new T.MeshStandardMaterial({color:0xcfd4da,metalness:1,roughness:.2});
+  const ext=(shape,depth,mat,bev=.06)=>{const m=new T.Mesh(new T.ExtrudeGeometry(shape,{depth,bevelEnabled:!!bev,bevelThickness:bev,bevelSize:bev,bevelSegments:4,curveSegments:14}),mat);m.position.z=-depth/2;m.castShadow=true;m.receiveShadow=true;return m};
+  /* lower body: side profile, extruded across the width */
+  const low=new T.Shape(),sup=car.body==="supercar"||sg.shape==="hyper";low.moveTo(l,gc+.12);low.lineTo(l,belt-(sup?.3:.18));low.quadraticCurveTo(l-.05,belt-.04,l-(sup?.7:.45),belt-(sup?.08:.02));low.lineTo(ws,belt);
+  if(car.body==="pickup"){low.lineTo(-l+.05,belt)}else if(sup){low.lineTo(re-.2,belt+.02);low.quadraticCurveTo(-l+.3,belt+.02,-l,belt-.12)}else{low.lineTo(re-L*.08,belt+.02);low.lineTo(-l+.08,belt);low.quadraticCurveTo(-l,belt,-l,belt-.15)}
+  low.lineTo(-l,gc+.12);low.quadraticCurveTo(-l,gc,-l+.3,gc);low.lineTo(l-.3,gc);low.quadraticCurveTo(l,gc,l,gc+.12);g.add(ext(low,Wd-.12,bodyM));
+  /* cabin: glass greenhouse + painted roof */
+  const open=car.body==="convertible"||sg.shape==="open"||sg.shape==="atom";
+  if(!open){const back=car.body==="hatch"||car.body==="estate"||car.body==="suv"||car.body==="mpv"||sg.shape==="box"?re-.02:car.body==="pickup"?re:re-L*.1,cab=new T.Shape();cab.moveTo(ws,belt-.01);cab.lineTo(rs,Hh-.06);cab.lineTo(re,Hh-.06);cab.lineTo(back,belt-.01);cab.closePath();
+    g.add(ext(cab,Wd*.8,glassM,.03));const roof=new T.Mesh(new T.BoxGeometry(Math.max(.2,rs-re+.06),.07,Wd*.8),bodyM);roof.position.set((rs+re)/2,Hh-.03,0);roof.castShadow=true;g.add(roof)}
+  else{const scr=new T.Mesh(new T.BoxGeometry(.06,.34,Wd*.78),glassM);scr.position.set(ws-.05,belt+.17,0);scr.rotation.z=.5;g.add(scr);const seat=new T.Mesh(new T.BoxGeometry(.9,.2,Wd*.6),blackM);seat.position.set(ws-.8,belt,0);g.add(seat)}
+  if(sg.shape==="hyper"){const can=new T.Mesh(new T.SphereGeometry(1,32,16),glassM);can.scale.set(L*.24,.34,w*.55);can.position.set(ws-.3,belt+.1,0);g.add(can)}
+  /* wheels */
+  const wr=car.body==="suv"||sg.shape==="box"?.4:.34,wb=l*(sg.shape==="box"?.64:.62),tyreM=new T.MeshStandardMaterial({color:0x0b0b0c,roughness:.9});
+  [[wb,1],[wb,-1],[-wb,1],[-wb,-1]].forEach(([x,s])=>{const wh=new T.Group();const t=new T.Mesh(new T.CylinderGeometry(wr,wr,.26,28),tyreM);t.rotation.x=Math.PI/2;wh.add(t);const rim=new T.Mesh(new T.CylinderGeometry(wr*.66,wr*.66,.27,18),chromeM);rim.rotation.x=Math.PI/2;wh.add(rim);
+    for(let k=0;k<5;k++){const sp=new T.Mesh(new T.BoxGeometry(.05,wr*1.2,.02),blackM);sp.rotation.z=k*Math.PI/5*2;sp.position.z=s*.14;wh.add(sp)}wh.position.set(x,wr,s*(w-.08));wh.traverse(m=>m.castShadow=true);g.add(wh)});
+  /* lights */
+  const hl=new T.MeshStandardMaterial({color:0xfff6d8,emissive:0xfff0c0,emissiveIntensity:1.2}),tl=new T.MeshStandardMaterial({color:0xd0231a,emissive:0xff2a1a,emissiveIntensity:1});
+  [1,-1].forEach(s=>{const h=new T.Mesh(new T.BoxGeometry(.05,.08,.38),hl);h.position.set(l+.03,belt-(sup?.24:.16),s*w*.62);g.add(h);const t=new T.Mesh(new T.BoxGeometry(.05,.08,.36),tl);t.position.set(-l-.03,belt-.12,s*w*.62);g.add(t)});
+  /* signature bits */
+  if(sg.wing&&!["lip","roof","active","duck","whale"].includes(sg.wing)){const big=sg.wing==="big"||sg.wing==="boom",y=belt+(big?.55:sg.wing==="swan"?.42:.26);const wg=new T.Mesh(new T.BoxGeometry(big?.5:.36,.05,Wd*(big?1.02:.94)),blackM);wg.position.set(-l+.22,y,0);wg.castShadow=true;g.add(wg);
+    [1,-1].forEach(s=>{const st=new T.Mesh(new T.BoxGeometry(.06,y-belt,.05),blackM);st.position.set(-l+.3,(y+belt)/2,s*w*.35);g.add(st)})}
+  if(sg.wing==="duck"||sg.wing==="whale"||sg.wing==="roof"||sg.wing==="lip"){const lip=new T.Mesh(new T.BoxGeometry(.28,.05,Wd*.8),sg.wing==="roof"?blackM:bodyM);lip.position.set(sg.wing==="roof"?re-.05:-l+.14,sg.wing==="roof"?Hh-.02:belt+.05,0);g.add(lip)}
+  if(sg.stripes||sg.bstripe){const sm=new T.MeshStandardMaterial({color:dzLum(paint)>.6?0x1b1d22:0xf3f3f3,roughness:.4});[.18,-.18].forEach(z=>{const s1=new T.Mesh(new T.BoxGeometry(l-ws,.012,.2),sm);s1.position.set((l+ws)/2,belt+.012,z);g.add(s1)})}
+  if(sg.spare){const sp=new T.Mesh(new T.CylinderGeometry(.38,.38,.24,24),tyreM);sp.rotation.z=Math.PI/2;sp.position.set(-l-.14,belt-.2,0);g.add(sp)}
+  if(sg.fan){const fan=new T.Mesh(new T.CylinderGeometry(.24,.24,.06,24),blackM);fan.rotation.z=Math.PI/2;fan.position.set(-l-.01,gc+.3,0);g.add(fan)}
+  if(sg.rails&&!open){[1,-1].forEach(s=>{const r=new T.Mesh(new T.BoxGeometry(rs-re,.04,.04),blackM);r.position.set((rs+re)/2,Hh+.02,s*Wd*.36);g.add(r)})}
+  /* number plates */
+  const plate=(o.plate||"").trim();if(plate){[1,-1].forEach(s=>{const pc=document.createElement("canvas");pc.width=256;pc.height=56;const x=pc.getContext("2d"),st=o.plst||"uk";
+    x.fillStyle=st==="owner"?"#0A5BD3":st==="gold"||st==="show"?"#111":s>0?"#f4f4f4":"#F2C200";x.fillRect(0,0,256,56);x.fillStyle=st==="gold"?"#E0B000":st==="owner"||st==="show"?"#fff":"#111";x.font="bold 40px Arial Narrow, Arial, sans-serif";x.textAlign="center";x.textBaseline="middle";x.fillText(plate,128,30);
+    const tex=new T.CanvasTexture(pc);tex.encoding=T.sRGBEncoding;const pm=new T.Mesh(new T.PlaneGeometry(.52,.115),new T.MeshBasicMaterial({map:tex}));pm.position.set(s*(l+.075),gc+.3,0);pm.rotation.y=s*Math.PI/2;g.add(pm)})}
+  g.position.y=0;$("#s3dL").remove();
+  /* controls: drag to spin, pinch/scroll to zoom */
+  let yaw=-.7,pitch=.26,dist=Math.max(8.6,L*1.95),spin=true,drag=null,last=performance.now();const P=new Map();
+  cv.addEventListener("pointerdown",e=>{P.set(e.pointerId,[e.clientX,e.clientY]);drag=[e.clientX,e.clientY,yaw,pitch];cv.setPointerCapture(e.pointerId);spin=false;$("#s3dSpin")?.setAttribute("aria-pressed","false")});
+  cv.addEventListener("pointermove",e=>{if(!P.has(e.pointerId))return;const prev=P.get(e.pointerId);P.set(e.pointerId,[e.clientX,e.clientY]);if(P.size===2){const [a,b]=[...P.values()];const dd=Math.hypot(a[0]-b[0],a[1]-b[1]);if(drag.pd)dist=Math.max(4.5,Math.min(16,dist*drag.pd/dd));drag.pd=dd;return}
+    if(drag){yaw=drag[2]-(e.clientX-drag[0])*.008;pitch=Math.max(.05,Math.min(1.1,drag[3]+(e.clientY-drag[1])*.005))}});
+  const up=e=>{P.delete(e.pointerId);if(!P.size)drag=null;else if(drag)drag.pd=null};cv.addEventListener("pointerup",up);cv.addEventListener("pointercancel",up);
+  cv.addEventListener("wheel",e=>{e.preventDefault();dist=Math.max(4.5,Math.min(16,dist*(1+Math.sign(e.deltaY)*.08)))},{passive:false});
+  document.addEventListener("click",function sp(e){if(!$("#s3d")){document.removeEventListener("click",sp);return}if(e.target.closest("#s3dSpin")){spin=!spin;e.target.closest("#s3dSpin").setAttribute("aria-pressed",spin)}});
+  const tick=now=>{if(!cv.isConnected){R.dispose();return}const dt=Math.min(.05,(now-last)/1000);last=now;if(spin)yaw+=dt*.35;cam.position.set(Math.cos(yaw)*Math.cos(pitch)*dist,.6+Math.sin(pitch)*dist,Math.sin(yaw)*Math.cos(pitch)*dist);cam.lookAt(0,.5,0);
+    if(document.visibilityState==="visible")R.render(sc,cam);requestAnimationFrame(tick)};requestAnimationFrame(tick);
+  addEventListener("resize",function rs(){if(!cv.isConnected){removeEventListener("resize",rs);return}const W2=box.clientWidth,H2=Math.round(Math.min(560,Math.max(300,W2*.56)));R.setSize(W2,H2,false);cv.style.height=H2+"px";cam.aspect=W2/H2;cam.updateProjectionMatrix()})}
+
+/* ---------- routes, links and styles ---------- */
+const _r43=route;route=function(){const h=location.hash;if(h==="#auctions")return{name:"auctions"};if(h==="#trades")return{name:"trades"};if(h.startsWith("#trade-"))return{name:"tradenew",id:decodeURIComponent(h.slice(7))};
+  if(h==="#clubs")return{name:"clubs"};if(h.startsWith("#club-"))return{name:"club",id:decodeURIComponent(h.slice(6))};if(h.startsWith("#show3d-"))return{name:"show3d",id:h.slice(8)};return _r43()};
+Object.assign(PAGES,{auctions:auctionsPage,trades:tradesPage,tradenew:tradeNewPage,clubs:clubsPage,club:clubPage,show3d:show3dPage});Object.assign(GT,{auctions:"Auctions",trades:"Trades",tradenew:"New trade",clubs:"Clubs",club:"Club",show3d:"3D showroom"});
+PAL_PAGES.push(["Car auctions","#auctions"],["Trade with friends","#trades"],["Clubs","#clubs"]);
+const _ft43=footer;footer=function(){const h=_ft43(),i=h.lastIndexOf("</ul>");return i<0?h:h.slice(0,i)+`<li><a href="#auctions">🔨 Auctions</a></li><li><a href="#trades">🤝 Trades</a></li><li><a href="#clubs">🛡️ Clubs</a></li>`+h.slice(i)};
+const _cgh43=crGarageHtml;crGarageHtml=function(){return _cgh43().replace('<a class="more" href="#showroom">Showroom →</a>','<span class="more-g"><a class="more" href="#auctions">Auctions</a><a class="more" href="#trades">Trades</a><a class="more" href="#showroom">Showroom →</a></span>')
+  .replace(/<a class="btn primary" href="#custom-([^"]+)">Customise<\/a>/g,(m,id)=>`${m}<a class="btn" href="#show3d-${id}" title="3D showroom">3D</a>`)};
+const _ar43=afterRender;afterRender=function(r){_ar43(r);
+  if(r.name==="auctions")auDraw();if(r.name==="trades")trDraw();if(r.name==="tradenew")tradeDraw(r.id);if(r.name==="clubs")clDraw();if(r.name==="club")c1Draw(r.id);if(r.name==="show3d")setTimeout(()=>s3dDraw(r.id),30);
+  if(r.name==="custom")ownerCustom();if(r.name==="admin")ownerAdmin();
+  if(r.name==="car"&&BY[r.id]&&!document.querySelector(".v3d-b")){const b=[...document.querySelectorAll("#view .actions")].find(a=>/Add to compare/.test(a.textContent));if(b)b.insertAdjacentHTML("beforeend",`<a class="btn v3d-b" href="#show3d-${r.id}">🧊 3D view</a>`)}
+  if(r.name==="u"||(r.name==="profile"&&false)){}
+  if(r.name==="friends")setTimeout(()=>{document.querySelectorAll("#frv a.ulink").forEach(a=>{if(a.nextElementSibling&&a.nextElementSibling.classList?.contains("tr-q"))return;a.insertAdjacentHTML("afterend",` <a class="tr-q" href="#trade-${esc(a.textContent.replace(/(VIP|OWNER)$/,"").trim())}">🤝 Trade</a>`)})},900);
+  if(["auctions","trades","tradenew","clubs","club","show3d"].includes(r.name))document.querySelectorAll(`#links a[data-r="${["clubs","club"].includes(r.name)?"play":"explore"}"]`).forEach(a=>a.setAttribute("aria-current","page"))};
+document.head.insertAdjacentHTML("beforeend",`<style id="v43css">
+.au-row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}.au-row small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.05em}.au-row b{font-size:16px}.au-row span{display:block;font-size:11.5px;color:var(--muted)}
+.au-bid{display:flex;gap:6px}.au-bid input{flex:1;min-width:0}.srcard.au.lead{border-color:#1E9E62;box-shadow:0 0 0 2px rgba(30,158,98,.25)}
+.au-sell{margin:0 0 18px;border:1px solid var(--line);border-radius:14px;background:var(--surface);padding:12px 16px}.au-sell summary{cursor:pointer;font-weight:800}.au-sf{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}.au-sf>*{flex:1 1 150px}.au-sf input[type=color]{flex:0 0 52px;height:40px;padding:2px;border-radius:8px;border:1px solid var(--line)}
+.more-g{display:flex;gap:14px}
+.tr-c{display:flex;justify-content:space-between;gap:14px;align-items:center;flex-wrap:wrap;background:var(--surface);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:8px;font-size:14.5px}
+.tr-fr{display:flex;flex-wrap:wrap;gap:8px}.tr-q{font-size:12px;font-weight:700}
+.tn-2{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);gap:14px;align-items:center;margin-bottom:14px}.tn-2 .adm{display:grid;gap:8px}.tn-sw{font-size:30px;color:var(--muted)}
+.clubt{display:inline-block;margin-right:5px;padding:0 5px;border-radius:4px;background:var(--cc,#1E6FD9);color:#fff;-webkit-text-fill-color:#fff;font-size:10px;font-weight:900;letter-spacing:.06em;vertical-align:1px;line-height:1.6}
+.clubt.big{font-size:22px;padding:6px 12px;border-radius:10px}
+.cl-mine{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center;padding:14px 18px;border-radius:14px;background:var(--surface);border:1.5px solid var(--cc);color:var(--ink);margin-bottom:18px}.cl-mine small{display:block;color:var(--muted);font-size:11px;text-transform:uppercase}.cl-mine b{font-size:20px;display:block}.cl-mine span{color:var(--muted);font-size:13px}.cl-mine em{font-style:normal;font-weight:700}
+.cl-hero{display:flex;gap:20px;align-items:center;margin:26px 0 10px;padding:26px;border-radius:20px;background:linear-gradient(135deg,color-mix(in srgb,var(--cc) 22%,transparent),transparent);border:1.5px solid var(--cc)}.cl-hero h1{font-family:var(--display);font-size:clamp(30px,5vw,48px);margin:4px 0}.cl-hero p{margin:0;color:var(--muted)}
+.evb{position:relative;z-index:94;padding:8px 16px;text-align:center;background:linear-gradient(90deg,#E86A1A,#C8102E);color:#fff;font-size:14px}
+.s3d{position:relative;border-radius:18px;overflow:hidden;background:#0d0f12;border:1px solid #23272d}.s3d canvas{display:block;width:100%;touch-action:none;cursor:grab}.s3d canvas:active{cursor:grabbing}
+.s3d-l{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9aa4ae;font-weight:600}.s3d-ui{position:absolute;left:12px;bottom:12px;display:flex;gap:8px;flex-wrap:wrap}.s3d-ui .btn{background:rgba(20,22,26,.8);color:#fff;border-color:rgba(255,255,255,.18)}
+.tn-plate.owner,.gp-plate.owner{background:#0A5BD3;color:#fff;border-color:#2FA8FF}
+@media (max-width:760px){.tn-2{grid-template-columns:minmax(0,1fr)}.tn-sw{text-align:center;transform:rotate(90deg)}.more-g{gap:10px;font-size:13px}}
+</style>`);
+setTimeout(()=>annLoad(),1300);setInterval(()=>{if(document.visibilityState==="visible")annLoad()},60000);
 
 render();syncCmp();
 </script>

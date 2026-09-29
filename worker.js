@@ -57,7 +57,7 @@ export default {
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
       return stub.fetch(request);
     }
-    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
+    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
     if (a) {
       // Accounts: writes must come from this site (blocks cross-site form tricks).
       if (request.method !== "GET") {
@@ -231,6 +231,13 @@ export class Accounts extends DurableObject {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS vipcodes(h TEXT PRIMARY KEY, days INTEGER, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS grants(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, cr INTEGER, note TEXT, created INTEGER, claimed INTEGER DEFAULT 0)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS meta(k TEXT PRIMARY KEY, v TEXT)`);
+    try { this.sql.exec(`ALTER TABLE grants ADD COLUMN car TEXT`); } catch (e) {}
+    try { this.sql.exec(`ALTER TABLE grants ADD COLUMN meta TEXT`); } catch (e) {}
+    try { this.sql.exec(`ALTER TABLE users ADD COLUMN club INTEGER`); } catch (e) {}
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS auctions(id INTEGER PRIMARY KEY AUTOINCREMENT, seller TEXT, car TEXT, meta TEXT, start INTEGER, bid INTEGER, bidder TEXT, bids INTEGER DEFAULT 0, ends INTEGER, status TEXT, created INTEGER)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS trades(id INTEGER PRIMARY KEY AUTOINCREMENT, a TEXT, b TEXT, give TEXT, want TEXT, status TEXT, created INTEGER)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS clubs(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE COLLATE NOCASE, tag TEXT UNIQUE COLLATE NOCASE, col TEXT, owner TEXT, created INTEGER)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS clubpts(season INTEGER, club INTEGER, pts INTEGER, PRIMARY KEY(season,club))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS vipused(h TEXT PRIMARY KEY, uid TEXT, at INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS notifs(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, kind TEXT, text TEXT, link TEXT, created INTEGER, read INTEGER DEFAULT 0)`);
   }
@@ -246,7 +253,7 @@ export class Accounts extends DurableObject {
   async session(req) {
     const m = (req.headers.get("cookie") || "").match(/(?:^|;\s*)ti_session=([a-f0-9]{64})/);
     if (!m) return null;
-    const row = this.sql.exec(`SELECT s.uid, s.expires, u.username, u.email, u.created, u.updated, u.vip_until, u.vip_since, u.role, u.banned FROM sessions s JOIN users u ON u.id=s.uid WHERE s.token=?`, await sha256(m[1])).toArray()[0];
+    const row = this.sql.exec(`SELECT s.uid, s.expires, u.username, u.email, u.created, u.updated, u.vip_until, u.vip_since, u.role, u.banned, u.club FROM sessions s JOIN users u ON u.id=s.uid WHERE s.token=?`, await sha256(m[1])).toArray()[0];
     if (!row || row.expires < Date.now()) return null;
     return { ...row, raw: m[1] };
   }
@@ -326,6 +333,27 @@ export class Accounts extends DurableObject {
 
   notify(uid, kind, text, link) { this.sql.exec(`INSERT INTO notifs(uid,kind,text,link,created) VALUES(?,?,?,?,?)`, uid, kind, String(text).slice(0, 200), link || "", Date.now()); this.sql.exec(`DELETE FROM notifs WHERE uid=? AND id NOT IN (SELECT id FROM notifs WHERE uid=? ORDER BY id DESC LIMIT 50)`, uid, uid); }
 
+  /* hand things to a player: they collect them next time the site checks (credits and/or a car) */
+  give(uid, cr, note, car, meta) { this.sql.exec(`INSERT INTO grants(uid,cr,note,created,car,meta) VALUES(?,?,?,?,?,?)`, uid, Math.max(0, Math.round(cr || 0)), String(note || "").slice(0, 80), Date.now(), car || null, meta ? JSON.stringify(meta).slice(0, 2000) : null); }
+  clubPts(uid, n) { const u = this.sql.exec(`SELECT club FROM users WHERE id=?`, uid).toArray()[0]; if (!u || !u.club) return; this.sql.exec(`INSERT INTO clubpts(season,club,pts) VALUES(?,?,?) ON CONFLICT(season,club) DO UPDATE SET pts=pts+?`, this.season(), u.club, n, n); }
+  settleAuctions() {
+    const now = Date.now();
+    for (const a of this.sql.exec(`SELECT * FROM auctions WHERE status='live' AND ends<?`, now).toArray()) {
+      const meta = a.meta ? JSON.parse(a.meta) : null;
+      if (a.bidder) {
+        this.give(a.bidder, 0, "Auction won", a.car, meta);
+        this.give(a.seller, Math.round(a.bid * 0.95), "Auction sale (after 5% fee)");
+        this.notify(a.bidder, "auction", `You won the auction for ${a.car.replace(/-/g, " ")} at ${a.bid.toLocaleString("en-GB")} CR`, "#garage");
+        this.notify(a.seller, "auction", `Your ${a.car.replace(/-/g, " ")} sold for ${a.bid.toLocaleString("en-GB")} CR`, "#auctions");
+        this.sql.exec(`UPDATE auctions SET status='sold' WHERE id=?`, a.id);
+      } else {
+        this.give(a.seller, 0, "Auction ended with no bids — car returned", a.car, meta);
+        this.notify(a.seller, "auction", `No bids on your ${a.car.replace(/-/g, " ")} — it's back in your garage`, "#garage");
+        this.sql.exec(`UPDATE auctions SET status='unsold' WHERE id=?`, a.id);
+      }
+    }
+    this.sql.exec(`DELETE FROM auctions WHERE status!='live' AND ends<?`, now - 14 * 864e5);
+  }
   /* ranked seasons: one per calendar month (UTC), soft reset towards 1000 */
   season(t = Date.now()) { const d = new Date(t); return d.getUTCFullYear() * 100 + d.getUTCMonth() + 1; }
   prevSeason(s) { const y = Math.floor(s / 100), m = s % 100; return m === 1 ? (y - 1) * 100 + 12 : s - 1; }
@@ -345,11 +373,31 @@ export class Accounts extends DurableObject {
       return json({ top, mine });
     }
     if (route === "vips") {
-      return json({ vips: this.sql.exec(`SELECT username FROM users WHERE vip_until>? LIMIT 2000`, Date.now()).toArray().map(r => r.username), owners: this.sql.exec(`SELECT username FROM users WHERE role='owner'`).toArray().map(r => r.username) });
+      return json({ vips: this.sql.exec(`SELECT username FROM users WHERE vip_until>? LIMIT 2000`, Date.now()).toArray().map(r => r.username), owners: this.sql.exec(`SELECT username FROM users WHERE role='owner'`).toArray().map(r => r.username), clubs: Object.fromEntries(this.sql.exec(`SELECT u.username, c.tag, c.col FROM users u JOIN clubs c ON c.id=u.club LIMIT 5000`).toArray().map(r => [r.username, [r.tag, r.col]])) });
     }
     if (route === "announce") {
       const a = this.sql.exec(`SELECT v FROM meta WHERE k='announce'`).toArray()[0];
-      return json({ a: a ? JSON.parse(a.v) : null });
+      const ev = this.sql.exec(`SELECT v FROM meta WHERE k='event'`).toArray()[0], e = ev ? JSON.parse(ev.v) : null;
+      return json({ a: a ? JSON.parse(a.v) : null, event: e && e.until > Date.now() ? e : null });
+    }
+    if (route === "auctions") {
+      this.settleAuctions();
+      const live = this.sql.exec(`SELECT a.id, a.car, a.meta, a.start, a.bid, a.bids, a.ends, u.username AS seller, b.username AS bidder FROM auctions a JOIN users u ON u.id=a.seller LEFT JOIN users b ON b.id=a.bidder WHERE a.status='live' ORDER BY a.ends ASC LIMIT 80`).toArray();
+      const recent = this.sql.exec(`SELECT a.car, a.bid, a.ends, a.status, u.username AS seller, b.username AS bidder FROM auctions a JOIN users u ON u.id=a.seller LEFT JOIN users b ON b.id=a.bidder WHERE a.status='sold' ORDER BY a.ends DESC LIMIT 12`).toArray();
+      return json({ live: live.map(a => ({ ...a, meta: a.meta ? JSON.parse(a.meta) : null })), recent, now: Date.now() });
+    }
+    if (route === "clubs") {
+      const season = this.season();
+      const list = this.sql.exec(`SELECT c.id, c.name, c.tag, c.col, (SELECT COUNT(*) FROM users WHERE club=c.id) AS members, COALESCE((SELECT pts FROM clubpts WHERE season=? AND club=c.id),0) AS pts FROM clubs c ORDER BY pts DESC, members DESC LIMIT 60`, season).toArray();
+      return json({ season, list, mine: s && s.club ? s.club : null });
+    }
+    if (route === "club") {
+      const c = this.sql.exec(`SELECT c.*, u.username AS ownerName FROM clubs c JOIN users u ON u.id=c.owner WHERE c.tag=?`, String(q.get("tag") || "")).toArray()[0];
+      if (!c) return json({ error: "No club with that tag." }, 404);
+      const season = this.season();
+      const members = this.sql.exec(`SELECT u.username, COALESCE(k.r,1000) AS r, COALESCE(k.w,0) AS w, COALESCE(k.n,0) AS n FROM users u LEFT JOIN ranks k ON k.uid=u.id AND k.season=? WHERE u.club=? ORDER BY r DESC`, season, c.id).toArray();
+      const pts = (this.sql.exec(`SELECT pts FROM clubpts WHERE season=? AND club=?`, season, c.id).toArray()[0] || { pts: 0 }).pts;
+      return json({ club: { id: c.id, name: c.name, tag: c.tag, col: c.col, owner: c.ownerName, created: c.created }, members, pts, season, mine: !!(s && s.club === c.id) });
     }
     if (route === "ranked") {
       const season = this.season(), y = Math.floor(season / 100), m = season % 100;
@@ -426,9 +474,107 @@ export class Accounts extends DurableObject {
       this.sql.exec(`INSERT INTO wins(uid,game,n) VALUES(?,?,1) ON CONFLICT(uid,game) DO UPDATE SET n=n+1`, s.uid, game);
       return json({ ok: true });
     }
+    /* ---------- auctions ---------- */
+    const CARRE = /^[a-z0-9-]{2,90}$/, cleanMeta = m => { if (!m || typeof m !== "object") return null; const o = {}; if (m.up && typeof m.up === "object") o.up = { eng: Math.min(3, m.up.eng | 0), wgt: Math.min(3, m.up.wgt | 0), tyr: Math.min(3, m.up.tyr | 0), brk: Math.min(3, m.up.brk | 0) }; if (/^#[0-9a-fA-F]{6}$/.test(m.paint || "")) o.paint = m.paint; if (typeof m.plate === "string") o.plate = m.plate.replace(/[^A-Z0-9 ]/g, "").slice(0, 8); if (/^(uk|show|gold|owner)$/.test(m.plst || "")) o.plst = m.plst; if (m.paid > 0) o.paid = Math.round(m.paid); return o; };
+    if (route === "auction-list") {
+      if (!this.limit("al:" + s.uid, 20, 3600e3)) return json({ error: "Slow down" }, 429);
+      const car = String(body.car || ""), start = Math.round(+body.start), hours = +body.hours;
+      if (!CARRE.test(car) || car === "mcmurtry-speirling") return json({ error: "That car can't be auctioned." }, 400);
+      if (!(start >= 500 && start <= 1e9) || ![1, 6, 24, 72].includes(hours)) return json({ error: "Check the starting price and length." }, 400);
+      if (this.sql.exec(`SELECT COUNT(*) AS n FROM auctions WHERE seller=? AND status='live'`, s.uid).toArray()[0].n >= 5) return json({ error: "You can have 5 auctions running at once." }, 400);
+      const id = this.sql.exec(`INSERT INTO auctions(seller,car,meta,start,bid,bidder,ends,status,created) VALUES(?,?,?,?,0,NULL,?,'live',?) RETURNING id`, s.uid, car, JSON.stringify(cleanMeta(body.meta)), start, now + hours * 3600e3, now).toArray()[0].id;
+      return json({ ok: true, id });
+    }
+    if (route === "auction-bid") {
+      if (!this.limit("ab:" + s.uid, 120, 3600e3)) return json({ error: "Slow down" }, 429);
+      this.settleAuctions();
+      const a = this.sql.exec(`SELECT * FROM auctions WHERE id=?`, +body.id).toArray()[0], amt = Math.round(+body.amount);
+      if (!a || a.status !== "live") return json({ error: "That auction has ended." }, 409);
+      if (a.seller === s.uid) return json({ error: "You can't bid on your own car." }, 400);
+      if (a.bidder === s.uid) return json({ error: "You're already the highest bidder." }, 400);
+      const min = a.bid ? a.bid + Math.max(500, Math.round(a.bid * 0.05)) : a.start;
+      if (!(amt >= min)) return json({ error: `Bid at least ${min.toLocaleString("en-GB")} CR.`, min }, 400);
+      if (a.bidder) { this.give(a.bidder, a.bid, "Outbid — your bid was returned"); this.notify(a.bidder, "auction", `You were outbid on the ${a.car.replace(/-/g, " ")}`, "#auctions"); }
+      const ends = Math.max(a.ends, now + 120e3);
+      this.sql.exec(`UPDATE auctions SET bid=?, bidder=?, bids=bids+1, ends=? WHERE id=?`, amt, s.uid, ends, a.id);
+      return json({ ok: true, amount: amt, ends });
+    }
+    if (route === "auction-cancel") {
+      const a = this.sql.exec(`SELECT * FROM auctions WHERE id=? AND seller=?`, +body.id, s.uid).toArray()[0];
+      if (!a || a.status !== "live") return json({ error: "Not found." }, 404);
+      if (a.bidder) return json({ error: "Someone has bid, so it can't be cancelled." }, 400);
+      this.sql.exec(`UPDATE auctions SET status='cancelled', ends=? WHERE id=?`, now, a.id);
+      this.give(s.uid, 0, "Auction cancelled — car returned", a.car, a.meta ? JSON.parse(a.meta) : null);
+      return json({ ok: true });
+    }
+    /* ---------- trades between friends ---------- */
+    if (route === "trades") {
+      const map = r => ({ id: r.id, from: r.fromName, to: r.toName, give: JSON.parse(r.give), want: JSON.parse(r.want), status: r.status, created: r.created });
+      const q2 = `SELECT t.*, fa.username AS fromName, fb.username AS toName FROM trades t JOIN users fa ON fa.id=t.a JOIN users fb ON fb.id=t.b`;
+      return json({ incoming: this.sql.exec(q2 + ` WHERE t.b=? AND t.status='open' ORDER BY t.created DESC`, s.uid).toArray().map(map),
+        outgoing: this.sql.exec(q2 + ` WHERE t.a=? AND t.status='open' ORDER BY t.created DESC`, s.uid).toArray().map(map),
+        recent: this.sql.exec(q2 + ` WHERE (t.a=? OR t.b=?) AND t.status!='open' ORDER BY t.created DESC LIMIT 10`, s.uid, s.uid).toArray().map(map) });
+    }
+    if (route === "trade-offer") {
+      if (!this.limit("to:" + s.uid, 30, 3600e3)) return json({ error: "Slow down" }, 429);
+      const to = this.sql.exec(`SELECT id, username FROM users WHERE username=?`, String(body.to || "").trim()).toArray()[0];
+      if (!to || to.id === s.uid) return json({ error: "Pick a friend to trade with." }, 400);
+      if (!this.sql.exec(`SELECT 1 FROM friends WHERE ((a=? AND b=?) OR (a=? AND b=?)) AND status='ok'`, s.uid, to.id, to.id, s.uid).toArray().length) return json({ error: "You can only trade with friends." }, 403);
+      const g = body.give || {}, w = body.want || {};
+      const give = { car: CARRE.test(g.car || "") && g.car !== "mcmurtry-speirling" ? g.car : null, meta: cleanMeta(g.meta), cr: Math.max(0, Math.min(1e9, Math.round(+g.cr || 0))) };
+      const want = { car: CARRE.test(w.car || "") && w.car !== "mcmurtry-speirling" ? w.car : null, cr: Math.max(0, Math.min(1e9, Math.round(+w.cr || 0))) };
+      if (!give.car && !give.cr) return json({ error: "Offer a car or some credits." }, 400);
+      if (!want.car && !want.cr) return json({ error: "Ask for a car or some credits." }, 400);
+      const id = this.sql.exec(`INSERT INTO trades(a,b,give,want,status,created) VALUES(?,?,?,?,'open',?) RETURNING id`, s.uid, to.id, JSON.stringify(give), JSON.stringify(want), now).toArray()[0].id;
+      this.notify(to.id, "trade", `${s.username} sent you a trade offer`, "#trades");
+      return json({ ok: true, id });
+    }
+    if (route === "trade-respond") {
+      const t = this.sql.exec(`SELECT * FROM trades WHERE id=? AND status='open'`, +body.id).toArray()[0];
+      if (!t) return json({ error: "That offer is no longer open." }, 409);
+      const give = JSON.parse(t.give), want = JSON.parse(t.want), act = String(body.act || "");
+      if (act === "cancel" && t.a === s.uid) { this.sql.exec(`UPDATE trades SET status='cancelled' WHERE id=?`, t.id); this.give(t.a, give.cr, "Trade cancelled — returned", give.car, give.meta); return json({ ok: true }); }
+      if (t.b !== s.uid) return json({ error: "Not your offer." }, 403);
+      if (act === "decline") { this.sql.exec(`UPDATE trades SET status='declined' WHERE id=?`, t.id); this.give(t.a, give.cr, "Trade declined — returned", give.car, give.meta); this.notify(t.a, "trade", `${s.username} declined your trade`, "#trades"); return json({ ok: true }); }
+      if (act === "accept") {
+        const meta = cleanMeta(body.meta);
+        this.sql.exec(`UPDATE trades SET status='done' WHERE id=?`, t.id);
+        this.give(t.b, give.cr, "Trade with a friend", give.car, give.meta);
+        this.give(t.a, want.cr, "Trade with a friend", want.car, meta);
+        this.notify(t.a, "trade", `${s.username} accepted your trade!`, "#garage");
+        return json({ ok: true });
+      }
+      return json({ error: "Bad action" }, 400);
+    }
+    /* ---------- clubs ---------- */
+    if (route === "club-create") {
+      if (s.club) return json({ error: "Leave your club first." }, 400);
+      const name = String(body.name || "").replace(/[<>]/g, "").trim().slice(0, 24), tag = String(body.tag || "").toUpperCase().replace(/[^A-Z0-9]/g, ""), col = /^#[0-9a-fA-F]{6}$/.test(body.col || "") ? body.col : "#1E6FD9";
+      if (name.length < 3) return json({ error: "Club names need 3+ characters." }, 400);
+      if (tag.length < 2 || tag.length > 4) return json({ error: "Tags are 2–4 letters or numbers." }, 400);
+      if (this.sql.exec(`SELECT 1 FROM clubs WHERE name=? OR tag=?`, name, tag).toArray().length) return json({ error: "That name or tag is taken." }, 409);
+      const id = this.sql.exec(`INSERT INTO clubs(name,tag,col,owner,created) VALUES(?,?,?,?,?) RETURNING id`, name, tag, col, s.uid, now).toArray()[0].id;
+      this.sql.exec(`UPDATE users SET club=? WHERE id=?`, id, s.uid);
+      return json({ ok: true, tag });
+    }
+    if (route === "club-join") {
+      if (s.club) return json({ error: "Leave your club first." }, 400);
+      const c = this.sql.exec(`SELECT id, tag FROM clubs WHERE id=?`, +body.id).toArray()[0]; if (!c) return json({ error: "No such club." }, 404);
+      if (this.sql.exec(`SELECT COUNT(*) AS n FROM users WHERE club=?`, c.id).toArray()[0].n >= 30) return json({ error: "That club is full (30 members)." }, 400);
+      this.sql.exec(`UPDATE users SET club=? WHERE id=?`, c.id, s.uid);
+      return json({ ok: true, tag: c.tag });
+    }
+    if (route === "club-leave") {
+      if (!s.club) return json({ ok: true });
+      this.sql.exec(`UPDATE users SET club=NULL WHERE id=?`, s.uid);
+      const left = this.sql.exec(`SELECT id FROM users WHERE club=? ORDER BY created LIMIT 1`, s.club).toArray()[0];
+      if (!left) { this.sql.exec(`DELETE FROM clubs WHERE id=?`, s.club); this.sql.exec(`DELETE FROM clubpts WHERE club=?`, s.club); }
+      else this.sql.exec(`UPDATE clubs SET owner=? WHERE id=? AND owner=?`, left.id, s.club, s.uid);
+      return json({ ok: true });
+    }
     /* ---------- owner-only tools ---------- */
     if (route === "grants") {
-      const rows = this.sql.exec(`SELECT id, cr, note, created FROM grants WHERE uid=? AND claimed=0`, s.uid).toArray();
+      const rows = this.sql.exec(`SELECT id, cr, note, created, car, meta FROM grants WHERE uid=? AND claimed=0`, s.uid).toArray().map(g => ({ ...g, meta: g.meta ? JSON.parse(g.meta) : null }));
       if (rows.length) this.sql.exec(`UPDATE grants SET claimed=1 WHERE uid=? AND claimed=0`, s.uid);
       return json({ grants: rows });
     }
@@ -445,9 +591,19 @@ export class Accounts extends DurableObject {
       if (route === "admin-grant") {
         const u = who(body.username); if (!u) return json({ error: "No player with that username." }, 404);
         const cr = Math.max(0, Math.min(1e9, Math.round(+body.credits || 0))), vd = Math.round(+body.vipDays || 0);
-        if (cr) { this.sql.exec(`INSERT INTO grants(uid,cr,note,created) VALUES(?,?,?,?)`, u.id, cr, String(body.note || "Gift from the owner").slice(0, 80), now); this.notify(u.id, "gift", `You've been given ${cr.toLocaleString("en-GB")} credits`, "#garage"); }
+        if (cr) { this.give(u.id, cr, String(body.note || "Gift from the owner")); this.notify(u.id, "gift", `You've been given ${cr.toLocaleString("en-GB")} credits`, "#garage"); }
+        const gcar = /^[a-z0-9-]{2,90}$/.test(body.car || "") ? body.car : null;
+        if (gcar) { this.give(u.id, 0, String(body.note || "Gift from the owner"), gcar, null); this.notify(u.id, "gift", `You've been given a car: ${gcar.replace(/-/g, " ")}`, "#garage"); }
         if (vd > 0) { const until = vd >= 36500 ? 4102444800000 : Math.max(now, u.vip_until || 0) + vd * 864e5; this.sql.exec(`UPDATE users SET vip_until=?, vip_since=COALESCE(vip_since,?) WHERE id=?`, until, now, u.id); this.notify(u.id, "gift", vd >= 36500 ? "You've been given lifetime VIP" : `You've been given ${vd} days of VIP`, "#vip"); }
-        return json({ ok: true, username: u.username, credits: cr, vipDays: vd });
+        return json({ ok: true, username: u.username, credits: cr, vipDays: vd, car: gcar });
+      }
+      if (route === "admin-event") {
+        const mult = +body.mult, hours = +body.hours;
+        if (!mult || mult <= 1) { this.sql.exec(`DELETE FROM meta WHERE k='event'`); return json({ ok: true, event: null }); }
+        if (![1.5, 2, 3].includes(mult) || !(hours >= 1 && hours <= 168)) return json({ error: "Pick a multiplier and length." }, 400);
+        const e = { mult, until: now + hours * 3600e3, text: String(body.text || "").replace(/[<>]/g, "").slice(0, 80) };
+        this.sql.exec(`INSERT OR REPLACE INTO meta(k,v) VALUES('event',?)`, JSON.stringify(e));
+        return json({ ok: true, event: e });
       }
       if (route === "admin-announce") {
         const text = String(body.text || "").replace(/[<>]/g, "").trim().slice(0, 240);
@@ -511,6 +667,7 @@ export class Accounts extends DurableObject {
         this.sql.exec(`INSERT OR REPLACE INTO ranks(season,uid,r,n,w) VALUES(?,?,?,?,?)`, season, p.id, nr, p.n + 1, p.w + (i === 0 ? 1 : 0)); });
       const res = { ok: true, season, changes };
       this.sql.exec(`INSERT INTO rruns(k,res,created) VALUES(?,?,?)`, key, JSON.stringify(res), now);
+      R.forEach((p, i) => this.clubPts(p.id, i === 0 ? 13 : 3));
       this.sql.exec(`DELETE FROM rruns WHERE created<?`, now - 7 * 864e5);
       return json(res);
     }
@@ -521,6 +678,7 @@ export class Accounts extends DurableObject {
       if (+body.day !== day) return json({ error: "That daily race has finished" }, 409);
       if (!(t > 15 && t < 2000) || !/^[a-z0-9-]{2,90}$/.test(car)) return json({ error: "Bad time" }, 400);
       const old = this.sql.exec(`SELECT t FROM dailyr WHERE day=? AND uid=?`, day, s.uid).toArray()[0];
+      if (!old) this.clubPts(s.uid, 2);
       if (!old || t < old.t) this.sql.exec(`INSERT OR REPLACE INTO dailyr(day,uid,car,t,created) VALUES(?,?,?,?,?)`, day, s.uid, car, t, now);
       const rank = this.sql.exec(`SELECT COUNT(*)+1 AS r FROM dailyr WHERE day=? AND t<?`, day, Math.min(t, old ? old.t : t)).toArray()[0].r;
       return json({ ok: true, best: !old || t < old.t, rank });
