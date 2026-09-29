@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610071000";
+const BUILD="202610071200";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -7019,6 +7019,23 @@ document.head.insertAdjacentHTML("beforeend",`<style id="v49css">
 @media (max-width:860px){.nv-g{grid-template-columns:repeat(2,minmax(0,1fr))}}
 </style>`);
 PAGES.controls=controlsPage;PAGES.cars=carsPage;PAGES.social=socialPage;
+
+/* ================= v50: no iPhone text-select pop-ups or zooming when you tap race controls ================= */
+const NOTOUCH=".rx-b,.cd-pedal,.cd-wheel,#dzCv,#cityCv,.ct-touch button,.dr-hud,.cd-hud,.cd-speed,.rx-rev";
+function noZoom(ov){if(!ov||ov._nz)return;ov._nz=1;const stop=e=>{if(e.target.closest&&e.target.closest(NOTOUCH))e.preventDefault()};
+  ["touchstart","touchmove","touchend"].forEach(t=>ov.addEventListener(t,stop,{passive:false}));
+  ["gesturestart","gesturechange","gestureend","dblclick","contextmenu","selectstart"].forEach(t=>ov.addEventListener(t,e=>{if(!(e.target.closest&&e.target.closest("input,textarea,select")))e.preventDefault()},{passive:false}))}
+new MutationObserver(()=>{noZoom($("#dzOv"));noZoom($("#cityOv"))}).observe(document.body,{childList:true});
+/* while racing, stop the page itself from zooming on double-tap or pinch */
+document.addEventListener("gesturestart",e=>{if(DZ2.S||(window.CITY&&CITY.on))e.preventDefault()},{passive:false});
+let lastTap=0;document.addEventListener("touchend",e=>{if(!(DZ2.S||(window.CITY&&CITY.on)))return;const now=Date.now();if(now-lastTap<350&&!(e.target.closest&&e.target.closest("input,textarea,select")))e.preventDefault();lastTap=now},{passive:false});
+document.head.insertAdjacentHTML("beforeend",`<style id="v50css">
+.cd-ov,.cd-ov *,.city-ov,.city-ov *{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;-webkit-tap-highlight-color:transparent}
+.cd-ov input,.city-ov input{-webkit-user-select:text;user-select:text}
+.cd-ov button,.city-ov button,.cd-ov a{touch-action:manipulation}
+.rx-b,.cd-pedal,.cd-wheel,#dzCv,#cityCv,.ct-touch button{touch-action:none!important}
+html.cd-lock,html.cd-lock body{touch-action:none;overscroll-behavior:none}
+</style>`);
 
 render();syncCmp();
 </script>
