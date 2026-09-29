@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610041900";
+const BUILD="202610051200";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -5785,7 +5785,7 @@ const _ar39=afterRender;afterRender=function(r){_ar39(r);crNav();setTimeout(favO
   newsBadge()};
 (function(){const l=$("#links");if(l&&!l.querySelector('[href="#news"]')){const ex=l.querySelector('[data-r="explore"]');(ex||l.lastElementChild).insertAdjacentHTML("afterend",`<a href="#news" data-r="news">News</a>`)}
   if(typeof HUB!=="undefined"&&HUB[0]&&HUB[0][2])HUB[0][2].push(["news","Car news","Headlines + alerts for makers you follow","search"]);})();
-crNav();favOwnSync();crLogin();offPill();setTimeout(newsAlert,4000);setInterval(()=>{if(document.visibilityState==="visible")newsAlert()},20*60e3);
+crNav();favOwnSync();offPill();setTimeout(newsAlert,4000);setInterval(()=>{if(document.visibilityState==="visible")newsAlert()},20*60e3);
 
 document.head.insertAdjacentHTML("beforeend",`<style id="v39css">
 [data-fav],.favb{display:none!important}
@@ -6455,6 +6455,291 @@ document.head.insertAdjacentHTML("beforeend",`<style id="v45css">
 @media (max-width:860px){.hub-g{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media (max-width:640px){header .nav .favnav,.nav .favnav{display:none!important}}
 @media (max-width:520px){.hub-g{grid-template-columns:minmax(0,1fr)}.soc-on>div{flex-wrap:wrap}}
+</style>`);
+
+/* ================= v46: drift mode, weekly special events, daily login calendar, collection sets, controller & key settings, free-roam online city ================= */
+/* ---------- controls: rebindable keys, gamepad support, steering speed ---------- */
+const CTRLDEF={left:["KeyA","ArrowLeft"],right:["KeyD","ArrowRight"],gas:["KeyW","ArrowUp"],brake:["KeyS","ArrowDown"],hb:["Space"],cam:["KeyC"],horn:["KeyH"]};
+const CTRLN={left:"Steer left",right:"Steer right",gas:"Accelerate",brake:"Brake / reverse",hb:"Handbrake",cam:"Change camera",horn:"Horn (city)"};
+function ctrlGet(){const c=store.get("ti-ctrl",null)||{};return {keys:Object.assign({},CTRLDEF,c.keys||{}),steer:c.steer||1,dead:c.dead??.14,pad:c.pad!==false}}
+const CK=new Set();let CTRL=ctrlGet();
+const ctrlActive=()=>!!(DZ2.S&&!DZ2.S.done)||!!(window.CITY&&CITY.on);
+const keyIs=(code,act)=>CTRL.keys[act].includes(code);
+addEventListener("keydown",e=>{if(!ctrlActive()||e.target.closest?.("input,textarea,select"))return;const act=Object.keys(CTRL.keys).find(a=>keyIs(e.code,a));if(!act)return;
+  if(act==="cam"&&!e.repeat){if(e.key!=="c"&&e.key!=="C")document.dispatchEvent(new KeyboardEvent("keydown",{key:"c"}));if(window.CITY&&CITY.on)CITY.zoomT=CITY.zoomT===1?.6:1}
+  if(act==="horn"&&!e.repeat&&window.CITY&&CITY.on)cityHorn();CK.add(act);e.preventDefault();e.stopImmediatePropagation()},true);
+addEventListener("keyup",e=>{Object.keys(CTRL.keys).forEach(a=>{if(keyIs(e.code,a))CK.delete(a)})},true);
+addEventListener("blur",()=>CK.clear());
+function padRead(){if(!CTRL.pad||!navigator.getGamepads)return null;const g=[...navigator.getGamepads()].find(p=>p&&p.connected);if(!g)return null;const b=i=>g.buttons[i]?(g.buttons[i].value||+g.buttons[i].pressed):0;
+  let x=g.axes[0]||0;x=Math.abs(x)<CTRL.dead?0:Math.sign(x)*(Math.abs(x)-CTRL.dead)/(1-CTRL.dead);const y=g.buttons[12]&&b(12)?1:0;
+  const cam=b(3)>.5;if(cam&&!padRead.cam){document.dispatchEvent(new KeyboardEvent("keydown",{key:"c"}));if(window.CITY&&CITY.on)CITY.zoomT=CITY.zoomT===1?.6:1}padRead.cam=cam;
+  const hn=b(1)>.5;if(hn&&!padRead.hn&&window.CITY&&CITY.on)cityHorn();padRead.hn=hn;
+  return {steer:x,thr:Math.max(b(7),b(0)*0,y),brk:b(6),hb:b(0)>.5||b(2)>.5,id:g.id}}
+function ctrlInput(dt,prev){const p=padRead();const L=CK.has("left"),R=CK.has("right");let s=prev||0;
+  if(DZIN&&DZIN.wheel!=null)s=DZIN.wheel;else if(p&&Math.abs(p.steer)>.01)s=p.steer;else if(L||R){const tgt=(R?1:0)-(L?1:0),sp=CTRL.steer;s+=Math.sign(tgt-s)*Math.min(Math.abs(tgt-s),dt*(Math.sign(tgt)!==Math.sign(s)&&s?5.5:3.4)*sp)}else s-=Math.sign(s)*Math.min(Math.abs(s),dt*5.5);
+  return {steer:Math.max(-1,Math.min(1,s)),thr:Math.max(CK.has("gas")?1:0,DZIN&&DZIN.gas?1:0,p?p.thr:0),brk:Math.max(CK.has("brake")?1:0,DZIN&&DZIN.brake?1:0,p?p.brk:0),hb:CK.has("hb")||!!(DZIN&&DZIN.hb)||!!(p&&p.hb)}}
+dzReadInput=function(dt){const r=ctrlInput(dt,DZIN.steer);DZIN.steer=r.steer;return r};
+function controlsPage(){const c=CTRL;return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / Controls</div><h1>Controls</h1><p>Change your keys, plug in a game controller, and set how quickly the steering reacts. Works in Circuit duel, drift mode and the city.</p></div></div>
+  <div class="adm-g"><section class="adm"><h2>⌨️ Keyboard</h2><p class="note">Tap a key box, then press the key you want. Each action can have two keys.</p><table class="bb-table ct-t"><tbody>${Object.keys(CTRLDEF).map(a=>`<tr><th>${CTRLN[a]}</th>${[0,1].map(i=>`<td><button type="button" class="ct-k" data-ck="${a}|${i}">${esc(keyLabel(c.keys[a][i]))}</button></td>`).join("")}</tr>`).join("")}</tbody></table>
+    <div class="actions"><button class="btn" type="button" id="ctReset">Reset to default</button></div></section>
+   <section class="adm"><h2>🎮 Game controller</h2><p class="note">Xbox, PlayStation and most Bluetooth controllers work — press any button to wake it up.</p><div id="ctPad" class="ct-pad">No controller found yet.</div>
+    <table class="bb-table ct-t"><tbody><tr><th>Steer</th><td>Left stick</td></tr><tr><th>Accelerate</th><td>Right trigger (RT / R2)</td></tr><tr><th>Brake / reverse</th><td>Left trigger (LT / L2)</td></tr><tr><th>Handbrake</th><td>A / ✕ or X / □</td></tr><tr><th>Camera</th><td>Y / △</td></tr><tr><th>Horn (city)</th><td>B / ○</td></tr></tbody></table>
+    <label class="rw-l"><input type="checkbox" id="ctPadOn" ${c.pad?"checked":""}> Use a controller when one is connected</label>
+    <label class="ct-sl">Stick dead zone <input type="range" id="ctDead" min="0" max="0.35" step="0.01" value="${c.dead}"><b>${Math.round(c.dead*100)}%</b></label></section>
+   <section class="adm"><h2>🕹️ Steering</h2><label class="ct-sl">Keyboard steering speed <input type="range" id="ctSteer" min="0.5" max="2" step="0.05" value="${c.steer}"><b>${c.steer.toFixed(2)}×</b></label><p class="note">Lower is smoother, higher is snappier. Touch screens use the on-screen wheel.</p></section></div></div>`}
+function keyLabel(c){if(!c)return "—";return c.replace(/^Key/,"").replace(/^Digit/,"").replace("Arrow","↑↓←→".includes?"":"").replace(/^Up$/,"↑").replace(/^Down$/,"↓").replace(/^Left$/,"←").replace(/^Right$/,"→").replace("Space","Space")}
+let CTWAIT=null;
+document.addEventListener("click",e=>{const k=e.target.closest("[data-ck]");if(k){document.querySelectorAll(".ct-k.wait").forEach(x=>x.classList.remove("wait"));k.classList.add("wait");k.textContent="Press a key…";CTWAIT=k.dataset.ck;return}
+  if(e.target.id==="ctReset"){store.set("ti-ctrl",{});CTRL=ctrlGet();render()}});
+addEventListener("keydown",e=>{if(!CTWAIT||route().name!=="controls")return;e.preventDefault();e.stopImmediatePropagation();const [a,i]=CTWAIT.split("|");CTWAIT=null;if(e.code==="Escape"){render();return}
+  const c=store.get("ti-ctrl",null)||{};c.keys=Object.assign({},CTRL.keys,c.keys||{});Object.keys(c.keys).forEach(x=>{c.keys[x]=c.keys[x].slice();if(x!==a)c.keys[x]=c.keys[x].map(k=>k===e.code?"":k)});c.keys[a][+i]=e.code;store.set("ti-ctrl",c);CTRL=ctrlGet();render()},true);
+document.addEventListener("input",e=>{if(!["ctSteer","ctDead"].includes(e.target.id))return;const c=store.get("ti-ctrl",null)||{};if(e.target.id==="ctSteer")c.steer=+e.target.value;else c.dead=+e.target.value;store.set("ti-ctrl",c);CTRL=ctrlGet();const b=e.target.nextElementSibling;if(b)b.textContent=e.target.id==="ctSteer"?(+e.target.value).toFixed(2)+"×":Math.round(e.target.value*100)+"%"});
+document.addEventListener("change",e=>{if(e.target.id!=="ctPadOn")return;const c=store.get("ti-ctrl",null)||{};c.pad=e.target.checked;store.set("ti-ctrl",c);CTRL=ctrlGet()});
+function ctPadLoop(){const el=$("#ctPad");if(!el)return;const g=navigator.getGamepads?[...navigator.getGamepads()].find(p=>p&&p.connected):null;
+  el.innerHTML=g?`<b>✓ ${esc(g.id.slice(0,60))}</b><div class="ct-bars"><span>Steer <i style="--v:${(((g.axes[0]||0)+1)/2*100).toFixed(0)}%"></i></span><span>Gas <i style="--v:${((g.buttons[7]?.value||0)*100).toFixed(0)}%"></i></span><span>Brake <i style="--v:${((g.buttons[6]?.value||0)*100).toFixed(0)}%"></i></span></div>`:"No controller found yet. Connect one and press any button.";requestAnimationFrame(ctPadLoop)}
+
+/* ---------- drift mode ---------- */
+function driftStart(o){const car=BY[o.car];if(!car)return;DZL.driftSess={track:o.track,car:car.id,ev:o.ev||null,best:0};
+  dzRaceStart({track:o.track,laps:9999,mode:"tt",weather:o.wx||"dry",mine:{car,name:"You",tyre:"S"},rivals:[],onEnd:r=>driftEnd(r)});const S=DZ2.S;if(!S)return;
+  S.drift={score:0,cur:0,mult:1,hold:0,chain:0,left:90,last:0,bestC:0};$("#dzOv")?.insertAdjacentHTML("beforeend",`<div class="dr-hud" id="drHud"><div><small>Score</small><b id="drS">0</b></div><div class="dr-c"><small>Combo</small><b id="drC">0</b><em id="drM">×1</em></div><div><small>Time</small><b id="drT">1:30</b></div></div>`)}
+const _hud46=dzHud;dzHud=function(S){_hud46(S);const D=S.drift;if(!D||!S.go)return;const me=S.me,now=performance.now(),dt=Math.min(.1,(now-(D.t||now))/1000);D.t=now;if(S.done)return;
+  const f=[Math.cos(me.h),Math.sin(me.h)],vL=me.vx*f[0]+me.vy*f[1],vT=-me.vx*f[1]+me.vy*f[0],v=Math.hypot(me.vx,me.vy),ang=Math.abs(Math.atan2(vT,Math.max(.1,Math.abs(vL))));
+  const lost=me.grass||me.crash>0||(me._dm2!=null&&(me.dmg||0)>me._dm2+.004);me._dm2=me.dmg||0;
+  if(lost&&D.cur>0){D.cur=0;D.mult=1;D.chain=0;dzMsg("Combo lost!",1,"bad")}
+  else if(v>7&&ang>.2&&ang<1.8&&vL>0){D.cur+=ang*v*dt*14*D.mult;D.hold=0;D.chain+=dt;D.mult=Math.min(6,1+Math.floor(D.chain/1.6))}
+  else{D.hold+=dt;if(D.hold>.8&&D.cur>0){D.bestC=Math.max(D.bestC,D.cur);if(D.cur>2000)dzMsg("+"+Math.round(D.cur).toLocaleString(),1.1,"good");D.score+=D.cur;D.cur=0;D.mult=1;D.chain=0}}
+  D.left=Math.max(0,90-S.t);if(D.left<=0){S.done=true;D.score+=D.cur;D.cur=0;setTimeout(()=>{if(DZ2.S===S)dzEnd(false)},50)}
+  if(now-D.last>90){D.last=now;const s=$("#drS"),c=$("#drC"),m=$("#drM"),t=$("#drT");if(s)s.textContent=Math.round(D.score).toLocaleString();if(c)c.textContent=Math.round(D.cur).toLocaleString();if(m){m.textContent="×"+D.mult;m.className=D.mult>=4?"hot":""}if(t)t.textContent=`${Math.floor(D.left/60)}:${String(Math.floor(D.left%60)).padStart(2,"0")}`}};
+function driftEnd(r){const X=DZL.driftSess;if(!X)return;const sc=Math.round((r&&r.S&&r.S.drift?r.S.drift.score:0)||DZL.lastDrift||0);}
+const _dzEnd46=dzEnd;dzEnd=function(quit){const S=DZ2.S;if(S&&S.drift){S.drift.score+=S.drift.cur||0;DZL.lastDrift=Math.round(S.drift.score)}_dzEnd46(quit);if(S&&S.drift)setTimeout(()=>driftResult(!!quit),30)};
+async function driftResult(quit){const X=DZL.driftSess;if(!X)return;DZL.driftSess=null;const sc=DZL.lastDrift||0,car=BY[X.car];const rec=store.get("ti-drift",{}),best=rec[X.track]||0;
+  if(sc>best){rec[X.track]=sc;store.set("ti-drift",rec)}bump("drift");if(sc>0)crEarn(Math.min(3000,Math.round(sc/60)),`Drift score ${sc.toLocaleString()}`);let rank=null,evr=null;
+  if(AUTH.user&&sc>0){const r=await xapi("drift-post","POST",{track:X.track,car:X.car,score:sc});if(r.ok)rank=r.rank;if(X.ev){const e=await xapi("wevent-post","POST",{ev:X.ev,score:sc,car:X.car});if(e.ok)evr=e.rank}}
+  const box=$("#game")||$("#evv");const html=`<div class="result"><div class="eyebrow">Drift · ${esc(TRACKS[X.track].name)} · ${esc(car.make+" "+car.model)}</div><div class="big num">${sc.toLocaleString()}</div><p>${sc>best&&best?"New personal best! ":""}Your best here: <b>${Math.max(sc,best).toLocaleString()}</b>${rank?` · leaderboard #${rank}`:""}${evr?` · event #${evr}`:""}</p>
+    <div class="actions" style="justify-content:center"><button class="btn primary" type="button" id="drAgain" data-tr="${X.track}" data-car="${X.car}" data-ev="${X.ev||""}">Drift again</button>${X.ev?`<a class="btn" href="#event">Back to event</a>`:`<button class="btn" type="button" id="dzMenu">Change circuit</button>`}<a class="btn" href="#leaderboards">Leaderboards</a></div></div>`;
+  if(box)box.innerHTML=html}
+document.addEventListener("click",e=>{const a=e.target.closest("#drAgain");if(a){driftStart({track:a.dataset.tr,car:a.dataset.car,ev:+a.dataset.ev||null,wx:(EVX.e&&+a.dataset.ev===EVX.e.id)?EVX.e.wx:(DZL.wx&&!["random"].includes(DZL.wx)?DZL.wx:"dry")});return}
+  if(route().name==="duel"&&e.target.closest("#dzDriftGo")&&DZL.ttcar)driftStart({track:DZL.track,car:DZL.ttcar,wx:DZL.wx==="random"?"dry":(DZL.wx||"dry")})});
+const _dm46=duelMenu;duelMenu=function(){const drift=DZL.mode==="drift";if(drift)DZL.mode="tt";_dm46();const g=$("#game");if(!g)return;const t=g.querySelector(".dz-tabs");
+  if(t&&!t.querySelector('[data-dzmode="drift"]'))t.insertAdjacentHTML("beforeend",`<button type="button" role="tab" aria-selected="${drift}" data-dzmode="drift"><b>Drift</b><span>Slide for points</span></button>`);if(!drift)return;
+  DZL.mode="drift";t.querySelectorAll("[data-dzmode]").forEach(b=>b.setAttribute("aria-selected",b.dataset.dzmode==="drift"));g.querySelector(".dz-cup")?.remove();
+  const act=g.querySelector("#dzTT")?.closest(".actions");const car=BY[DZL.ttcar],rec=store.get("ti-drift",{})[DZL.track];
+  if(act)act.outerHTML=`<div class="bb-intro dr-intro"><span class="eyebrow">Drift mode</span><div class="bb-big" style="font-size:clamp(24px,4vw,36px)">90 seconds. Slide for points.</div><p>Kick the back out with the <b>handbrake</b> and hold the slide. The longer you chain drifts, the bigger the multiplier (up to ×6). Touching grass, walls or cars loses the combo you haven't banked. Your best here: <b>${(rec||0).toLocaleString()}</b></p></div>
+    <div class="actions"><button class="btn big primary" type="button" id="dzDriftGo" ${car?"":"disabled"}>${car?"Drift the "+esc(car.model)+" →":"Pick a car"}</button></div>`;const h=g.querySelector(".dz-ttcar")?.previousElementSibling;if(h)h.textContent="Your car"};
+
+/* ---------- weekly special events (set by the owner) ---------- */
+const EVX={e:null};
+function evOk(ev,car){if(!ev||!car)return false;const v=ev.rval||"";return ev.rtype==="any"||(ev.rtype==="car"&&car.id===v)||(ev.rtype==="body"&&car.body===v)||(ev.rtype==="make"&&car.make===v)||(ev.rtype==="maxbhp"&&car.bhp<=+v)}
+function evRule(ev){const v=ev.rval;return ev.rtype==="car"&&BY[v]?`Everyone drives the ${esc(BY[v].make+" "+BY[v].model)}`:ev.rtype==="body"?`${esc(BODY[v]||v)}s only`:ev.rtype==="make"?`${esc(v)} cars only`:ev.rtype==="maxbhp"?`Cars up to ${esc(v)} bhp`:"Any car"}
+function eventPage(){return `<div class="wrap"><div id="evv"><p class="note c">Loading this week's event…</p></div></div>`}
+async function evDraw(){const el=$("#evv");if(!el)return;if(!(await netCheck())){el.innerHTML=offlineNote("Weekly events");return}const r=await xapi("wevent");if(!$("#evv"))return;EVX.e=r.event;
+  if(!r.event){el.innerHTML=`<section class="vip-hero ev-hero"><div class="eyebrow">Weekly special event</div><h1>🏁 No event right now</h1><p>Special events are set by the owner — check back soon.</p></section>${r.last?`<h2 class="cd-h">Last event: ${esc(r.last.title)}</h2>${lbTable(r.last.top||[],x=>`<td><a class="ulink" href="#u-${esc(x.username)}">${esc(x.username)}</a></td><td class="num">${r.last.kind==="drift"?Math.round(x.score).toLocaleString():dzFmt(x.score)}</td>`,["Player",r.last.kind==="drift"?"Score":"Lap"])}`:""}`;return}
+  const e=r.event,T=TRACKS[e.track],rw=e.rewards||[],fixed=e.rtype==="car"&&BY[e.rval];DZL.evcar=DZL.evcar&&evOk(e,BY[DZL.evcar])?DZL.evcar:fixed?e.rval:(crGet().own.map(o=>BY[o.id]).find(c=>evOk(e,c))||CARS.find(c=>evOk(e,c)&&raceable(c))||{}).id;
+  const pick=fixed?"":`<h2 class="cd-h">Your car</h2><input type="search" id="evQ" class="sel" placeholder="Search allowed cars…" autocomplete="off"><div class="cd-cars" id="evL">${evList(e,"")}</div>`;
+  el.innerHTML=`<section class="vip-hero ev-hero"><div class="eyebrow">Weekly special event · ends in <span class="au-t" data-end="${e.ends}">${tLeft(e.ends-Date.now())}</span></div><h1>🏁 ${esc(e.title)}</h1>
+    <p>${e.kind==="drift"?"Drift":"Fastest lap"} · ${esc(T?T.name:e.track)} · ${WX[e.wx]||"Dry"} · ${evRule(e)}${e.note?`<br>${esc(e.note)}`:""}</p>
+    <div class="ev-rw">${[["🥇",rw[0]],["🥈",rw[1]],["🥉",rw[2]],["🎟️ Everyone else",rw[3]]].filter(x=>x[1]).map(([k,v])=>`<span>${k} ${crFmt(v)}</span>`).join("")}</div></section>
+   ${pick}<div class="actions"><button class="btn big primary" type="button" id="evGo" ${DZL.evcar?"":"disabled"}>${DZL.evcar?`${e.kind==="drift"?"Drift":"Race"} the ${esc(BY[DZL.evcar].model)} →`:"Pick a car"}</button>${r.mine?`<span class="own-tag">Your best: ${e.kind==="drift"?Math.round(r.mine.score).toLocaleString():dzFmt(r.mine.score)}</span>`:""}</div>
+   ${AUTH.user?"":signNote("enter weekly events")}
+   <h2 class="cd-h">Standings · ${r.n} driver${r.n===1?"":"s"}</h2>${lbTable(r.top||[],x=>`<td><a class="ulink" href="#u-${esc(x.username)}">${esc(x.username)}</a></td><td>${BY[x.car]?esc(BY[x.car].model):""}</td><td class="num">${e.kind==="drift"?Math.round(x.score).toLocaleString():dzFmt(x.score)}</td>`,["Player","Car",e.kind==="drift"?"Score":"Lap"])}`;
+  clearInterval(EVX.t);EVX.t=setInterval(()=>{if(!$("#evv")){clearInterval(EVX.t);return}document.querySelectorAll("#evv .au-t").forEach(t=>t.textContent=tLeft(+t.dataset.end-Date.now()))},1000)}
+function evList(e,q){q=q.trim().toLowerCase();const own=new Set(crGet().own.map(o=>o.id));let L=CARS.filter(c=>evOk(e,c)&&raceable(c)&&(!q||(c.make+" "+c.model).toLowerCase().includes(q)));L.sort((a,b)=>(own.has(b.id)-own.has(a.id))||b.bhp-a.bhp);
+  return L.slice(0,18).map(c=>`<button type="button" class="cd-carbtn ${DZL.evcar===c.id?"on":""}" data-evc="${c.id}">${ph(c)}<span class="cd-cb"><b>${esc(c.make)} ${esc(c.model)}</b><small>${own.has(c.id)?"🔑 ":""}${c.bhp} bhp · ${acc(c.acc)}</small></span></button>`).join("")||`<p class="note">No cars match.</p>`}
+document.addEventListener("input",e=>{if(e.target.id==="evQ"&&EVX.e)$("#evL").innerHTML=evList(EVX.e,e.target.value)});
+document.addEventListener("click",e=>{const c=e.target.closest("[data-evc]");if(c){DZL.evcar=c.dataset.evc;evDraw();return}if(!e.target.closest("#evGo")||!EVX.e||!DZL.evcar)return;const ev=EVX.e;
+  if(ev.kind==="drift")return driftStart({track:ev.track,car:DZL.evcar,ev:ev.id,wx:ev.wx});
+  const car=BY[DZL.evcar];let best=null;dzRaceStart({track:ev.track,laps:9999,mode:"tt",weather:ev.wx,mine:{car,name:"You",tyre:dzBestTyre(ev.wx,3)},rivals:[],
+    onLap:(me,t)=>{if(t==null)return;if(best==null||t<best){best=t;if(AUTH.user)xapi("wevent-post","POST",{ev:ev.id,score:+t.toFixed(3),car:car.id}).then(r=>{if(r&&r.rank)dzMsg("Event #"+r.rank,1.6,"good")})}},
+    onEnd:()=>{bump("cd");if(route().name==="event")evDraw()}})});
+
+/* ---------- daily login calendar ---------- */
+const CAL=[...Array(28)].map((_,i)=>{const d=i+1;return d===28?{cr:250000,xp:5000,big:1}:d%7===0?{cr:20000*d/7,xp:1500,big:1}:{cr:2000+d*500,xp:d%3===0?500:0}});
+function calGet(){return store.get("ti-cal",{n:0,last:null})}
+const calReady=()=>calGet().last!==day;
+function calClaim(){const c=calGet();if(c.last===day)return false;const i=c.n%28,r=CAL[i];c.n++;c.last=day;store.set("ti-cal",c);crGrant(r.cr,`Login calendar day ${i+1}`);if(r.xp){const p=passGet();p.xp+=r.xp;store.set("ti-pass",p)}
+  toast(`<span class="ti2">📅</span><div><b>Day ${i+1} reward: +${crFmt(r.cr)}</b><span>${r.xp?`+${r.xp.toLocaleString()} pass XP · `:""}Come back tomorrow for day ${i+2>28?1:i+2}</span></div>`,"ach");return true}
+crLogin=function(){if(calReady())setTimeout(()=>{if(calReady()&&!document.querySelector(".cal-pop"))document.body.insertAdjacentHTML("beforeend",`<a class="cal-pop" href="#calendar">📅 <b>Your daily reward is ready</b><span>Day ${calGet().n%28+1} of 28 · tap to claim</span></a>`)},2500)};
+function calendarPage(){const c=calGet(),cur=c.n%28,ready=calReady();return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#cars">Cars</a> / Login calendar</div><h1>Daily login calendar</h1><p>Claim one reward a day. Miss a day and nothing is lost — you just pick up where you left off. Big rewards every 7th day, and a jackpot on day 28.</p></div></div>
+  <div class="cal-g">${CAL.map((r,i)=>{const got=i<cur,now=i===cur;return `<div class="cal-d ${got?"got":""} ${now?"now":""} ${r.big?"big":""}"><small>Day ${i+1}</small><b>${r.cr>=1000?Math.round(r.cr/1000)+"k":r.cr}</b><span>${r.xp?`+${r.xp.toLocaleString()} XP`:"credits"}</span>${got?"<em>✓</em>":""}</div>`}).join("")}</div>
+  <div class="actions" style="justify-content:center">${ready?`<button class="btn big primary" type="button" id="calGo">Claim day ${cur+1} →</button>`:`<span class="own-tag">Claimed today ✓ — come back tomorrow for day ${cur+2>28?1:cur+2}</span>`}</div>
+  <p class="note c">You've claimed ${c.n} reward${c.n===1?"":"s"} in total.</p></div>`}
+document.addEventListener("click",e=>{if(e.target.closest("#calGo")){calClaim();document.querySelector(".cal-pop")?.remove();render()}if(e.target.closest(".cal-pop"))setTimeout(()=>document.querySelector(".cal-pop")?.remove(),100)});
+
+/* ---------- car collection sets ---------- */
+const SETS=[["hot","Hot hatch heroes","🔥",["volkswagen-golf-gti","honda-civic-type-r","toyota-gr-yaris","hyundai-i30-n","ford-focus-rs-mk1","renault-megane-rs-250-mk3"],150000],
+  ["jdm","JDM legends","🗾",["nissan-skyline-gt-r-r32","toyota-supra-a70","mazda-rx-7-fb","honda-nsx-na1","mitsubishi-lancer-evo-vi-tme","subaru-impreza-wrx-gc8"],300000],
+  ["ita","Italian stallions","🇮🇹",["ferrari-f40","lamborghini-countach-lp400","ferrari-testarossa","lamborghini-miura-p400-sv","pagani-zonda-c12-s"],2000000],
+  ["hyp","Hypercar club","💎",["bugatti-chiron","koenigsegg-jesko","mclaren-p1","ferrari-laferrari","porsche-918-spyder","aston-martin-valkyrie"],5000000],
+  ["gb","British icons","🇬🇧",["austin-mini-cooper-s-1964","jaguar-e-type-series-1","aston-martin-db5","mclaren-f1","land-rover-defender-90-classic","lotus-esprit-turbo"],3000000],
+  ["ev","Electric shock","⚡",["tesla-model-s-plaid","rimac-nevera","porsche-taycan-turbo-gt","lotus-evija","hyundai-ioniq-5-n"],1500000],
+  ["off","Off-road kings","⛰️",["mercedes-benz-g-580-eq","land-rover-defender-90-classic","jeep-wrangler-4xe","suzuki-jimny","toyota-land-cruiser","hummer-h1"],400000],
+  ["usa","American muscle","🇺🇸",["ford-mustang-shelby-gt500-1967","dodge-challenger-srt-hellcat","chevrolet-camaro-ss-1969","dodge-viper-rt-10","chevrolet-corvette-c2-sting-ray"],600000],
+  ["911","Every 911 generation","🔁",["porsche-911-901-2-0","porsche-911-turbo-930","porsche-911-964-carrera-2","porsche-911-993-carrera","porsche-911-996-carrera","porsche-911-997-carrera-s","porsche-911-991-carrera","porsche-911-carrera"],1500000],
+  ["rally","Rally legends","🏔️",["lancia-stratos-hf","lancia-delta-hf-integrale-evo","audi-quattro","ford-escort-mk1-rs1600","toyota-celica-gt-four-st205","mitsubishi-lancer-evo-vi-tme"],800000]].map(([k,n,i,ids,cr])=>({k,n,i,ids:ids.filter(id=>BY[id]),cr}));
+function setsPage(){const own=new Set(crGet().own.map(o=>o.id)),done=store.get("ti-sets",{});return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#cars">Cars</a> / Collection sets</div><h1>Collection sets</h1><p>Own every car in a set to claim a big credit bonus and a badge. Buy them in the showroom, win them at auction or trade with friends.</p></div></div>
+  <div class="set-g">${SETS.map(s=>{const have=s.ids.filter(id=>own.has(id)).length,full=have===s.ids.length,got=done[s.k];return `<section class="set ${full?"full":""} ${got?"got":""}"><div class="set-h"><span>${s.i}</span><div><b>${s.n}</b><small>${have}/${s.ids.length} owned · reward ${crFmt(s.cr)}</small></div>${got?`<em class="own-tag">Claimed ✓</em>`:full?`<button class="btn primary" type="button" data-setc="${s.k}">Claim</button>`:""}</div>
+   <div class="set-bar"><i style="width:${Math.round(have/s.ids.length*100)}%"></i></div><div class="set-cars">${s.ids.map(id=>{const c=BY[id];return `<a href="#car-${id}" class="${own.has(id)?"have":""}" title="${esc(c.make+" "+c.model)}">${ph(c)}<small>${esc(c.model)}</small>${own.has(id)?"<em>✓</em>":`<i>${crFmt(crPrice(c))}</i>`}</a>`}).join("")}</div></section>`}).join("")}</div></div>`}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-setc]");if(!b)return;const s=SETS.find(x=>x.k===b.dataset.setc),own=new Set(crGet().own.map(o=>o.id));if(!s||!s.ids.every(id=>own.has(id)))return;const d=store.get("ti-sets",{});if(d[s.k])return;d[s.k]=Date.now();store.set("ti-sets",d);crGrant(s.cr,`Set complete: ${s.n}`);
+  toast(`<span class="ti2">${s.i}</span><div><b>Set complete: ${esc(s.n)}</b><span>+${crFmt(s.cr)}</span></div>`,"ach");checkAch();render()});
+if(typeof ACH!=="undefined")ACH.push(["set1","Completionist","Complete a collection set",()=>Object.keys(store.get("ti-sets",{})).length>=1],["drift","Sideways","Finish a drift run",()=>(ST.drift||0)>=1]);
+
+/* ---------- free-roam city (online) ---------- */
+const CITY={on:false};window.CITY=CITY;
+const CB=110,CROAD=18,CN=15,CSIZE=CB*CN; /* 15×15 blocks of 110 m with 18 m roads: a 1.65 km square city */
+function cityMap(){if(CITY.map)return CITY.map;const rnd=dzRng(4242),B=[],P=[],G=[],spots=[];const cols=["#8C939B","#9AA0A6","#7D858E","#A7A29A","#8E8577","#6F7B86","#B0A99F","#7E8C7A"];
+  for(let i=0;i<CN;i++)for(let j=0;j<CN;j++){const x0=i*CB+CROAD/2,y0=j*CB+CROAD/2,s=CB-CROAD,cx=i-7,cy=j-7;
+    if((i===7&&j===7)){P.push([x0,y0,s,s,"plaza"]);continue}
+    if((i===3&&j===10)||(i===11&&j===4)||(i===10&&j===11)){P.push([x0,y0,s,s,"park"]);continue}
+    if(i===12&&j===12){P.push([x0,y0,s,s,"lot"]);spots.push({k:"drift",x:x0+s/2,y:y0+s/2,r:s/2,n:"Drift lot"});continue}
+    if([[2,2],[12,2],[2,12],[7,11]].some(([a,b])=>a===i&&b===j)){G.push([x0,y0,s,s]);B.push([x0+6,y0+6,s-12,s*.42,"#3B4652",1]);spots.push({k:"garage",x:x0+s/2,y:y0+s*.72,r:18,n:"Garage"});continue}
+    const n=rnd()<.25?1:rnd()<.6?2:4;if(n===1)B.push([x0+4,y0+4,s-8,s-8,cols[Math.floor(rnd()*cols.length)],0]);
+    else if(n===2){const v=rnd()<.5;for(let k=0;k<2;k++)B.push(v?[x0+4+k*(s/2),y0+4,s/2-8,s-8,cols[Math.floor(rnd()*cols.length)],0]:[x0+4,y0+4+k*(s/2),s-8,s/2-8,cols[Math.floor(rnd()*cols.length)],0])}
+    else for(let a=0;a<2;a++)for(let b=0;b<2;b++)B.push([x0+4+a*s/2,y0+4+b*s/2,s/2-8,s/2-8,cols[Math.floor(rnd()*cols.length)],0])}
+  spots.push({k:"speed",x:CB*7,y:CB*3.5,r:20,n:"Speed trap",vert:1});spots.push({k:"hq",x:CB*7.5,y:CB*7.5,r:30,n:"Torque Index HQ"});
+  return CITY.map={B,P,G,spots}}
+function cityHorn(){if(!CITY.me)return;CITY.me.horn=1.2;if(CITY.ws&&CITY.ws.readyState===1)CITY.ws.send(JSON.stringify({t:"horn"}));try{const A=CITY.ac||(CITY.ac=new (window.AudioContext||window.webkitAudioContext)()),o=A.createOscillator(),g=A.createGain();o.type="square";o.frequency.value=392;g.gain.value=.05;o.connect(g);g.connect(A.destination);o.start();o.stop(A.currentTime+.35)}catch(e){}}
+function cityCarOf(){const own=crGet().own.filter(ownVis);const pick=store.get("ti-city-car",null);const o=own.find(x=>x.id===pick)||own[0];return o?{id:o.id,paint:o.paint,plate:o.plate,plst:o.plst,up:o.up}:{id:"volkswagen-golf-gti"}}
+function cityPage(){return `<div class="wrap"><section class="vip-hero city-hero"><div class="eyebrow">Free roam · online</div><h1>🏙️ Torque City</h1><p>Drive anywhere in a 1.6 km city with everyone else who's online. Drop in and out whenever you like. Visit a <b>garage</b> to swap cars, find the <b>speed trap</b> on the main avenue, and slide around the <b>drift lot</b>.</p>
+  <div class="actions"><button class="btn big primary" type="button" id="cityGo">Drive into the city →</button><a class="btn" href="#controls">Controls</a></div><p class="note" id="cityN" style="color:rgba(255,255,255,.7)"></p></section>
+  <div class="hub-g">${[["🔧","Garages","Four garages around town. Stop inside to swap to any car you own."],["📸","Speed trap","On the central avenue. Beat your top speed."],["💨","Drift lot","South-east corner. Slide for points like drift mode."],["💬","Chat & horn","Press Enter to chat, H to honk. Up to 40 drivers per city."]].map(([i,t,s])=>`<div class="hub-t"><span class="hub-i">${i}</span><div><b>${t}</b><small>${s}</small></div></div>`).join("")}</div></div>`}
+function cityStart(){const car=cityCarOf();const M0=BY[car.id];if(!M0)return;const map=cityMap();document.querySelector(".city-ov")?.remove();document.documentElement.classList.add("cd-lock");
+  document.body.insertAdjacentHTML("beforeend",`<div class="city-ov" id="cityOv"><canvas id="cityCv"></canvas><canvas id="cityMm" width="180" height="180"></canvas>
+   <div class="ct-top"><button type="button" id="cityX" aria-label="Leave the city">✕</button><div class="ct-on" id="ctOn">Solo</div><div class="ct-spd"><b id="ctSpd">0</b><small>mph</small></div></div>
+   <div class="ct-feed" id="ctFeed"></div><div class="ct-msg" id="ctMsg"></div><form class="ct-chat" id="ctChat" hidden><input id="ctChatI" maxlength="140" placeholder="Say something… (Enter to send)" autocomplete="off"></form>
+   <div class="ct-act" id="ctAct" hidden></div>
+   <div class="ct-touch"><button type="button" data-ct="left">◀</button><button type="button" data-ct="right">▶</button><span></span><button type="button" data-ct="hb" class="hb">HB</button><button type="button" data-ct="brake" class="br">BRAKE</button><button type="button" data-ct="gas" class="gs">GAS</button></div>
+   <button type="button" class="ct-ch" id="ctChatB" aria-label="Chat">💬</button><button type="button" class="ct-hn" id="ctHorn" aria-label="Horn">📯</button></div>`);
+  const cv=$("#cityCv"),x=cv.getContext("2d"),dpr=Math.min(1.6,devicePixelRatio||1);const fit=()=>{cv.width=cv.clientWidth*dpr;cv.height=cv.clientHeight*dpr};fit();addEventListener("resize",fit);
+  const mkCar=(o)=>{const c=BY[o.id]||BY["volkswagen-golf-gti"];const M=carModel(c);const car={c,M,mu0:M.mu,x:CB*7-CROAD/4,y:CB*8.2,h:-Math.PI/2,vx:0,vy:0,steer:0,thr:0,brk:0,paint:o.paint||null,plate:o.plate||null,plst:o.plst||"uk"};if(o.up)tuneApply(car,o);if(!car.paint)dzPaint(c,p=>car.paint=p);return car};
+  Object.assign(CITY,{on:true,cv,x,dpr,fit,me:mkCar(car),others:new Map(),last:performance.now(),sendT:0,top:store.get("ti-city-top",0),zoom:1,zoomT:1,drift:{cur:0,mult:1,chain:0,hold:0,best:store.get("ti-city-drift",0)},chat:[]});
+  DZIN={steer:0,thr:0,brk:0,wheel:null,gas:false,brake:false};cityNet();CITY.raf=requestAnimationFrame(cityLoop);
+  const tb=e=>{const b=e.target.closest("[data-ct]");if(!b)return;const k=b.dataset.ct,on=e.type==="pointerdown";if(k==="gas")DZIN.gas=on;else if(k==="brake")DZIN.brake=on;else if(k==="hb")DZIN.hb=on;else if(k==="left"||k==="right"){on?CK.add(k):CK.delete(k)}e.preventDefault()};
+  const tc=$("#cityOv .ct-touch");["pointerdown","pointerup","pointercancel","pointerleave"].forEach(ev=>tc.addEventListener(ev,tb));
+  $("#cityX").onclick=cityEnd;$("#ctHorn").onclick=cityHorn;$("#ctChatB").onclick=()=>cityChatOpen()}
+function cityChatOpen(){const f=$("#ctChat");if(!f)return;f.hidden=false;CK.clear();$("#ctChatI").focus()}
+addEventListener("keydown",e=>{if(!CITY.on)return;if(e.key==="Enter"&&!e.target.closest("input")){e.preventDefault();cityChatOpen()}if(e.key==="Escape"&&e.target.id==="ctChatI"){$("#ctChat").hidden=true;e.target.blur()}});
+document.addEventListener("submit",e=>{if(e.target.id!=="ctChat")return;e.preventDefault();const i=$("#ctChatI"),t=i.value.replace(/[<>]/g,"").trim().slice(0,140);i.value="";e.target.hidden=true;i.blur();if(!t)return;
+  if(CITY.ws&&CITY.ws.readyState===1)CITY.ws.send(JSON.stringify({t:"chat",text:t}));else cityFeed("You",t)});
+function cityFeed(n,t){const f=$("#ctFeed");if(!f)return;f.insertAdjacentHTML("beforeend",`<div><b>${esc(n)}</b> ${esc(t)}</div>`);while(f.children.length>6)f.firstChild.remove();setTimeout(()=>{f.firstChild&&f.children.length>3&&f.firstChild.remove()},15000)}
+function cityMsg(t,s){const m=$("#ctMsg");if(!m)return;m.textContent=t;m.classList.add("on");clearTimeout(m._t);m._t=setTimeout(()=>m.classList.remove("on"),(s||2)*1000)}
+async function cityNet(){const nm=AUTH.user?AUTH.user.username:myName();if(!(await netCheck())){$("#ctOn").textContent="Offline · solo";return}
+  const tryShard=n=>{if(!CITY.on||n>9)return;const me=CITY.me,q=new URLSearchParams({name:nm,car:me.c.id,paint:/^#[0-9a-f]{6}$/i.test(me.paint||"")?me.paint:"",plate:me.plate||""});
+    const ws=new WebSocket(`${location.protocol==="https:"?"wss":"ws"}://${location.host}/api/world/${n}?${q}`);CITY.ws=ws;CITY.shard=n;
+    ws.onmessage=ev=>{let m;try{m=JSON.parse(ev.data)}catch(e){return}
+      if(m.t==="full"){ws.onclose=null;tryShard(n+1);return}
+      if(m.t==="hello"){CITY.you=m.you;m.players.forEach(p=>cityAdd(p));cityCount();cityMsg(`Welcome to Torque City ${n>1?"#"+n:""}`,2)}
+      if(m.t==="join"){cityAdd(m);cityFeed("🚗",`${m.name} drove into town`);cityCount()}
+      if(m.t==="leave"){const o=CITY.others.get(m.id);if(o)cityFeed("👋",`${o.name} left`);CITY.others.delete(m.id);cityCount()}
+      if(m.t==="p"){const o=CITY.others.get(m.id);if(o){o.prev=o.cur||m.p;o.cur=m.p;o.at=performance.now()}}
+      if(m.t==="car"){const o=CITY.others.get(m.id);if(o){o.car=cityRemote({...o,car:m.car,paint:m.paint,plate:m.plate})}}
+      if(m.t==="chat")cityFeed(m.name,m.text);if(m.t==="horn"){const o=CITY.others.get(m.id);if(o)o.horn=1.2}};
+    ws.onclose=()=>{if(CITY.on&&CITY.ws===ws){$("#ctOn").textContent="Reconnecting…";setTimeout(()=>{if(CITY.on)tryShard(CITY.shard||1)},3000)}}};tryShard(1)}
+function cityRemote(p){const c=BY[p.car]||BY["volkswagen-golf-gti"];const car={c,M:{},x:0,y:0,h:0,vx:0,vy:0,steer:0,paint:p.paint||null,plate:p.plate||null};if(!car.paint)dzPaint(c,col=>car.paint=col);return car}
+function cityAdd(p){CITY.others.set(p.id,{id:p.id,name:p.name,car:cityRemote(p),cur:p.p||null,prev:p.p||null,at:performance.now()})}
+function cityCount(){const n=CITY.others.size+1;$("#ctOn").textContent=`${n} driver${n===1?"":"s"} online${CITY.shard>1?" · city "+CITY.shard:""}`}
+function cityHit(px,py,r){const m=cityMap();for(const b of m.B){const nx=Math.max(b[0],Math.min(px,b[0]+b[2])),ny=Math.max(b[1],Math.min(py,b[1]+b[3]));const dx=px-nx,dy=py-ny,d=Math.hypot(dx,dy);if(d<r)return {nx:d?dx/d:0,ny:d?dy/d:-1,pen:r-d}}
+  if(px<r)return {nx:1,ny:0,pen:r-px};if(py<r)return {nx:0,ny:1,pen:r-py};if(px>CSIZE-r)return {nx:-1,ny:0,pen:px-CSIZE+r};if(py>CSIZE-r)return {nx:0,ny:-1,pen:py-CSIZE+r};return null}
+function cityStep(c,inp,dt){const M=c.M,f=[Math.cos(c.h),Math.sin(c.h)],r=[-f[1],f[0]];let vL=c.vx*f[0]+c.vy*f[1],vT=c.vx*r[0]+c.vy*r[1];const G=9.81,mu=c.mu0*(inp.hb?.55:1);
+  let aL=0;if(inp.thr>0&&vL>-1)aL+=inp.thr*Math.min(Math.max(0,(M.vmax-vL)/M.tau),M.trac);if(inp.brk>0){if(vL>.8)aL-=inp.brk*G*mu*M.brake;else if(inp.thr===0)vL=Math.max(-9.5,Math.min(vL,.2)-7.5*inp.brk*dt)}
+  if(inp.thr>0&&vL<-.4)vL=Math.min(0,vL+14*dt);aL-=vL*Math.abs(vL)*.0001+Math.sign(vL)*.15;vL+=aL*dt;
+  const lock=.6/(1+Math.abs(vL)/18),yaw=vL*Math.tan(inp.steer*lock)/2.6;c.h+=yaw*dt;c.steer=inp.steer;
+  vT-=Math.sign(vT)*Math.min(Math.abs(vT),G*mu*(inp.hb?.35:1.05)*dt);const f2=[Math.cos(c.h),Math.sin(c.h)],r2=[-f2[1],f2[0]];c.vx=f2[0]*vL+r2[0]*vT;c.vy=f2[1]*vL+r2[1]*vT;
+  c.x+=c.vx*dt;c.y+=c.vy*dt;c.brk=inp.brk;c.skid=Math.atan2(Math.abs(vT),Math.max(1,Math.abs(vL)));
+  const h=cityHit(c.x,c.y,1.9);if(h){c.x+=h.nx*h.pen;c.y+=h.ny*h.pen;const vn=c.vx*h.nx+c.vy*h.ny;if(vn<0){const hard=-vn;c.vx-=h.nx*vn*1.35;c.vy-=h.ny*vn*1.35;c.vx*=.75;c.vy*=.75;if(hard>9)cityMsg("Crunch!",.8)}}}
+function cityLoop(now){if(!CITY.on)return;const dt=Math.min(.05,(now-CITY.last)/1000);CITY.last=now;const me=CITY.me,inp=$("#ctChat")&&!$("#ctChat").hidden?{steer:0,thr:0,brk:0,hb:false}:ctrlInput(dt,me.steer);
+  for(let k=0;k<3;k++)cityStep(me,inp,dt/3);const v=Math.hypot(me.vx,me.vy),mph=v*2.237;
+  /* spots: speed trap, drift lot, garages */
+  const map=cityMap();let near=null;for(const s of map.spots){const d=Math.hypot(me.x-s.x,me.y-s.y);if(d<s.r)near=s}
+  if(near&&near.k==="speed"&&!CITY.inTrap){CITY.inTrap=true;const sp=Math.round(mph);if(sp>CITY.top){CITY.top=sp;store.set("ti-city-top",sp);cityMsg(`📸 ${sp} mph — new best!`,2.2);if(sp>=60)crEarn(Math.min(400,sp),"City speed trap")}else cityMsg(`📸 ${sp} mph (best ${CITY.top})`,1.8)}if(!near||near.k!=="speed")CITY.inTrap=false;
+  const D=CITY.drift,fw=[Math.cos(me.h),Math.sin(me.h)],vL=me.vx*fw[0]+me.vy*fw[1],ang=Math.abs(Math.atan2(-me.vx*fw[1]+me.vy*fw[0],Math.max(.1,Math.abs(vL))));
+  if(near&&near.k==="drift"&&v>7&&ang>.2&&ang<1.8&&vL>0){D.cur+=ang*v*dt*14*D.mult;D.hold=0;D.chain+=dt;D.mult=Math.min(6,1+Math.floor(D.chain/1.6))}else if(D.cur>0){D.hold+=dt;if(D.hold>.8||!(near&&near.k==="drift")){const sc=Math.round(D.cur);if(sc>300){cityMsg(`💨 Drift ${sc.toLocaleString()}${sc>D.best?" — new best!":""}`,2);if(sc>D.best){D.best=sc;store.set("ti-city-drift",sc)}crEarn(Math.min(600,Math.round(sc/60)),"City drift")}D.cur=0;D.mult=1;D.chain=0}}
+  const act=$("#ctAct");if(act){const g=near&&near.k==="garage"&&v<3;if(g&&act.hidden){act.hidden=false;act.innerHTML=`<b>🔧 Garage</b><div class="ct-gl">${crGet().own.filter(ownVis).map(o=>`<button type="button" data-ccar="${o.id}" class="${o.id===me.c.id?"on":""}">${esc(BY[o.id].make+" "+BY[o.id].model)}</button>`).join("")||`<p>You don't own any cars yet — buy one in the showroom.</p>`}</div>`}else if(!g&&!act.hidden)act.hidden=true}
+  const sp=$("#ctSpd");if(sp)sp.textContent=Math.round(mph);
+  CITY.sendT-=dt;if(CITY.sendT<=0&&CITY.ws&&CITY.ws.readyState===1){CITY.sendT=.12;CITY.ws.send(JSON.stringify({t:"p",x:+me.x.toFixed(2),y:+me.y.toFixed(2),h:+me.h.toFixed(3),v:+v.toFixed(1)}))}
+  CITY.others.forEach(o=>{if(!o.cur)return;const k=Math.min(1,(now-o.at)/130),a=o.prev||o.cur,b=o.cur;let dh=b[2]-a[2];while(dh>Math.PI)dh-=2*Math.PI;while(dh<-Math.PI)dh+=2*Math.PI;o.car.x=a[0]+(b[0]-a[0])*k;o.car.y=a[1]+(b[1]-a[1])*k;o.car.h=a[2]+dh*k;if(o.horn>0)o.horn-=dt});
+  if(me.horn>0)me.horn-=dt;CITY.zoom+=(CITY.zoomT-CITY.zoom)*Math.min(1,dt*4);cityDraw(v);CITY.raf=requestAnimationFrame(cityLoop)}
+document.addEventListener("click",e=>{const b=e.target.closest("[data-ccar]");if(!b||!CITY.on)return;store.set("ti-city-car",b.dataset.ccar);const o=crGet().own.find(x=>x.id===b.dataset.ccar);if(!o)return;const old=CITY.me;
+  const c=BY[o.id],M=carModel(c),car={c,M,mu0:M.mu,x:old.x,y:old.y,h:old.h,vx:0,vy:0,steer:0,paint:o.paint||null,plate:o.plate||null,plst:o.plst||"uk"};if(o.up)tuneApply(car,o);if(!car.paint)dzPaint(c,p=>car.paint=p);CITY.me=car;$("#ctAct").hidden=true;
+  cityMsg(`Now driving the ${c.model}`,1.6);if(CITY.ws&&CITY.ws.readyState===1)CITY.ws.send(JSON.stringify({t:"car",car:c.id,paint:/^#[0-9a-f]{6}$/i.test(o.paint||"")?o.paint:"",plate:o.plate||""}))});
+function cityDraw(v){const {cv,x,dpr}=CITY,W=cv.width,H=cv.height,me=CITY.me,map=cityMap();if(!W)return;const sc=dpr*Math.min(W/dpr,H/dpr)/(80*CITY.zoom)/(1+v/90);
+  CITY.cam=CITY.cam==null?me.h:CITY.cam+(((me.h-CITY.cam+Math.PI*3)%(Math.PI*2))-Math.PI)*.1;
+  x.setTransform(1,0,0,1,0,0);x.fillStyle="#3a3f45";x.fillRect(0,0,W,H);x.setTransform(1,0,0,1,W/2,H*.64);x.rotate(-CITY.cam-Math.PI/2);x.scale(sc,sc);x.translate(-me.x,-me.y);
+  const R=Math.hypot(W,H)/sc,vis=(bx,by,bw,bh)=>bx<me.x+R&&bx+bw>me.x-R&&by<me.y+R&&by+bh>me.y-R;
+  x.fillStyle="#2f3438";x.fillRect(-60,-60,CSIZE+120,CSIZE+120);
+  /* lane markings */
+  x.strokeStyle="rgba(255,255,255,.35)";x.lineWidth=.25;x.setLineDash([3,4]);x.beginPath();for(let i=0;i<=CN;i++){const p=i*CB;if(Math.abs(p-me.x)<R+CB){x.moveTo(p,0);x.lineTo(p,CSIZE)}if(Math.abs(p-me.y)<R+CB){x.moveTo(0,p);x.lineTo(CSIZE,p)}}x.stroke();x.setLineDash([]);
+  /* pavements */
+  x.fillStyle="#555b61";for(let i=0;i<CN;i++)for(let j=0;j<CN;j++){const bx=i*CB+CROAD/2-2,by=j*CB+CROAD/2-2,s=CB-CROAD+4;if(vis(bx,by,s,s))x.fillRect(bx,by,s,s)}
+  map.P.forEach(p=>{if(!vis(p[0],p[1],p[2],p[3]))return;x.fillStyle=p[4]==="park"?"#3E7E3A":p[4]==="lot"?"#474d53":"#7a7f86";x.fillRect(p[0],p[1],p[2],p[3]);
+    if(p[4]==="park"){x.fillStyle="#2C6A2E";for(let k=0;k<14;k++){const tx=p[0]+10+((k*37)%(p[2]-20)),ty=p[1]+10+((k*53)%(p[3]-20));x.beginPath();x.arc(tx,ty,3.2,0,7);x.fill()}}
+    if(p[4]==="lot"){x.strokeStyle="rgba(255,255,255,.4)";x.lineWidth=.3;for(let k=1;k<6;k++){x.beginPath();x.moveTo(p[0]+k*p[2]/6,p[1]+4);x.lineTo(p[0]+k*p[2]/6,p[1]+14);x.stroke()}x.fillStyle="rgba(255,255,255,.08)";x.font="bold 12px system-ui";x.textAlign="center";x.fillText("DRIFT",p[0]+p[2]/2,p[1]+p[3]/2)}
+    if(p[4]==="plaza"){x.fillStyle="#2FA8FF";x.beginPath();x.arc(p[0]+p[2]/2,p[1]+p[3]/2,14,0,7);x.fill();x.fillStyle="#fff";x.font="bold 5px system-ui";x.textAlign="center";x.fillText("TORQUE INDEX",p[0]+p[2]/2,p[1]+p[3]/2+2)}});
+  map.G.forEach(g=>{if(!vis(g[0],g[1],g[2],g[3]))return;x.fillStyle="#5a6068";x.fillRect(g[0],g[1],g[2],g[3]);x.fillStyle="#F2C200";x.fillRect(g[0]+g[2]/2-16,g[1]+g[3]*.58,32,26);x.fillStyle="#1b1d22";x.font="bold 6px system-ui";x.textAlign="center";x.fillText("GARAGE",g[0]+g[2]/2,g[1]+g[3]*.58+15)});
+  /* buildings with shadows */
+  x.fillStyle="rgba(0,0,0,.28)";map.B.forEach(b=>{if(vis(b[0],b[1],b[2],b[3]))x.fillRect(b[0]+3,b[1]+3,b[2],b[3])});
+  map.B.forEach(b=>{if(!vis(b[0],b[1],b[2],b[3]))return;x.fillStyle=b[4];x.fillRect(b[0],b[1],b[2],b[3]);x.fillStyle="rgba(255,255,255,.08)";x.fillRect(b[0]+2,b[1]+2,b[2]-4,b[3]-4);x.strokeStyle="rgba(0,0,0,.25)";x.lineWidth=.4;x.strokeRect(b[0],b[1],b[2],b[3])});
+  /* speed trap */
+  const st=map.spots.find(s=>s.k==="speed");x.fillStyle="rgba(255,60,40,.35)";x.fillRect(st.x-CROAD/2,st.y-3,CROAD,6);
+  /* cars */
+  const drawCar=(c,label,col)=>{x.save();x.translate(c.x,c.y);x.rotate(c.h);dzCarShape(x,c,c.paint||"rgb(150,154,160)",col||"#2FA8FF");x.restore();
+    if(label){x.save();x.translate(c.x,c.y);x.rotate(CITY.cam+Math.PI/2);x.font="bold 1.6px system-ui,sans-serif";x.textAlign="center";const tw=x.measureText(label).width+1.2;x.fillStyle="rgba(0,0,0,.6)";x.fillRect(-tw/2,-5,tw,2.1);x.fillStyle=OWNERS.has(label.toLowerCase())?"#8FD3FF":VIPS.has(label.toLowerCase())?"#F2C200":"#fff";x.fillText(label,0,-3.4);if(c.horn>0){x.font="2.4px system-ui";x.fillText("📯",0,-6.6)}x.restore()}};
+  CITY.others.forEach(o=>{if(o.cur&&Math.abs(o.car.x-me.x)<R&&Math.abs(o.car.y-me.y)<R)drawCar(o.car,o.name,"#E0412F")});drawCar(me,null,"#F2C200");
+  /* minimap */
+  const mm=$("#cityMm");if(mm&&(CITY.mmT=(CITY.mmT||0)+1)%3===0){const m=mm.getContext("2d"),s=180/CSIZE;m.fillStyle="#1b1f23";m.fillRect(0,0,180,180);m.fillStyle="#3a3f45";for(let i=0;i<=CN;i++){m.fillRect(i*CB*s-1,0,2,180);m.fillRect(0,i*CB*s-1,180,2)}
+    map.P.forEach(p=>{m.fillStyle=p[4]==="park"?"#3E7E3A":p[4]==="lot"?"#E86A1A":"#2FA8FF";m.fillRect(p[0]*s,p[1]*s,p[2]*s,p[3]*s)});map.G.forEach(g=>{m.fillStyle="#F2C200";m.fillRect(g[0]*s,g[1]*s,g[2]*s,g[3]*s)});
+    CITY.others.forEach(o=>{if(!o.cur)return;m.fillStyle="#E0412F";m.beginPath();m.arc(o.car.x*s,o.car.y*s,3,0,7);m.fill()});m.fillStyle="#fff";m.beginPath();m.arc(me.x*s,me.y*s,4,0,7);m.fill()}}
+function cityEnd(){CITY.on=false;cancelAnimationFrame(CITY.raf);removeEventListener("resize",CITY.fit);try{CITY.ws&&(CITY.ws.onclose=null,CITY.ws.close())}catch(e){}CITY.ws=null;CITY.others=new Map();document.querySelector(".city-ov")?.remove();document.documentElement.classList.remove("cd-lock");CK.clear()}
+document.addEventListener("click",e=>{if(e.target.closest("#cityGo"))cityStart()});
+
+/* ---------- owner: weekly event form in the admin panel ---------- */
+function ownerWevent(){if(!ownerOn()||route().name!=="admin"||document.querySelector("#admWE"))return;const g=document.querySelector(".adm-g");if(!g)return;
+  g.insertAdjacentHTML("afterbegin",`<section class="adm adm-wide"><h2>🏁 Weekly special event</h2><p class="note">Set a challenge for everyone. The top 3 (and everyone who takes part, if you like) get credits automatically when it ends.</p>
+   <form id="admWE" autocomplete="off"><input id="weT" class="sel" maxlength="60" placeholder="Title, e.g. Monaco Hot Hatch Showdown" required>
+    <div class="adm-row"><select id="weK" class="sel"><option value="lap">Fastest lap</option><option value="drift">Drift score</option></select><select id="weTr" class="sel">${DZT.map(k=>`<option value="${k}">${esc(TRACKS[k].name)}</option>`).join("")}</select><select id="weW" class="sel">${["dry","damp","wet","night","fog","change"].map(w=>`<option value="${w}">${WX[w]}</option>`).join("")}</select></div>
+    <div class="adm-row"><select id="weR" class="sel"><option value="any">Any car</option><option value="car">One specific car</option><option value="body">One body style</option><option value="make">One maker</option><option value="maxbhp">Max power (bhp)</option></select><input id="weV" class="sel" list="weVL" placeholder="Car / body / maker / bhp"><datalist id="weVL"></datalist><select id="weD" class="sel"><option value="1">1 day</option><option value="3">3 days</option><option value="7" selected>1 week</option><option value="14">2 weeks</option></select></div>
+    <div class="adm-row"><input id="we1" class="sel" type="number" min="0" step="1000" placeholder="🥇 1st (CR)" value="500000"><input id="we2" class="sel" type="number" min="0" step="1000" placeholder="🥈 2nd" value="250000"><input id="we3" class="sel" type="number" min="0" step="1000" placeholder="🥉 3rd" value="100000"><input id="we4" class="sel" type="number" min="0" step="1000" placeholder="Everyone else" value="10000"></div>
+    <input id="weN" class="sel" maxlength="160" placeholder="Extra note (optional)"><div class="actions"><button class="btn primary" type="submit">Start event</button><button class="btn" type="button" id="weStop">End current event now</button></div></form><p class="adm-out" id="weO"></p></section>`);weFill()}
+function weFill(){const r=$("#weR"),dl=$("#weVL");if(!r||!dl)return;const t=r.value;dl.innerHTML=(t==="car"?CARS.map(c=>c.make+" "+c.model):t==="body"?Object.keys(BODY):t==="make"?Object.keys(MAKES):t==="maxbhp"?["150","200","300","500","800"]:[]).map(v=>`<option value="${esc(v)}">`).join("");$("#weV").disabled=t==="any"}
+document.addEventListener("change",e=>{if(e.target.id==="weR")weFill()});
+document.addEventListener("submit",async e=>{if(e.target.id!=="admWE")return;e.preventDefault();const t=$("#weR").value;let v=$("#weV").value.trim();if(t==="car"){const c=CARS.find(x=>(x.make+" "+x.model).toLowerCase()===v.toLowerCase());if(!c){$("#weO").textContent="Pick a car from the list.";return}v=c.id}
+  const r=await xapi("admin-wevent","POST",{title:$("#weT").value,kind:$("#weK").value,track:$("#weTr").value,wx:$("#weW").value,rtype:t,rval:v,days:+$("#weD").value,rewards:[+$("#we1").value,+$("#we2").value,+$("#we3").value,+$("#we4").value],note:$("#weN").value});
+  $("#weO").textContent=r.ok?"Event started ✓ — it's live on the Events page":(r.error||"Couldn't start");if(r.ok)xapi("admin-announce","POST",{text:"New weekly event: "+$("#weT").value,link:"#event"}).then(()=>annLoad())});
+document.addEventListener("click",async e=>{if(e.target.id!=="weStop")return;const r=await xapi("admin-wevent","POST",{stop:1});$("#weO").textContent=r.ok?"Event ended and rewards paid ✓":"Couldn't end it"});
+
+/* ---------- routes, hub links and styles ---------- */
+const _r46=route;route=function(){const h=location.hash;const m={"#controls":"controls","#event":"event","#calendar":"calendar","#sets":"sets","#city":"city"}[h];if(m)return{name:m};return _r46()};
+Object.assign(PAGES,{controls:controlsPage,event:eventPage,calendar:calendarPage,sets:setsPage,city:cityPage});Object.assign(GT,{controls:"Controls",event:"Weekly event",calendar:"Login calendar",sets:"Collection sets",city:"Torque City"});
+PAL_PAGES.push(["Controls & controller","#controls"],["Weekly special event","#event"],["Login calendar","#calendar"],["Collection sets","#sets"],["Torque City (free roam)","#city"]);
+CARS_R.push("calendar","sets");SOC_R.push("city","event");
+const _cp46=carsPage;carsPage=function(){return _cp46().replace('<div class="hub-g">',`<div class="hub-g"><a class="hub-t" href="#calendar"><span class="hub-i">📅</span><div><b>Login calendar</b><small>${calReady()?`Day ${calGet().n%28+1} reward is ready to claim`:"Claimed today — back tomorrow"}</small></div>${calReady()?`<em class="hub-x hot">Claim</em>`:""}</a><a class="hub-t" href="#sets"><span class="hub-i">🧩</span><div><b>Collection sets</b><small>Own every car in a set for a big bonus</small></div></a>`)};
+const _sp46=socialPage;socialPage=function(){return _sp46().replace('<div class="hub-g">',`<div class="hub-g"><a class="hub-t" href="#city"><span class="hub-i">🏙️</span><div><b>Torque City</b><small>Free-roam online city — drop in any time</small></div></a><a class="hub-t" href="#event"><span class="hub-i">🏁</span><div><b>Weekly event</b><small>This week's special challenge</small></div></a>`)};
+const _pp46=playPage;playPage=function(){return _pp46().replace('<a class="bgpromo"',`<a class="bgpromo" href="#city"><span class="ti">🏙️</span><div><b>Torque City — free roam online</b><p>Drive around a whole city with everyone who's online. Garages, a speed trap, a drift lot and chat.</p></div><span class="go2">Drive →</span></a><a class="bgpromo" href="#event"><span class="ti">🏁</span><div><b>Weekly special event</b><p>The owner's challenge of the week. Top 3 win big credit prizes.</p></div><span class="go2">Enter →</span></a><a class="bgpromo"`)};
+const _ft46=footer;footer=function(){const h=_ft46(),i=h.lastIndexOf("</ul>");return i<0?h:h.slice(0,i)+`<li><a href="#city">🏙️ Torque City</a></li><li><a href="#event">🏁 Weekly event</a></li><li><a href="#controls">🎮 Controls</a></li>`+h.slice(i)};
+const _ar46=afterRender;afterRender=function(r){if(CITY.on&&r.name!=="city")cityEnd();_ar46(r);if(r.name==="controls")ctPadLoop();if(r.name==="event")evDraw();if(r.name==="admin")ownerWevent();navMark(r)};
+crLogin();
+document.head.insertAdjacentHTML("beforeend",`<style id="v46css">
+.ct-t th{font-weight:600}.ct-k{min-width:92px;padding:6px 10px;border:1.5px solid var(--line);border-radius:8px;background:var(--surface);color:var(--ink);font-weight:700;font-family:ui-monospace,monospace}.ct-k.wait{border-color:#F2C200;background:rgba(242,194,0,.15)}
+.ct-sl{display:flex;align-items:center;gap:10px;margin:12px 0;font-weight:600}.ct-sl input{flex:1}.ct-pad{padding:10px 12px;border-radius:10px;background:var(--line-2);margin:8px 0;font-size:14px}.ct-bars{display:grid;gap:6px;margin-top:8px}.ct-bars span{display:grid;grid-template-columns:60px 1fr;align-items:center;font-size:12px}.ct-bars i{height:8px;border-radius:4px;background:linear-gradient(90deg,#1E9E62 var(--v),var(--line) var(--v))}
+.dr-hud{position:absolute;top:calc(84px + env(safe-area-inset-top,0px));left:50%;transform:translateX(-50%);display:flex;gap:18px;background:rgba(10,12,14,.72);color:#fff;border-radius:14px;padding:8px 16px;z-index:4;pointer-events:none}.dr-hud small{display:block;font-size:10px;opacity:.7;text-transform:uppercase;letter-spacing:.06em}.dr-hud b{font-size:22px;font-variant-numeric:tabular-nums}.dr-c em{font-style:normal;margin-left:6px;font-weight:900;color:#F2C200}.dr-c em.hot{color:#FF5A2B}
+.ev-hero{background:radial-gradient(120% 140% at 0% 0%,#4a1a00 0%,#1b0f0a 55%,#0b0c0e 100%);border-color:#7a3300}.ev-hero .eyebrow{color:#FF8A3D}.ev-hero h1{-webkit-text-fill-color:#fff;color:#fff;background:none}.ev-rw{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px}.ev-rw span{background:rgba(255,255,255,.1);border:1px solid rgba(255,255,255,.2);border-radius:999px;padding:4px 12px;font-weight:700;font-size:13px}
+.cal-g{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:8px;margin:6px 0 18px}.cal-d{position:relative;text-align:center;background:var(--surface);border:1.5px solid var(--line);border-radius:12px;padding:10px 4px}.cal-d small{display:block;color:var(--muted);font-size:11px}.cal-d b{display:block;font-size:18px;margin:2px 0}.cal-d span{font-size:10.5px;color:var(--muted)}
+.cal-d.big{border-color:#E0B000;background:linear-gradient(180deg,rgba(242,194,0,.14),transparent)}.cal-d.got{opacity:.55}.cal-d.now{border-color:#1E9E62;box-shadow:0 0 0 3px rgba(30,158,98,.3)}.cal-d em{position:absolute;top:4px;right:7px;font-style:normal;color:#1E9E62;font-weight:900}
+.cal-pop{position:fixed;right:16px;bottom:calc(84px + env(safe-area-inset-bottom,0px));z-index:92;display:grid;grid-template-columns:auto 1fr;column-gap:10px;align-items:center;background:#1b1d22;color:#fff;border-radius:14px;padding:12px 16px;box-shadow:0 10px 30px rgba(0,0,0,.35);font-size:22px}.cal-pop b{font-size:14px}.cal-pop span{grid-column:2;font-size:12px;opacity:.75}
+.set-g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin-bottom:26px}.set{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:14px}.set.full{border-color:#1E9E62}.set-h{display:flex;align-items:center;gap:12px}.set-h>span{font-size:28px}.set-h div{flex:1}.set-h b{display:block;font-size:16px}.set-h small{color:var(--muted)}
+.set-bar{height:6px;border-radius:3px;background:var(--line-2);margin:10px 0;overflow:hidden}.set-bar i{display:block;height:100%;background:#1E9E62}.set-cars{display:grid;grid-template-columns:repeat(auto-fill,minmax(92px,1fr));gap:8px}.set-cars a{position:relative;display:flex;flex-direction:column;gap:3px;color:var(--ink);opacity:.55}.set-cars a.have{opacity:1}.set-cars .ph{aspect-ratio:16/10;border-radius:8px}.set-cars small{font-size:11px;line-height:1.2}.set-cars i{font-style:normal;font-size:10.5px;color:var(--muted)}.set-cars em{position:absolute;top:4px;right:6px;font-style:normal;background:#1E9E62;color:#fff;border-radius:50%;width:18px;height:18px;font-size:11px;display:flex;align-items:center;justify-content:center}
+.city-hero{background:radial-gradient(120% 140% at 0% 0%,#0d3b52 0%,#0b1a24 55%,#0b0c0e 100%);border-color:#1b5470}.city-hero .eyebrow{color:#5FD0FF}.city-hero h1{-webkit-text-fill-color:#fff;color:#fff;background:none}
+.city-ov{position:fixed;inset:0;z-index:120;background:#3a3f45;touch-action:none;user-select:none;-webkit-user-select:none}.city-ov #cityCv{position:absolute;inset:0;width:100%;height:100%}
+#cityMm{position:absolute;right:calc(12px + env(safe-area-inset-right,0px));top:calc(12px + env(safe-area-inset-top,0px));width:150px;height:150px;border-radius:12px;border:2px solid rgba(255,255,255,.25)}
+.ct-top{position:absolute;left:calc(12px + env(safe-area-inset-left,0px));top:calc(12px + env(safe-area-inset-top,0px));display:flex;gap:10px;align-items:center}.ct-top button{width:40px;height:40px;border-radius:50%;border:0;background:rgba(10,12,14,.7);color:#fff;font-size:16px}
+.ct-on{background:rgba(10,12,14,.7);color:#fff;border-radius:999px;padding:6px 12px;font-size:13px;font-weight:700}.ct-spd{background:rgba(10,12,14,.7);color:#fff;border-radius:12px;padding:4px 12px;text-align:center}.ct-spd b{font-size:22px;display:block;line-height:1.1}.ct-spd small{font-size:10px;opacity:.7}
+.ct-feed{position:absolute;left:calc(12px + env(safe-area-inset-left,0px));top:calc(64px + env(safe-area-inset-top,0px));display:grid;gap:4px;max-width:min(360px,60vw)}.ct-feed div{background:rgba(10,12,14,.6);color:#fff;border-radius:8px;padding:4px 10px;font-size:13px}
+.ct-msg{position:absolute;left:50%;top:22%;transform:translate(-50%,-10px);opacity:0;transition:.25s;background:rgba(10,12,14,.75);color:#fff;border-radius:12px;padding:8px 16px;font-weight:800;font-size:18px;pointer-events:none}.ct-msg.on{opacity:1;transform:translate(-50%,0)}
+.ct-chat{position:absolute;left:50%;bottom:calc(150px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);width:min(460px,90vw)}.ct-chat input{width:100%;padding:12px 14px;border-radius:12px;border:0;font-size:16px}
+.ct-act{position:absolute;left:50%;top:calc(70px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:rgba(10,12,14,.85);color:#fff;border-radius:14px;padding:12px;max-width:min(520px,92vw);max-height:40vh;overflow:auto}.ct-gl{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.ct-gl button{border:1px solid rgba(255,255,255,.25);background:rgba(255,255,255,.08);color:#fff;border-radius:8px;padding:6px 10px;font-size:13px}.ct-gl button.on{background:#F2C200;color:#111}
+.ct-touch{position:absolute;left:0;right:0;bottom:calc(14px + env(safe-area-inset-bottom,0px));display:grid;grid-template-columns:70px 70px 1fr 64px 82px 82px;gap:10px;padding:0 14px}.ct-touch button{height:70px;border-radius:16px;border:0;background:rgba(255,255,255,.14);color:#fff;font-weight:900;font-size:16px}.ct-touch .gs{background:rgba(30,158,98,.75)}.ct-touch .br{background:rgba(200,16,46,.7)}.ct-touch .hb{background:rgba(255,255,255,.22);font-size:13px}
+@media (hover:hover) and (pointer:fine){.ct-touch{display:none}}
+.ct-ch,.ct-hn{position:absolute;right:calc(12px + env(safe-area-inset-right,0px));width:44px;height:44px;border-radius:50%;border:0;background:rgba(10,12,14,.7);font-size:20px}.ct-ch{top:calc(172px + env(safe-area-inset-top,0px))}.ct-hn{top:calc(222px + env(safe-area-inset-top,0px))}
+@media (max-width:760px){.set-g{grid-template-columns:minmax(0,1fr)}.cal-g{grid-template-columns:repeat(4,minmax(0,1fr))}#cityMm{width:110px;height:110px}.ct-touch{grid-template-columns:58px 58px 1fr 54px 70px 70px;gap:8px}.ct-touch button{height:62px}}
 </style>`);
 
 render();syncCmp();
