@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202609301800";
+const BUILD="202610011000";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -5910,9 +5910,13 @@ const VIPSVG=`<svg viewBox="0 0 400 250" xmlns="http://www.w3.org/2000/svg" aria
 <path d="M300 150 L346 158 L348 170 L304 168 Z" fill="#0b0c0e"/><circle cx="320" cy="160" r="7" fill="#0b0c0e" stroke="#C9971C"/>
 <circle cx="116" cy="180" r="24" fill="#0b0c0e"/><circle cx="116" cy="180" r="11" fill="#555"/><circle cx="296" cy="180" r="24" fill="#0b0c0e"/><circle cx="296" cy="180" r="11" fill="#555"/>
 <text x="200" y="232" text-anchor="middle" font-family="system-ui,sans-serif" font-size="14" font-weight="800" fill="#F2C200" letter-spacing="3">★ VIP EXCLUSIVE</text></svg>`;
-const _ph41=ph;ph=function(c,cls=""){if(c&&c.id===VIPCAR.id)return `<div class="ph vipart ${cls}" role="img" aria-label="McMurtry Spéirling">${VIPSVG}</div>`;return _ph41(c,cls)};
+/* real photo: "2022 McMurtry Speirling" by Calreyn88, Wikimedia Commons, CC BY-SA 4.0 — the gold artwork shows underneath if it can't load (e.g. offline) */
+const VIPPHOTO="https://upload.wikimedia.org/wikipedia/commons/thumb/7/7f/2022_McMurtry_Speirling.jpg/1280px-2022_McMurtry_Speirling.jpg";
+const VIPCREDIT=`Photo: Calreyn88 · <a href="https://commons.wikimedia.org/wiki/File:2022_McMurtry_Speirling.jpg" target="_blank" rel="noopener">CC BY-SA 4.0</a>`;
+const vipImg=()=>`${VIPSVG}<img src="${VIPPHOTO}" alt="McMurtry Spéirling" loading="lazy" decoding="async" onerror="this.remove()">`;
+const _ph41=ph;ph=function(c,cls=""){if(c&&c.id===VIPCAR.id)return `<div class="ph vipart ${cls}" role="img" aria-label="McMurtry Spéirling">${vipImg()}</div>`;return _ph41(c,cls)};
 const _cp41=carPage;carPage=function(c){if(c&&c.id===VIPCAR.id&&!vipOn())return `<div class="wrap"><section class="vip-hero"><div class="eyebrow">VIP only</div><h1><span>★</span> Hidden car</h1><p>This car is only visible to VIP members.</p></section><div class="actions"><a class="btn primary" href="#vip">About VIP</a></div></div>`;
-  if(c&&c.id===VIPCAR.id){const o=crGet().own.find(x=>x.id===c.id);return `<div class="wrap"><section class="vip-hero on vipcar-hero"><div class="vch-art">${VIPSVG}</div><div><div class="eyebrow">VIP exclusive · free to every VIP</div><h1 style="font-size:clamp(40px,7vw,72px)">McMurtry Spéirling</h1>
+  if(c&&c.id===VIPCAR.id){const o=crGet().own.find(x=>x.id===c.id);return `<div class="wrap"><section class="vip-hero on vipcar-hero"><div><div class="vch-art vipart">${vipImg()}</div><p class="vch-cr">${VIPCREDIT}</p></div><div><div class="eyebrow">VIP exclusive · free to every VIP</div><h1 style="font-size:clamp(40px,7vw,72px)">McMurtry Spéirling</h1>
     <p>A tiny single-seat electric fan car from Gloucestershire. A fan underneath sucks it to the road — so much grip it could drive upside down — and it holds the Goodwood hill climb record. Only VIPs can see it or drive it.</p>
     <div class="cotd-st" style="margin-top:14px;background:rgba(255,255,255,.06);border-color:rgba(255,255,255,.15)"><div><b class="num">~${c.bhp}</b><small>bhp</small></div><div><b class="num">~${c.acc}s</b><small>0–62 mph</small></div><div><b class="num">${c.top}+</b><small>mph</small></div><div><b class="num">Fan</b><small>downforce</small></div></div>
     <div class="actions">${o?`<a class="btn primary" href="#custom-${c.id}">Customise</a><a class="btn" href="#duel" data-crrace="${c.id}">Race it</a>`:`<span class="note">It'll appear in your garage in a moment.</span>`}</div></div></section>
@@ -6022,7 +6026,7 @@ const _ar41=afterRender;afterRender=function(r){_ar41(r);vipCarGrant();if(r.name
     const at=r.name==="home"?document.querySelector(".h3-today"):r.name==="play"?document.querySelector("#view .dailyb"):document.querySelector("#view .cr-bar");if(at)at.insertAdjacentHTML(r.name==="play"?"beforebegin":"afterend",html)}};
 const _an41=acctNav;acctNav=function(){_an41();vipCarGrant()};
 document.head.insertAdjacentHTML("beforeend",`<style id="v41css">
-.vipart{background:#0b0c0e;display:block;overflow:hidden}.vipart svg{width:100%;height:100%;display:block;object-fit:cover}
+.vipart{position:relative;background:#0b0c0e;display:block;overflow:hidden}.vipart svg{width:100%;height:100%;display:block}.vipart img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block}.vch-art{aspect-ratio:16/11}.vch-cr{margin:6px 0 0;font-size:12px;color:rgba(255,255,255,.6)}.vch-cr a{color:inherit;text-decoration:underline}
 .vipcar-hero{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:26px;align-items:center}.vch-art{border-radius:16px;overflow:hidden}.vch-art svg{display:block;width:100%}
 .tn-g{display:grid;grid-template-columns:260px minmax(0,1fr);gap:28px;align-items:start}
 .tn-prev{position:sticky;top:84px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:16px;text-align:center}.tn-prev canvas{width:200px;height:auto;border-radius:12px;display:block;margin:0 auto}
