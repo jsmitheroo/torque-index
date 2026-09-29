@@ -63,7 +63,7 @@ export default {
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
       return stub.fetch(request);
     }
-    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(dm-list|dm-thread|dm-send|ghost|ghost-post|wevent|wevent-post|admin-wevent|lb-drift|drift-post|lb-earn|auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
+    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(ratings|ach-stats|admin-stats|admin-sale|admin-featured|admin-notify|admin-car|dm-list|dm-thread|dm-send|ghost|ghost-post|wevent|wevent-post|admin-wevent|lb-drift|drift-post|lb-earn|auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
     if (a) {
       // Accounts: writes must come from this site (blocks cross-site form tricks).
       if (request.method !== "GET") {
@@ -402,7 +402,9 @@ export class Accounts extends DurableObject {
     if (route === "announce") {
       const a = this.sql.exec(`SELECT v FROM meta WHERE k='announce'`).toArray()[0];
       const ev = this.sql.exec(`SELECT v FROM meta WHERE k='event'`).toArray()[0], e = ev ? JSON.parse(ev.v) : null;
-      return json({ a: a ? JSON.parse(a.v) : null, event: e && e.until > Date.now() ? e : null });
+      const gm = k => { const r = this.sql.exec(`SELECT v FROM meta WHERE k=?`, k).toArray()[0]; return r ? JSON.parse(r.v) : null; };
+      const sale = gm("sale");
+      return json({ a: a ? JSON.parse(a.v) : null, event: e && e.until > Date.now() ? e : null, sale: sale && sale.until > Date.now() ? sale : null, featured: gm("featured") || [], cars: gm("caredits") || {} });
     }
     if (route === "lb-earn") {
       const top = this.sql.exec(`SELECT username, CAST(json_extract(data,'$."ti-cr".tot') AS INTEGER) AS tot, json_array_length(json_extract(data,'$."ti-cr".own')) AS cars FROM users WHERE (banned IS NULL OR banned=0) AND data IS NOT NULL AND json_valid(data) AND json_extract(data,'$."ti-cr".tot')>0 ORDER BY tot DESC LIMIT 50`).toArray();
@@ -429,6 +431,14 @@ export class Accounts extends DurableObject {
       const top = this.sql.exec(`SELECT u.username, d.score, d.car FROM drifts d JOIN users u ON u.id=d.uid WHERE d.track=? ORDER BY d.score DESC LIMIT 25`, track).toArray();
       const mine = s ? this.sql.exec(`SELECT score, car FROM drifts WHERE uid=? AND track=?`, s.uid, track).toArray()[0] || null : null;
       return json({ top, mine });
+    }
+    if (route === "ratings") {
+      return json({ r: Object.fromEntries(this.sql.exec(`SELECT car, ROUND(AVG(rating),2) AS a, COUNT(*) AS n FROM reviews GROUP BY car`).toArray().map(x => [x.car, [x.a, x.n]])) });
+    }
+    if (route === "ach-stats") {
+      const total = this.sql.exec(`SELECT COUNT(*) AS n FROM users WHERE data IS NOT NULL AND json_valid(data)`).toArray()[0].n;
+      const rows = this.sql.exec(`SELECT j.key AS k, COUNT(*) AS n FROM users u, json_each(json_extract(u.data,'$."ti-ach"')) j WHERE u.data IS NOT NULL AND json_valid(u.data) GROUP BY j.key`).toArray();
+      return json({ total, counts: Object.fromEntries(rows.map(r => [r.k, r.n])) });
     }
     if (route === "auctions") {
       this.settleAuctions();
@@ -703,6 +713,40 @@ export class Accounts extends DurableObject {
         if (gcar) { this.give(u.id, 0, String(body.note || "Gift from the owner"), gcar, null); this.notify(u.id, "gift", `You've been given a car: ${gcar.replace(/-/g, " ")}`, "#garage"); }
         if (vd > 0) { const until = vd >= 36500 ? 4102444800000 : Math.max(now, u.vip_until || 0) + vd * 864e5; this.sql.exec(`UPDATE users SET vip_until=?, vip_since=COALESCE(vip_since,?) WHERE id=?`, until, now, u.id); this.notify(u.id, "gift", vd >= 36500 ? "You've been given lifetime VIP" : `You've been given ${vd} days of VIP`, "#vip"); }
         return json({ ok: true, username: u.username, credits: cr, vipDays: vd, car: gcar });
+      }
+      if (route === "admin-stats") {
+        const q1 = (sql, ...a) => this.sql.exec(sql, ...a).toArray();
+        const day = 864e5, since = now - 14 * day;
+        const signups = q1(`SELECT CAST((created-?)/? AS INTEGER) AS d, COUNT(*) AS n FROM users WHERE created>=? GROUP BY d`, since, day, since);
+        const active = q1(`SELECT COUNT(*) AS n FROM users WHERE seen>?`, now - day)[0].n, week = q1(`SELECT COUNT(*) AS n FROM users WHERE seen>?`, now - 7 * day)[0].n;
+        return json({ users: q1(`SELECT COUNT(*) AS n FROM users`)[0].n, active, week, vip: q1(`SELECT COUNT(*) AS n FROM users WHERE vip_until>?`, now)[0].n, banned: q1(`SELECT COUNT(*) AS n FROM users WHERE banned=1`)[0].n,
+          laps: q1(`SELECT COUNT(*) AS n FROM laps`)[0].n, reviews: q1(`SELECT COUNT(*) AS n FROM reviews`)[0].n, msgs: q1(`SELECT COUNT(*) AS n FROM dms`)[0].n, clubs: q1(`SELECT COUNT(*) AS n FROM clubs`)[0].n, auctions: q1(`SELECT COUNT(*) AS n FROM auctions WHERE status='live'`)[0].n,
+          signups: [...Array(14)].map((_, i) => (signups.find(x => x.d === i) || { n: 0 }).n), topCars: q1(`SELECT car, COUNT(*) AS n FROM laps GROUP BY car ORDER BY n DESC LIMIT 8`) });
+      }
+      if (route === "admin-sale") {
+        if (!(+body.pct > 0)) { this.sql.exec(`DELETE FROM meta WHERE k='sale'`); return json({ ok: true, sale: null }); }
+        const pct = Math.max(5, Math.min(90, Math.round(+body.pct))), hours = Math.max(1, Math.min(336, +body.hours || 24)), rt = ["all", "make", "body"].includes(body.rtype) ? body.rtype : "all";
+        const sale = { pct, until: now + hours * 3600e3, rtype: rt, rval: String(body.rval || "").slice(0, 40), text: String(body.text || "").replace(/[<>]/g, "").slice(0, 80) };
+        this.sql.exec(`INSERT OR REPLACE INTO meta(k,v) VALUES('sale',?)`, JSON.stringify(sale)); return json({ ok: true, sale });
+      }
+      if (route === "admin-featured") {
+        const ids = (Array.isArray(body.ids) ? body.ids : []).filter(x => /^[a-z0-9-]{2,90}$/.test(x)).slice(0, 8);
+        this.sql.exec(`INSERT OR REPLACE INTO meta(k,v) VALUES('featured',?)`, JSON.stringify(ids)); return json({ ok: true, ids });
+      }
+      if (route === "admin-notify") {
+        const text = String(body.text || "").replace(/[<>]/g, "").trim().slice(0, 140), link = /^#[a-z0-9-]{1,40}$/.test(body.link || "") ? body.link : "#home";
+        if (!text) return json({ error: "Type a message." }, 400);
+        const ids = this.sql.exec(`SELECT id FROM users WHERE banned IS NULL OR banned=0 LIMIT 20000`).toArray();
+        ids.forEach(u => this.notify(u.id, "owner", text, link)); return json({ ok: true, sent: ids.length });
+      }
+      if (route === "admin-car") {
+        const id = String(body.id || ""); if (!/^[a-z0-9-]{2,90}$/.test(id)) return json({ error: "Bad car" }, 400);
+        const cur = JSON.parse((this.sql.exec(`SELECT v FROM meta WHERE k='caredits'`).toArray()[0] || { v: "{}" }).v);
+        if (body.reset) delete cur[id]; else { const e = {}, f = body.fields || {};
+          for (const [k, lim] of [["bhp", [1, 5000]], ["acc", [1, 40]], ["top", [20, 400]], ["price", [0, 50000]]]) if (f[k] !== "" && f[k] != null && isFinite(+f[k])) e[k] = Math.max(lim[0], Math.min(lim[1], +f[k]));
+          for (const k of ["model", "engine", "years"]) if (typeof f[k] === "string" && f[k].trim()) e[k] = f[k].replace(/[<>]/g, "").trim().slice(0, 80);
+          cur[id] = e; }
+        this.sql.exec(`INSERT OR REPLACE INTO meta(k,v) VALUES('caredits',?)`, JSON.stringify(cur)); return json({ ok: true, edits: cur[id] || null });
       }
       if (route === "admin-wevent") {
         if (body.stop) { this.sql.exec(`UPDATE wevents SET ends=? WHERE start<=? AND ends>?`, now, now, now); this.settleEvents(); return json({ ok: true }); }
