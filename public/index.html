@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610021100";
+const BUILD="202610031000";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -6088,6 +6088,83 @@ const _dm41=duelMenu;duelMenu=function(){_dm41();document.querySelectorAll("#gam
 if(typeof ACH!=="undefined")ACH.push(["insane","Certified insane","Win a Circuit duel race on Insane",()=>(ST.insw||0)>=1],["impossible","The impossible","Win a Circuit duel race on Impossible",()=>(ST.impw||0)>=1]);
 const _dres41=duelResult;duelResult=function(r){_dres41(r);if(r.quit||!r.me||r.me.fin==null||!["insane","impossible"].includes(DZL.lv))return;const all=[r.me,...(r.rivals||[r.rival]).filter(Boolean)];if([...all].sort((a,b)=>(a.fin??1e9)-(b.fin??1e9))[0]===r.me){const imp=DZL.lv==="impossible";bump(imp?"impw":"insw");const b=$("#game .result .big");if(b)b.textContent=imp?"IMPOSSIBLE WIN!":"INSANE WIN!"}};
 document.head.insertAdjacentHTML("beforeend",`<style>.seg .ins-b{color:#C8102E;font-weight:800}.seg .ins-b[aria-pressed=true]{background:#C8102E;color:#fff}.ins-n{flex-basis:100%;color:#C8102E}.seg .imp-b{color:#fff;background:#111;font-weight:900}.seg .imp-b[aria-pressed=true]{background:linear-gradient(90deg,#3a0000,#C8102E);color:#fff}</style>`);
+
+/* ================= v42: Owner — blue OWNER badge, lifetime VIP, admin panel (VIP codes, gifts, announcements, bans) ================= */
+const OWNERS=new Set();
+const ownerOn=()=>!!(AUTH.user&&AUTH.user.owner);
+const _vl42=vipLoad;vipLoad=async function(){if(!(await netCheck()))return;const r=await xapi("vips");if(r.ok){VIPS.clear();(r.vips||[]).forEach(u=>VIPS.add(u.toLowerCase()));OWNERS.clear();(r.owners||[]).forEach(u=>OWNERS.add(u.toLowerCase()));vipDecoSoon()}};
+/* blue owner name + badge; owners don't also get the VIP badge */
+const _vd42=vipDeco;vipDeco=function(){const me=AUTH.user&&ownerOn()?AUTH.user.username.toLowerCase():null;
+  document.querySelectorAll(DZ2.S?"#dzTower span":"a.ulink, .rp b, .rc-m b, .lb-table td, .rk-res td, .dz-res td, .pr-head h1").forEach(el=>{if(el.dataset.ownd)return;
+    const own=el.firstChild&&el.firstChild.nodeType===3?el.firstChild.textContent:el.textContent;const n=vipName(own);if(!n||!(OWNERS.has(n)||n===me))return;
+    if(el.matches(".lb-table td, .rk-res td, .dz-res td")&&el.querySelector("a.ulink"))return;el.dataset.ownd="1";el.dataset.vipd="1";el.classList.remove("vipn");el.querySelectorAll(".vipb").forEach(b=>b.remove());el.classList.add("ownn");
+    if(!el.matches(".pr-head h1, #dzTower span"))el.insertAdjacentHTML("beforeend",`<span class="ownb" title="Site owner">OWNER</span>`)});
+  _vd42();document.body.classList.toggle("is-owner",ownerOn())};
+/* owner profile flair */
+const _pd42=profDraw;profDraw=async function(u){await _pd42(u);const el=$("#prv");if(!el)return;const n=String(u).toLowerCase();if(!(OWNERS.has(n)||(ownerOn()&&AUTH.user.username.toLowerCase()===n)))return;
+  const h=el.querySelector(".pr-head");if(!h||h.classList.contains("own-head"))return;h.classList.remove("vip-head");h.classList.add("own-head");h.querySelector(".vip-flair")?.remove();
+  const t=h.querySelector("h1");if(t)t.insertAdjacentHTML("afterend",`<div class="vip-flair"><span class="ownb big">✦ OWNER</span><span>Creator of Torque Index</span></div>`)};
+/* the redeem box also takes the owner code */
+document.addEventListener("submit",e=>{if(e.target.id!=="vipF")return;const v=($("#vipC")||{}).value||"";if(!/^\s*OWNER/i.test(v))return;e.preventDefault();e.stopImmediatePropagation();
+  (async()=>{const er=$("#vipE"),b=e.target.querySelector("button");b.disabled=true;const r=await xapi("vip-redeem","POST",{code:v.trim()});b.disabled=false;if(!r.ok||!r.owner){er.textContent=r.error||"That code isn't valid.";return}
+    AUTH.user.owner=true;AUTH.user.vip=r.vip;AUTH.user.vipSince=AUTH.user.vipSince||Date.now();OWNERS.add(AUTH.user.username.toLowerCase());VIPS.add(AUTH.user.username.toLowerCase());
+    toast(`<span class="ti2">✦</span><div><b>Welcome, owner</b><span>Lifetime VIP, the Spéirling and the admin panel are yours</span></div>`,"ach");location.hash="admin"})()},true);
+/* gifts from the owner arrive as credits */
+async function grantsPoll(){if(!AUTH.user||!AUTH.online)return;const r=await xapi("grants");if(r.ok&&r.grants&&r.grants.length)r.grants.forEach(g=>{crGrant(g.cr,g.note||"Gift from the owner");toast(`<span class="ti2">🎁</span><div><b>+${crFmt(g.cr)}</b><span>${esc(g.note||"Gift from the owner")}</span></div>`,"ach")})}
+/* site-wide announcement banner */
+async function annLoad(){if(!(await netCheck()))return;const r=await xapi("announce");const a=r.ok&&r.a;document.querySelector(".ann")?.remove();if(!a||store.get("ti-ann-x",0)===a.id)return;
+  document.body.insertAdjacentHTML("afterbegin",`<div class="ann" role="status"><span>📣 ${esc(a.text)}</span>${a.link?`<a href="${esc(a.link)}">Open →</a>`:""}<button type="button" aria-label="Dismiss" data-annx="${a.id}">✕</button></div>`)}
+document.addEventListener("click",e=>{const x=e.target.closest("[data-annx]");if(x){store.set("ti-ann-x",+x.dataset.annx);x.closest(".ann").remove()}});
+
+/* ---------- admin panel ---------- */
+function adminPage(){if(!ownerOn())return `<div class="wrap"><div class="bb-intro"><div class="bb-big" style="font-size:32px">Owner only</div><p>This page is only for the owner of Torque Index.</p></div></div>`;
+  return `<div class="wrap"><section class="vip-hero own-hero"><div class="eyebrow">Owner</div><h1>✦ Admin panel</h1><p>Signed in as <b>${esc(AUTH.user.username)}</b>. Everything here takes effect straight away for every player.</p></section>
+  <div class="adm-g">
+   <section class="adm"><h2>📣 Announcement</h2><p class="note">Shows as a banner at the top of the site for everyone until they dismiss it or you clear it.</p>
+    <form id="admAnn" autocomplete="off"><textarea id="admAnnT" class="sel" maxlength="240" rows="3" placeholder="e.g. Double credits this weekend!"></textarea><input id="admAnnL" class="sel" placeholder="Optional link, e.g. #duel" maxlength="41"><div class="actions"><button class="btn primary" type="submit">Post</button><button class="btn" type="button" id="admAnnC">Clear banner</button></div></form><p class="adm-out" id="admAnnO"></p></section>
+   <section class="adm"><h2>★ Make VIP codes</h2><p class="note">Each code works once. Copy them somewhere safe — they're only shown now.</p>
+    <form id="admCodes"><div class="adm-row"><select id="admCD" class="sel"><option value="7">7 days</option><option value="30" selected>30 days</option><option value="90">90 days</option><option value="365">1 year</option><option value="36500">Lifetime</option></select><input id="admCN" class="sel" type="number" min="1" max="50" value="5" aria-label="How many"><button class="btn primary" type="submit">Make codes</button></div></form><pre class="adm-codes" id="admCO" hidden></pre><button class="btn" type="button" id="admCC" hidden>Copy all</button></section>
+   <section class="adm"><h2>🎁 Give to a player</h2><p class="note">Credits arrive next time they open the site (or within 30 seconds if they're on it). VIP starts straight away.</p>
+    <form id="admGive" autocomplete="off"><input id="admGU" class="sel" placeholder="Username" list="admUL" required><div class="adm-row"><input id="admGC" class="sel" type="number" min="0" step="1000" placeholder="Credits (e.g. 100000)"><select id="admGV" class="sel"><option value="0">No VIP</option><option value="7">+7 days VIP</option><option value="30">+30 days VIP</option><option value="365">+1 year VIP</option><option value="36500">Lifetime VIP</option></select></div><input id="admGN" class="sel" maxlength="80" placeholder="Message (optional)"><div class="actions"><button class="btn primary" type="submit">Send</button></div></form><p class="adm-out" id="admGO"></p></section>
+   <section class="adm"><h2>🚫 Ban from leaderboards</h2><p class="note">Removes their lap records, Weekly Cup, Daily race, ranked rating and wins, and stops them posting new ones. They can still play.</p>
+    <form id="admBan" autocomplete="off"><input id="admBU" class="sel" placeholder="Username" list="admUL" required><div class="actions"><button class="btn primary" type="submit" data-ban="1">Ban</button><button class="btn" type="submit" data-ban="0">Unban</button></div></form><p class="adm-out" id="admBO"></p><div id="admBL"></div></section>
+   <section class="adm adm-wide"><h2>👥 Players</h2><input id="admQ" class="sel" placeholder="Search usernames…" autocomplete="off"><div id="admUsers"><p class="note">Loading…</p></div><datalist id="admUL"></datalist></section>
+  </div></div>`}
+async function admUsers(q){const r=await xapi("admin-users","POST",{q:q||""});const el=$("#admUsers");if(!el)return;if(!r.ok){el.innerHTML=`<p class="note">${esc(r.error||"Couldn't load players.")}</p>`;return}
+  el.innerHTML=`<p class="note">${r.total.toLocaleString()} player${r.total===1?"":"s"} in total.</p><table class="bb-table adm-t"><thead><tr><th>Player</th><th>Status</th><th>Joined</th></tr></thead><tbody>${r.list.map(u=>`<tr><td><a class="ulink" href="#u-${esc(u.username)}">${esc(u.username)}</a></td><td>${u.role==="owner"?"Owner":""}${u.vip_until>Date.now()?" VIP":""}${u.banned?" 🚫 Banned":""}</td><td>${new Date(u.created).toLocaleDateString("en-GB")}</td></tr>`).join("")}</tbody></table>`;
+  const dl=$("#admUL");if(dl)dl.innerHTML=r.list.map(u=>`<option value="${esc(u.username)}">`).join("");const bl=$("#admBL");if(bl)bl.innerHTML=r.banned.length?`<p class="note">Banned: ${r.banned.map(esc).join(", ")}</p>`:""}
+let ADMQT=null;document.addEventListener("input",e=>{if(e.target.id==="admQ"){clearTimeout(ADMQT);ADMQT=setTimeout(()=>admUsers(e.target.value),250)}});
+document.addEventListener("submit",async e=>{const f=e.target;if(!f.id||!f.id.startsWith("adm"))return;e.preventDefault();const btn=e.submitter;
+  if(f.id==="admAnn"){const r=await xapi("admin-announce","POST",{text:$("#admAnnT").value,link:$("#admAnnL").value.trim()});$("#admAnnO").textContent=r.ok?"Posted ✓":(r.error||"Couldn't post");if(r.ok){store.set("ti-ann-x",0);annLoad()}}
+  if(f.id==="admCodes"){const r=await xapi("admin-codes","POST",{days:+$("#admCD").value,n:+$("#admCN").value});const o=$("#admCO");if(!r.ok){o.hidden=false;o.textContent=r.error||"Couldn't make codes";return}
+    o.hidden=false;o.textContent=`${r.days>=36500?"Lifetime":r.days+" days"}:\n`+r.codes.join("\n");$("#admCC").hidden=false}
+  if(f.id==="admGive"){const r=await xapi("admin-grant","POST",{username:$("#admGU").value,credits:+$("#admGC").value||0,vipDays:+$("#admGV").value,note:$("#admGN").value.trim()});
+    $("#admGO").textContent=r.ok?`Sent to ${r.username}: ${r.credits?crFmt(r.credits):""}${r.credits&&r.vipDays?" + ":""}${r.vipDays?(r.vipDays>=36500?"lifetime VIP":r.vipDays+" days VIP"):""} ✓`:(r.error||"Couldn't send");if(r.ok){f.reset();vipLoad();grantsPoll()}}
+  if(f.id==="admBan"){const ban=btn&&btn.dataset.ban==="1";const r=await xapi("admin-ban","POST",{username:$("#admBU").value,ban});$("#admBO").textContent=r.ok?`${r.username} ${r.banned?"banned and removed from leaderboards":"unbanned"} ✓`:(r.error||"Couldn't do that");if(r.ok)admUsers($("#admQ").value)}});
+document.addEventListener("click",e=>{if(e.target.id==="admAnnC"){xapi("admin-announce","POST",{text:""}).then(r=>{$("#admAnnO").textContent=r.ok?"Banner cleared ✓":"Couldn't clear";annLoad()})}
+  if(e.target.id==="admCC"){const t=$("#admCO").textContent;try{navigator.clipboard.writeText(t).then(()=>e.target.textContent="Copied!")}catch(err){}}});
+const _r42=route;route=function(){if(location.hash==="#admin")return{name:"admin"};return _r42()};PAGES.admin=adminPage;GT.admin="Admin";
+const _ft42=footer;footer=function(){const h=_ft42();if(!ownerOn())return h;const i=h.lastIndexOf("</ul>");return i<0?h:h.slice(0,i)+`<li><a href="#admin">✦ Admin panel</a></li>`+h.slice(i)};
+const _ar42=afterRender;afterRender=function(r){_ar42(r);if(r.name==="admin"&&ownerOn())admUsers("");
+  if(r.name==="account"&&ownerOn()&&!document.querySelector(".own-acct")){const b=document.querySelector(".vip-acct");const html=`<div class="au-box own-acct"><div><b>✦ Owner</b><p>You own Torque Index. Lifetime VIP included.</p></div><a class="btn primary" href="#admin">Admin panel</a></div>`;if(b)b.insertAdjacentHTML("beforebegin",html)}};
+const _an42=acctNav;acctNav=function(){_an42();document.body.classList.toggle("is-owner",ownerOn());if(AUTH.user&&!acctNav.g){acctNav.g=1;grantsPoll()}};
+setTimeout(()=>vipLoad(),1700);setInterval(()=>{if(document.visibilityState==="visible")vipLoad()},10*60e3);
+setTimeout(annLoad,1200);setInterval(()=>{if(document.visibilityState==="visible"){annLoad();grantsPoll()}},30000);
+document.head.insertAdjacentHTML("beforeend",`<style id="v42css">
+.ownn{background:linear-gradient(90deg,#0A5BD3,#2FA8FF 45%,#6A5CFF);-webkit-background-clip:text;background-clip:text;color:transparent!important;font-weight:900}
+.ownn *{-webkit-text-fill-color:initial}
+.ownb{display:inline-block;margin-left:6px;padding:1px 7px;border-radius:5px;background:linear-gradient(135deg,#2FA8FF,#0A5BD3 60%,#4B3CD8);color:#fff;-webkit-text-fill-color:#fff;font-size:10px;font-weight:900;letter-spacing:.08em;vertical-align:2px;line-height:1.5;box-shadow:0 0 8px rgba(47,168,255,.45)}
+.ownb.big{font-size:13px;padding:3px 10px;margin:0}
+body.is-owner .acctbox .av,body.is-owner .acctnav .av{box-shadow:0 0 0 2px #2FA8FF,0 0 12px rgba(47,168,255,.6)}
+.own-head{background:linear-gradient(135deg,rgba(47,168,255,.18),rgba(106,92,255,.08));border:1.5px solid #2FA8FF;border-radius:18px;padding:18px}.own-head .av{box-shadow:0 0 0 3px #2FA8FF,0 0 16px rgba(47,168,255,.6)}
+.own-hero{background:radial-gradient(120% 140% at 0% 0%,#06254f 0%,#0b1426 55%,#0b0c0e 100%);border-color:#1b4f8f}.own-hero .eyebrow{color:#2FA8FF}.own-hero h1{background:linear-gradient(90deg,#2FA8FF,#8FD3FF,#6A5CFF);-webkit-background-clip:text;background-clip:text;color:transparent}
+.adm-g{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px;margin-bottom:30px}.adm{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:18px}.adm h2{margin:0 0 4px;font-size:18px}.adm-wide{grid-column:1/-1}
+.adm form{display:grid;gap:8px;margin-top:10px}.adm textarea{resize:vertical;font:inherit}.adm-row{display:flex;gap:8px;flex-wrap:wrap}.adm-row>*{flex:1 1 120px}.adm-out{font-weight:700;color:#1E9E62;min-height:1em;margin:8px 0 0}
+.adm-codes{background:#0b0c0e;color:#F2C200;border-radius:10px;padding:12px;font-size:14px;letter-spacing:.06em;white-space:pre-wrap;margin:10px 0 8px}.adm-t{max-width:none}
+.ann{position:relative;z-index:95;display:flex;gap:12px;align-items:center;justify-content:center;padding:10px 44px 10px 16px;background:linear-gradient(90deg,#0A5BD3,#4B3CD8);color:#fff;font-weight:600;font-size:14px;text-align:center}
+.ann a{color:#fff;text-decoration:underline;white-space:nowrap}.ann button{position:absolute;right:10px;top:50%;transform:translateY(-50%);border:0;background:rgba(255,255,255,.18);color:#fff;border-radius:50%;width:28px;height:28px}
+@media (max-width:760px){.adm-g{grid-template-columns:minmax(0,1fr)}}
+</style>`);
 
 render();syncCmp();
 </script>
