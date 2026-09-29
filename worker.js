@@ -57,7 +57,7 @@ export default {
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
       return stub.fetch(request);
     }
-    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
+    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(lb-earn|auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
     if (a) {
       // Accounts: writes must come from this site (blocks cross-site form tricks).
       if (request.method !== "GET") {
@@ -311,7 +311,7 @@ export class Accounts extends DurableObject {
       return json({ data: u && u.data ? JSON.parse(u.data) : null });
     }
     if (route === "data" && req.method === "PUT") {
-      if (!this.limit("sy:" + s.uid, 120, 3600e3)) return json({ error: "Syncing too often." }, 429);
+      if (!this.limit("sy:" + s.uid, 1200, 3600e3)) return json({ error: "Syncing too often." }, 429);
       if (!body.data || typeof body.data !== "object" || Array.isArray(body.data)) return json({ error: "Bad data" }, 400);
       const now = Date.now();
       this.sql.exec(`UPDATE users SET data=?, updated=? WHERE id=?`, JSON.stringify(body.data), now, s.uid);
@@ -379,6 +379,12 @@ export class Accounts extends DurableObject {
       const a = this.sql.exec(`SELECT v FROM meta WHERE k='announce'`).toArray()[0];
       const ev = this.sql.exec(`SELECT v FROM meta WHERE k='event'`).toArray()[0], e = ev ? JSON.parse(ev.v) : null;
       return json({ a: a ? JSON.parse(a.v) : null, event: e && e.until > Date.now() ? e : null });
+    }
+    if (route === "lb-earn") {
+      const top = this.sql.exec(`SELECT username, CAST(json_extract(data,'$."ti-cr".tot') AS INTEGER) AS tot, json_array_length(json_extract(data,'$."ti-cr".own')) AS cars FROM users WHERE (banned IS NULL OR banned=0) AND data IS NOT NULL AND json_valid(data) AND json_extract(data,'$."ti-cr".tot')>0 ORDER BY tot DESC LIMIT 50`).toArray();
+      let mine = null;
+      if (s) { const m = this.sql.exec(`SELECT CAST(json_extract(data,'$."ti-cr".tot') AS INTEGER) AS tot FROM users WHERE id=? AND json_valid(data)`, s.uid).toArray()[0]; if (m && m.tot > 0) mine = { tot: m.tot, rank: this.sql.exec(`SELECT COUNT(*)+1 AS r FROM users WHERE (banned IS NULL OR banned=0) AND json_valid(data) AND json_extract(data,'$."ti-cr".tot')>?`, m.tot).toArray()[0].r }; }
+      return json({ top, mine });
     }
     if (route === "auctions") {
       this.settleAuctions();

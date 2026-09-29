@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202610041000";
+const BUILD="202610041400";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -5967,7 +5967,7 @@ function passRew(L,vip){const r={cr:vip?4000+L*800:2000+L*400};
   if(!vip&&fp[L])r.paint=fp[L];if(vip&&vp[L])r.paint=vp[L];if(!vip&&L===25)r.plate="show";if(vip&&L===10)r.plate="gold";
   if(L===25&&!vip)r.cr+=100000;if(L===50)r.cr+=vip?1000000:500000;return r}
 function passRewTxt(r){return [r.cr?crFmt(r.cr):"",r.paint?`🎨 ${PAINTS_X[r.paint][1]} paint`:"",r.plate?`🔖 ${r.plate==="gold"?"Gold":"Show"} plates`:""].filter(Boolean).join(" + ")}
-function crGrant(n,why){const c=_cg41();c.bal+=n;c.tot=(c.tot||0)+n;c.log.unshift([Date.now(),n,why]);c.log.length=Math.min(c.log.length,40);crSet(c)}
+function crGrant(n,why,noTot){const c=_cg41();c.bal+=n;if(!noTot)c.tot=(c.tot||0)+n;c.log.unshift([Date.now(),n,why]);c.log.length=Math.min(c.log.length,40);crSet(c)}
 function passClaim(L,vip){const p=passGet(),lv=passLv(p),arr=vip?p.cv:p.cf;if(L>lv||arr.includes(L)||(vip&&!vipOn()))return false;const r=passRew(L,vip);arr.push(L);
   if(r.paint&&!p.unl.includes(r.paint))p.unl.push(r.paint);if(r.plate&&!p.unl.includes("plate-"+r.plate))p.unl.push("plate-"+r.plate);store.set("ti-pass",p);if(r.cr)crGrant(r.cr,`Season pass level ${L}${vip?" (VIP)":""}`);return true}
 /* XP: every credit reward also gives pass XP */
@@ -6173,10 +6173,10 @@ function crTake(id){const c=_cg41(),i=c.own.findIndex(o=>o.id===id);if(i<0)retur
 function crPut(o){const c=_cg41();if(c.own.some(x=>x.id===o.id))return false;c.own.unshift(o);crSet(c);return true}
 function crSpend(n,why){const c=_cg41();if(c.bal<n)return false;c.bal-=n;c.log.unshift([Date.now(),-n,why]);c.log.length=Math.min(c.log.length,40);crSet(c);return true}
 function crAddCar(id,meta,note){const car=BY[id];if(!car)return;const m=meta||{};const c=_cg41();
-  if(c.own.some(o=>o.id===id)){const back=m.paid||crPrice(car);crGrant(back,`${note||"Car received"} — you already own one, so you got ${crFmt(back)}`);return}
+  if(c.own.some(o=>o.id===id)){const back=m.paid||crPrice(car);crGrant(back,`${note||"Car received"} — you already own one, so you got ${crFmt(back)}`,true);return}
   c.own.unshift({id,at:Date.now(),paid:m.paid||crPrice(car),races:0,up:m.up||undefined,paint:m.paint||undefined,plate:m.plate||undefined,plst:m.plst||undefined});crSet(c)}
 grantsPoll=async function(){if(!AUTH.user||!AUTH.online)return;const r=await xapi("grants");if(!r.ok||!r.grants||!r.grants.length)return;
-  r.grants.forEach(g=>{if(g.cr)crGrant(g.cr,g.note||"Gift");if(g.car)crAddCar(g.car,g.meta,g.note);const car=g.car&&BY[g.car];
+  r.grants.forEach(g=>{if(g.cr)crGrant(g.cr,g.note||"Gift",true);if(g.car)crAddCar(g.car,g.meta,g.note);const car=g.car&&BY[g.car];
     toast(`<span class="ti2">${g.car?"🔑":"🎁"}</span><div><b>${car?esc(car.make+" "+car.model):"+"+crFmt(g.cr)}</b><span>${esc(g.note||"Gift")}${car&&g.cr?" · +"+crFmt(g.cr):""}</span></div>`,"ach")});
   if(["garage","auctions","trades"].includes(route().name))render()};
 const ownList=()=>crGet().own.filter(o=>ownVis(o)&&o.id!==VIPCAR.id);
@@ -6208,7 +6208,7 @@ document.addEventListener("submit",async e=>{const f=e.target;
   if(f.id==="auSell"){e.preventDefault();const id=$("#auCar").value,start=+$("#auStart").value,hours=+$("#auHrs").value;const car=BY[id];if(!confirm(`List your ${car.model} starting at ${crFmt(start)}? It leaves your garage until the auction ends.`))return;
     const o=crTake(id);if(!o)return;const r=await xapi("auction-list","POST",{car:id,start,hours,meta:carMeta(o)});if(!r.ok){crPut(o);toast(r.error||"Couldn't list it");return}toast(`🔨 ${esc(car.model)} is up for auction`);auDraw()}
   if(f.dataset&&f.dataset.aubid){e.preventDefault();const amt=Math.round(+f.querySelector("input").value);if(crGet().bal<amt){toast("You don't have enough credits");return}
-    if(!crSpend(amt,"Auction bid"))return;const r=await xapi("auction-bid","POST",{id:+f.dataset.aubid,amount:amt});if(!r.ok){crGrant(amt,"Bid not placed — refunded");toast(r.error||"Couldn't bid");auDraw();return}toast(`Bid placed: ${crFmt(amt)}`);auDraw()}});
+    if(!crSpend(amt,"Auction bid"))return;const r=await xapi("auction-bid","POST",{id:+f.dataset.aubid,amount:amt});if(!r.ok){crGrant(amt,"Bid not placed — refunded",true);toast(r.error||"Couldn't bid");auDraw();return}toast(`Bid placed: ${crFmt(amt)}`);auDraw()}});
 document.addEventListener("click",async e=>{const c=e.target.closest("[data-aucancel]");if(!c)return;const r=await xapi("auction-cancel","POST",{id:+c.dataset.aucancel});if(!r.ok)toast(r.error||"Couldn't cancel");await grantsPoll();auDraw()});
 
 /* ---------- trading with friends ---------- */
@@ -6226,7 +6226,7 @@ document.addEventListener("click",async e=>{const a=e.target.closest("[data-trac
   if(d.tracc){const t=AU.tr.incoming.find(x=>x.id===+d.tracc);if(!t)return;const w=t.want;let o=null;
     if(w.car&&!crGet().own.some(x=>x.id===w.car)){toast(`You don't own the ${esc(BY[w.car]?.model||w.car)} any more`);return}if(w.cr&&crGet().bal<w.cr){toast("You don't have enough credits");return}
     if(!confirm("Accept this trade?"))return;if(w.car)o=crTake(w.car);if(w.cr&&!crSpend(w.cr,"Trade with "+t.from)){if(o)crPut(o);return}
-    const r=await xapi("trade-respond","POST",{id:t.id,act:"accept",meta:o?carMeta(o):null});if(!r.ok){if(o)crPut(o);if(w.cr)crGrant(w.cr,"Trade failed — refunded");toast(r.error||"Couldn't accept");trDraw();return}
+    const r=await xapi("trade-respond","POST",{id:t.id,act:"accept",meta:o?carMeta(o):null});if(!r.ok){if(o)crPut(o);if(w.cr)crGrant(w.cr,"Trade failed — refunded",true);toast(r.error||"Couldn't accept");trDraw();return}
     toast("🤝 Trade done!");await grantsPoll();trDraw();return}
   const r=await xapi("trade-respond","POST",{id:+(d.trdec||d.trcan),act:d.trdec?"decline":"cancel"});if(!r.ok)toast(r.error||"Couldn't do that");await grantsPoll();trDraw()});
 function tradeNewPage(r){return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#trades">Trades</a> / New</div><h1>Trade with ${esc(r.id)}</h1><p>Pick what you'll give and what you want back. They'll get a notification.</p></div></div><div id="tnv"><p class="note c">Loading their garage…</p></div></div>`}
@@ -6240,7 +6240,7 @@ document.addEventListener("click",async e=>{const b=e.target.closest("#tnSend");
   if(!gc&&!gcr){$("#tnO").textContent="Offer a car or some credits.";return}if(!wc&&!wcr){$("#tnO").textContent="Ask for a car or some credits.";return}if(gcr>crGet().bal){$("#tnO").textContent="You don't have that many credits.";return}
   let o=null;if(gc)o=crTake(gc);if(gcr&&!crSpend(gcr,"Trade offer to "+b.dataset.u)){if(o)crPut(o);return}
   const r=await xapi("trade-offer","POST",{to:b.dataset.u,give:{car:gc||null,meta:o?carMeta(o):null,cr:gcr},want:{car:wc||null,cr:wcr}});
-  if(!r.ok){if(o)crPut(o);if(gcr)crGrant(gcr,"Offer not sent — refunded");$("#tnO").textContent=r.error||"Couldn't send";return}toast("Trade offer sent");location.hash="trades"});
+  if(!r.ok){if(o)crPut(o);if(gcr)crGrant(gcr,"Offer not sent — refunded",true);$("#tnO").textContent=r.error||"Couldn't send";return}toast("Trade offer sent");location.hash="trades"});
 
 /* ---------- clubs ---------- */
 const CLUBS={};
@@ -6379,6 +6379,24 @@ document.head.insertAdjacentHTML("beforeend",`<style id="v43css">
 @media (max-width:760px){.tn-2{grid-template-columns:minmax(0,1fr)}.tn-sw{text-align:center;transform:rotate(90deg)}.more-g{gap:10px;font-size:13px}}
 </style>`);
 setTimeout(()=>annLoad(),1300);setInterval(()=>{if(document.visibilityState==="visible")annLoad()},60000);
+
+/* ================= v44: profiles always show your latest garage; all-time earnings leaderboard ================= */
+/* sync: retry if the server was busy, and push straight away before showing your own profile */
+const _sn44=syncNow;syncNow=async function(){const ok=await _sn44();if(!ok&&AUTH.user){clearTimeout(syncNow.rt);syncNow.rt=setTimeout(()=>syncNow(),60000)}return ok};
+const _pd44=profDraw;profDraw=async function(u){if(AUTH.user&&AUTH.user.username.toLowerCase()===String(u).toLowerCase()){clearTimeout(AUTH.timer);await syncNow()}return _pd44(u)};
+/* keep the profile's "Cars owned" list in step with the garage (cars bought, sold, won, traded or auctioned) */
+const _crs44=crSet;crSet=function(c){_crs44(c);if(AUTH.user){clearTimeout(crSet.t);crSet.t=setTimeout(()=>syncNow(),1500)}};
+/* all-time earnings leaderboard */
+const EARNTAB=`<button type="button" role="tab" data-lbtab="earn"><b>Top earners</b><span>All-time credits earned</span></button>`;
+const _lb44=lbDraw;lbDraw=async function(){if(LB.tab!=="earn"){await _lb44();earnTab();return}const el=$("#lbv");if(!el)return;
+  const tabs=`<div class="dz-tabs lb-tabs" role="tablist">${[["laps","Lap records","Fastest laps per circuit"],["cup","Weekly Cup","Same car, same circuit"],["wins","Most wins","Games won"]].map(([k,n,d])=>`<button type="button" role="tab" aria-selected="false" data-lbtab="${k}"><b>${n}</b><span>${d}</span></button>`).join("")}</div>`;
+  el.innerHTML=tabs+`<p class="note c">Loading…</p>`;rkTab();earnTab();if(!(await netCheck())){el.innerHTML=tabs+offlineNote("The earnings leaderboard");rkTab();earnTab();return}
+  if(AUTH.user)await syncNow();const r=await xapi("lb-earn");if(route().name!=="leaderboards"||LB.tab!=="earn")return;
+  el.innerHTML=tabs+(r.ok?`<div class="rk-top"><div><h2 class="cd-h" style="margin-top:4px">Top earners</h2><p class="note">Every credit ever earned from games, races, daily challenges and the season pass — spending doesn't lower it.</p></div>
+    ${r.mine?`<div class="rk-me"><span class="rk-b">🪙</span><div><b class="num">${crFmt(r.mine.tot)}</b><small>You're #${r.mine.rank}</small></div></div>`:AUTH.user?"":""}</div>
+    ${lbTable(r.top||[],x=>`<td><a class="ulink" href="#u-${esc(x.username)}">${esc(x.username)}</a></td><td class="num">${crFmt(x.tot)}</td><td class="num">${x.cars||0}</td>`,["Player","Earned","Cars"])}${AUTH.user?"":signNote("appear on this leaderboard")}`:`<p class="note c">This leaderboard isn't available right now.</p>`);
+  rkTab();earnTab()};
+function earnTab(){const t=document.querySelector("#lbv .lb-tabs");if(!t)return;if(!t.querySelector('[data-lbtab="earn"]'))t.insertAdjacentHTML("beforeend",EARNTAB);t.querySelectorAll("[data-lbtab]").forEach(b=>b.setAttribute("aria-selected",b.dataset.lbtab===LB.tab))}
 
 render();syncCmp();
 </script>
