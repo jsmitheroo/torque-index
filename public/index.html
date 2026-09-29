@@ -3826,7 +3826,7 @@ const _set16=settingsHtml;settingsHtml=function(){const h=_set16();return AUTH.u
   ["favCount","cmpCount"].forEach(id=>{const b=document.getElementById(id);if(b)new MutationObserver(upd).observe(b,{childList:true,characterData:true,subtree:true})});upd()})();
 const _an16c=acctNav;acctNav=function(){_an16c();document.body.classList.toggle("authed",!!AUTH.user)};acctNav();
 /* update check: phones and home-screen apps keep old pages open, so tell people when a new version is live */
-const BUILD="202609291200";
+const BUILD="202609291500";
 (function(){if(!/^https?:$/.test(location.protocol)||window.claude)return;let shown=false;
   const check=async()=>{if(shown||document.visibilityState!=="visible")return;try{const r=await fetch("/version.txt",{cache:"no-store"});if(!r.ok)return;const v=(await r.text()).trim();
     if(v&&v!==BUILD&&/^\d{12}$/.test(v)){shown=true;const d=document.createElement("div");d.className="upd";d.setAttribute("role","status");d.innerHTML=`<span>A new version of Torque Index is ready.</span><button type="button">Update now</button>`;d.querySelector("button").onclick=()=>location.reload();document.body.appendChild(d)}}catch(e){}};
@@ -5588,15 +5588,16 @@ html{-webkit-tap-highlight-color:transparent}
 /* ================= v39: credits you earn from every game, a garage of cars you own, 8-driver online races with ranked seasons, car news with alerts, works offline ================= */
 /* ---------- credits (CR) ---------- */
 const CRK="ti-cr";
-function crGet(){const c=store.get(CRK,null)||{bal:5000,own:[],earn:{day,n:0},log:[],start:Date.now(),login:null,tot:5000};if(!c.earn||c.earn.day!==day)c.earn={day,n:0};c.own=(c.own||[]).filter(o=>BY[o.id]);return c}
+function crGet(){const c=store.get(CRK,null)||{v:2,bal:25000,own:[],earn:{day,n:0},log:[],start:Date.now(),login:null,tot:25000};
+  if(!c.v){c.v=2;c.bal=Math.round((c.bal||0)*10)+20000;c.tot=Math.round((c.tot||0)*10);(c.own||[]).forEach(o=>{if(o.paid)o.paid=Math.round(o.paid*10)});(c.log||[]).forEach(l=>l[1]=Math.round(l[1]*10));if(c.earn)c.earn.n=Math.round(c.earn.n*10);store.set(CRK,c)}if(!c.earn||c.earn.day!==day)c.earn={day,n:0};c.own=(c.own||[]).filter(o=>BY[o.id]);return c}
 function crSet(c){store.set(CRK,c);crNav()}
-const CRCAP=40000;
+const CRCAP=1500000,CRX=20;/* 1 CR = £1 of a car's real price; every reward below is multiplied by CRX */
 const crFmt=n=>Math.round(n).toLocaleString("en-GB")+" CR";
-function crEarn(n,why,quiet){n=Math.round(n);if(!(n>0))return 0;const c=crGet();const room=Math.max(0,CRCAP-c.earn.n);const g=Math.min(n,room);if(!g){if(!quiet&&!crEarn.capped){crEarn.capped=1;toast("Daily credit limit reached — come back tomorrow","")}return 0}
+function crEarn(n,why,quiet){n=Math.round(n*CRX);if(!(n>0))return 0;const c=crGet();const room=Math.max(0,CRCAP-c.earn.n);const g=Math.min(n,room);if(!g){if(!quiet&&!crEarn.capped){crEarn.capped=1;toast("Daily credit limit reached — come back tomorrow","")}return 0}
   c.bal+=g;c.tot=(c.tot||0)+g;c.earn.n+=g;c.log.unshift([Date.now(),g,why]);c.log.length=Math.min(c.log.length,40);crSet(c);
   if(!quiet){clearTimeout(crEarn.t);crEarn.acc=(crEarn.acc||0)+g;crEarn.why=why;crEarn.t=setTimeout(()=>{if(!DZ2.S)toast(`<span class="ti2">🪙</span><div><b>+${crFmt(crEarn.acc)}</b><span>${esc(crEarn.why)}</span></div>`,"cr");else dzMsg("+"+crFmt(crEarn.acc),1.4,"good");crEarn.acc=0},600)}
   checkAch();return g}
-function crPrice(c){let p=c.price;if(!p){const age=YNOW-(c.y0||2000);p=Math.max(4,c.bhp*.09)*(age>45?2.2:age>30?1.3:age>15?.7:1)*(c.body==="supercar"?3:1)}return Math.max(600,Math.round(p*100/50)*50)}
+function crPrice(c){let p=c.price;if(!p){const age=YNOW-(c.y0||2000);p=Math.max(4,c.bhp*.09)*(age>45?2.2:age>30?1.3:age>15?.7:1)*(c.body==="supercar"?3:1)}return Math.max(500,Math.round(p*1000/10)*10)}
 const crOwns=id=>crGet().own.some(o=>o.id===id);
 function crBuy(id){const c=crGet(),car=BY[id],p=crPrice(car);if(!car||crOwns(id))return;if(c.bal<p){toast(`You need ${crFmt(p-c.bal)} more for the ${esc(car.model)}`);return}
   c.bal-=p;c.own.unshift({id,at:Date.now(),paid:p,races:0});c.log.unshift([Date.now(),-p,"Bought "+car.make+" "+car.model]);c.log.length=Math.min(c.log.length,40);crSet(c);
@@ -5625,7 +5626,7 @@ function crLogin(){const c=crGet();if(c.login===day)return;const streak=c.login=
 
 /* ---------- showroom: buy cars with credits ---------- */
 const SR={q:"",body:"all",sort:"price",aff:false,n:48};
-function showroomPage(){const c=crGet();return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#garage">Garage</a> / Showroom</div><h1>Showroom</h1><p>Win credits in any game — races, quizzes, Top Trumps, the Daily race — then buy any of the ${CARS.length.toLocaleString()} cars for your garage. Cars you own earn 25% extra credits when you race them.</p></div></div>
+function showroomPage(){const c=crGet();return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / <a href="#garage">Garage</a> / Showroom</div><h1>Showroom</h1><p>Win credits in any game — races, quizzes, Top Trumps, the Daily race — then buy any of the ${CARS.length.toLocaleString()} cars for your garage. Prices match the real cars: 1 CR = £1 of the price new (classics use an estimated value). Buying is the only way to add a car to your garage. Cars you own earn 25% extra credits when you race them.</p></div></div>
   <div class="cr-bar"><div><small>Your credits</small><b class="num">${crFmt(c.bal)}</b></div><div><small>Cars owned</small><b class="num">${c.own.length}</b></div><div><small>Garage value</small><b class="num">${crFmt(c.own.reduce((a,o)=>a+crPrice(BY[o.id]),0))}</b></div><div><small>Earned today</small><b class="num">${crFmt(c.earn.n)}</b><span>limit ${crFmt(CRCAP)}</span></div></div>
   <div class="sr-f"><input type="search" class="sel" id="srQ" placeholder="Search make or model…" value="${esc(SR.q)}" autocomplete="off"><div class="seg seg-wrap" role="group">${[["all","All"],...Object.entries(BODY)].map(([k,n])=>`<button type="button" data-srb="${k}" aria-pressed="${SR.body===k}">${n}</button>`).join("")}</div>
    <div class="seg" role="group">${[["price","Cheapest"],["-price","Priciest"],["bhp","Most power"]].map(([k,n])=>`<button type="button" data-srs="${k}" aria-pressed="${SR.sort===k}">${n}</button>`).join("")}</div><label class="rw-l"><input type="checkbox" id="srAff" ${SR.aff?"checked":""}> Only what I can afford</label></div>
@@ -5656,7 +5657,7 @@ const _ttl39=dzTTList;dzTTList=function(){const own=crGet().own.map(o=>o.id);if(
   return `<div class="cd-own"><b>Your garage</b> <small>+25% credits</small></div>`+own.slice(0,12).map(id=>{const c=BY[id];return `<button type="button" class="cd-carbtn ${DZL.ttcar===c.id?"on":""}" data-dzttc="${c.id}">${ph(c)}<span class="cd-cb"><b>${esc(c.make)} ${esc(c.model)}</b><small>🔑 ${c.bhp} bhp · ${acc(c.acc)}</small></span></button>`}).join("")+`<div class="cd-own"><b>Any car</b></div>`+_ttl39()};
 /* achievements for collectors */
 if(typeof ACH!=="undefined"){ACH.push(["own1","Keys in hand","Buy your first car",()=>crGet().own.length>=1],["own5","Collector","Own 5 cars",()=>crGet().own.length>=5],["own15","Car park","Own 15 cars",()=>crGet().own.length>=15],
-  ["ownhyp","Hypercar owner","Own a car worth 100,000 CR or more",()=>crGet().own.some(o=>crPrice(BY[o.id])>=100000)],["cr50","Big earner","Earn 50,000 CR in total",()=>(crGet().tot||0)>=50000])}
+  ["ownhyp","Hypercar owner","Own a car worth 1,000,000 CR or more",()=>crGet().own.some(o=>crPrice(BY[o.id])>=1000000)],["cr50","Big earner","Earn 1,000,000 CR in total",()=>(crGet().tot||0)>=1000000])}
 
 /* ---------- online: up to 8 drivers per room, weather, ranked races ---------- */
 SEATS.push("e","f","g","h");Object.assign(DZCOL,{e:"#16A3A3",f:"#E86A1A",g:"#1F8F55",h:"#C2185B"});
@@ -5763,23 +5764,32 @@ addEventListener("online",offPill);addEventListener("offline",offPill);
 const _pd39=profDraw;profDraw=async function(u){await _pd39(u);const el=$("#prv");if(!el||el.querySelector(".pr-rk"))return;let r;try{r=await xapi("profile?u="+encodeURIComponent(u))}catch(e){return}if(!r||!r.ok||!$("#prv"))return;
   const st=el.querySelector(".pr-stats");if(st&&r.rk&&r.rk.n)st.insertAdjacentHTML("afterbegin",`<div class="pr-rk"><b class="num">${rkBadge(r.rk.r)} ${Math.round(r.rk.r)}</b><span>${rkTier(r.rk.r)[1]} · ranked</span></div>`);
   if(r.owned&&r.owned.length){const ids=r.owned.filter(id=>BY[id]);if(ids.length)el.insertAdjacentHTML("beforeend",`<section class="sec"><div class="sec-h"><h2>Cars owned</h2><span class="eyebrow">${ids.length} bought with credits</span></div><div class="grid">${ids.slice(0,24).map(id=>card(BY[id])).join("")}</div></section>`)}};
+/* ---------- the garage only holds cars you've bought (no more hearts) ---------- */
+function garage39(){const c=crGet();return `<div class="wrap"><div class="phead gph"><div><div class="crumbs"><a href="#home">Home</a> / My garage</div><h1>My garage</h1><p>Every car here was bought with credits you've won. Earn more in any game, then visit the showroom.</p><div class="actions"><a class="btn primary" href="#showroom">🪙 Showroom</a><a class="btn" href="#play">Earn credits</a></div></div></div>${crGarageHtml()}</div>`}
+PAGES.garage=garage39;
+function favOwnSync(){const b=$("#favCount");if(b){const n=crGet().own.length;b.textContent=n;if(n)b.removeAttribute("data-zero");else b.setAttribute("data-zero","")}}
+const _crs39=crSet;crSet=function(c){_crs39(c);favOwnSync()};
+/* profiles: the old hearted list isn't shown any more, only owned cars */
+const _pd39b=profDraw;profDraw=async function(u){await _pd39b(u);document.querySelectorAll("#prv section.sec").forEach(s=>{const h=s.querySelector("h2");if(h&&h.textContent.trim()==="Garage")s.remove()})};
 /* ---------- routing, nav and page hooks ---------- */
 const _ft39=footer;footer=function(){const h=_ft39(),i=h.lastIndexOf("</ul>");return i<0?h:h.slice(0,i)+`<li><a href="#showroom">Showroom</a></li><li><a href="#news">Car news</a></li><li><a href="#offline">Use offline</a></li>`+h.slice(i)};
 const _r39=route;route=function(){const h=location.hash;if(h==="#showroom")return{name:"showroom"};if(h==="#news")return{name:"news"};if(h==="#offline")return{name:"offline"};return _r39()};
 PAGES.showroom=showroomPage;PAGES.news=newsPage;PAGES.offline=offlinePage;GT.showroom="Showroom";GT.news="Car news";GT.offline="Use offline";
 PAL_PAGES.push(["Showroom — buy cars with credits","#showroom"],["Car news","#news"],["Use offline","#offline"]);
-const _ar39=afterRender;afterRender=function(r){_ar39(r);crNav();
+const _ar39=afterRender;afterRender=function(r){_ar39(r);crNav();setTimeout(favOwnSync,0);
   if(r.name==="news")newsDraw();if(r.name==="offline")offlineDraw();if(r.name==="home")newsHome();
   if(r.name==="make"&&MAKE_SLUG[r.id])newsMake(MAKE_SLUG[r.id]);
-  if(r.name==="garage"&&!document.querySelector(".cr-gar")){const g=document.querySelector("#view .grid");const w=g&&g.closest(".wrap");if(w)w.insertAdjacentHTML("afterbegin",`<div class="cr-gw">${crGarageHtml()}${FAV.length?`<h2 class="cd-h cr-saved">Saved cars ♥</h2>`:""}</div>`)}
+  if(r.name==="home"){const a=document.querySelector('.h3-me a[href="#garage"]');if(a){const n=crGet().own.length;a.innerHTML=`<span class="k">My garage</span><b>${n} car${n===1?"":"s"}</b><small>${n?"Cars you own":"Buy one in the showroom"}</small>`}}
   if(r.name==="car"&&BY[r.id]){const b=[...document.querySelectorAll("#view .actions")].find(a=>/Add to compare/.test(a.textContent));if(b&&!b.querySelector(".cr-cb"))b.insertAdjacentHTML("beforeend",crCarBtn(BY[r.id]))}
   if(["showroom","news","offline"].includes(r.name))document.querySelectorAll('#links a[data-r="explore"],.tabbar a[data-r="explore"]').forEach(a=>a.setAttribute("aria-current","page"));
   newsBadge()};
 (function(){const l=$("#links");if(l&&!l.querySelector('[href="#news"]')){const ex=l.querySelector('[data-r="explore"]');(ex||l.lastElementChild).insertAdjacentHTML("afterend",`<a href="#news" data-r="news">News</a>`)}
   if(typeof HUB!=="undefined"&&HUB[0]&&HUB[0][2])HUB[0][2].push(["news","Car news","Headlines + alerts for makers you follow","search"]);})();
-crNav();crLogin();offPill();setTimeout(newsAlert,4000);setInterval(()=>{if(document.visibilityState==="visible")newsAlert()},20*60e3);
+crNav();favOwnSync();crLogin();offPill();setTimeout(newsAlert,4000);setInterval(()=>{if(document.visibilityState==="visible")newsAlert()},20*60e3);
 
 document.head.insertAdjacentHTML("beforeend",`<style id="v39css">
+[data-fav],.favb{display:none!important}
+.favnav svg{display:none}.favnav::before{content:"🔑";font-size:14px;margin-right:2px}
 .crnav{display:inline-flex;align-items:center;gap:5px;border:1px solid var(--line);background:var(--surface);border-radius:8px;padding:6px 10px;font-weight:700;font-size:13px;color:var(--ink);white-space:nowrap}.crnav b{font-variant-numeric:tabular-nums}
 .toast.cr .ti2{font-size:20px}
 .cr-bar{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border:1px solid var(--line);border-radius:14px;background:var(--surface);margin:0 0 18px}
