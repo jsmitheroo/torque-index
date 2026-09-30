@@ -63,7 +63,7 @@ export default {
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
       return stub.fetch(request);
     }
-    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(ratings|ach-stats|admin-stats|admin-sale|admin-featured|admin-notify|admin-car|dm-list|dm-thread|dm-send|ghost|ghost-post|wevent|wevent-post|admin-wevent|lb-drift|drift-post|lb-earn|auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
+    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(feedback|admin-feedback|ratings|ach-stats|admin-stats|admin-sale|admin-featured|admin-notify|admin-car|dm-list|dm-thread|dm-send|ghost|ghost-post|wevent|wevent-post|admin-wevent|lb-drift|drift-post|lb-earn|auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
     if (a) {
       // Accounts: writes must come from this site (blocks cross-site form tricks).
       if (request.method !== "GET") {
@@ -245,6 +245,7 @@ export class Accounts extends DurableObject {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS clubs(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE COLLATE NOCASE, tag TEXT UNIQUE COLLATE NOCASE, col TEXT, owner TEXT, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS wevents(id INTEGER PRIMARY KEY AUTOINCREMENT, cfg TEXT, start INTEGER, ends INTEGER, settled INTEGER DEFAULT 0, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS wscores(ev INTEGER, uid TEXT, score REAL, car TEXT, created INTEGER, PRIMARY KEY(ev,uid))`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, kind TEXT, text TEXT, page TEXT, ua TEXT, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS dms(id INTEGER PRIMARY KEY AUTOINCREMENT, a TEXT, b TEXT, text TEXT, created INTEGER, seen INTEGER DEFAULT 0)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS ghosts(uid TEXT, track TEXT, t REAL, car TEXT, data TEXT, created INTEGER, PRIMARY KEY(uid,track))`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS drifts(uid TEXT, track TEXT, score INTEGER, car TEXT, created INTEGER, PRIMARY KEY(uid,track))`);
@@ -308,7 +309,7 @@ export class Accounts extends DurableObject {
 
     const q = new URL(req.url).searchParams;
     const s = await this.session(req);
-    const pub = await this.publicRoutes(route, q, s);
+    const pub = await this.publicRoutes(route, q, s, body);
     if (pub) return pub;
     if (route === "me") return json({ user: s ? this.pub(s) : null });
     if (!s) return json({ error: "Please log in." }, 401);
@@ -388,7 +389,7 @@ export class Accounts extends DurableObject {
     return { r: prev ? 1000 + (prev.r - 1000) / 2 : 1000, n: 0, w: 0 };
   }
   /* ---------- leaderboards, weekly cup, reviews (anyone can read) ---------- */
-  async publicRoutes(route, q, s) {
+  async publicRoutes(route, q, s, body = {}) {
     const TRACK_RE = /^[a-z]{2,16}$/, CAR_RE = /^[a-z0-9-]{2,90}$/;
     if (route === "lb-laps") {
       const track = String(q.get("track") || ""); if (!TRACK_RE.test(track)) return json({ error: "Bad track" }, 400);
@@ -431,6 +432,14 @@ export class Accounts extends DurableObject {
       const top = this.sql.exec(`SELECT u.username, d.score, d.car FROM drifts d JOIN users u ON u.id=d.uid WHERE d.track=? ORDER BY d.score DESC LIMIT 25`, track).toArray();
       const mine = s ? this.sql.exec(`SELECT score, car FROM drifts WHERE uid=? AND track=?`, s.uid, track).toArray()[0] || null : null;
       return json({ top, mine });
+    }
+    if (route === "feedback") {
+      if (!this.limit("fb:" + (s ? s.uid : "anon"), s ? 20 : 60, 3600e3)) return json({ error: "Thanks — that's plenty for now." }, 429);
+      const text = String(body.text || "").replace(/[<>]/g, "").trim().slice(0, 1500); if (text.length < 3) return json({ error: "Tell us a little more." }, 400);
+      const kind = ["bug", "idea", "error", "other"].includes(body.kind) ? body.kind : "other";
+      this.sql.exec(`INSERT INTO feedback(uid,kind,text,page,ua,created) VALUES(?,?,?,?,?,?)`, s ? s.uid : null, kind, text, String(body.page || "").slice(0, 80), String(body.ua || "").slice(0, 160), Date.now());
+      this.sql.exec(`DELETE FROM feedback WHERE id NOT IN (SELECT id FROM feedback ORDER BY id DESC LIMIT 500)`);
+      return json({ ok: true });
     }
     if (route === "ratings") {
       return json({ r: Object.fromEntries(this.sql.exec(`SELECT car, ROUND(AVG(rating),2) AS a, COUNT(*) AS n FROM reviews GROUP BY car`).toArray().map(x => [x.car, [x.a, x.n]])) });
@@ -713,6 +722,11 @@ export class Accounts extends DurableObject {
         if (gcar) { this.give(u.id, 0, String(body.note || "Gift from the owner"), gcar, null); this.notify(u.id, "gift", `You've been given a car: ${gcar.replace(/-/g, " ")}`, "#garage"); }
         if (vd > 0) { const until = vd >= 36500 ? 4102444800000 : Math.max(now, u.vip_until || 0) + vd * 864e5; this.sql.exec(`UPDATE users SET vip_until=?, vip_since=COALESCE(vip_since,?) WHERE id=?`, until, now, u.id); this.notify(u.id, "gift", vd >= 36500 ? "You've been given lifetime VIP" : `You've been given ${vd} days of VIP`, "#vip"); }
         return json({ ok: true, username: u.username, credits: cr, vipDays: vd, car: gcar });
+      }
+      if (route === "admin-feedback") {
+        if (body.clear) { this.sql.exec(`DELETE FROM feedback WHERE id=?`, +body.clear); }
+        const rows = this.sql.exec(`SELECT f.id, f.kind, f.text, f.page, f.ua, f.created, u.username FROM feedback f LEFT JOIN users u ON u.id=f.uid ORDER BY f.id DESC LIMIT 100`).toArray();
+        return json({ items: rows });
       }
       if (route === "admin-stats") {
         const q1 = (sql, ...a) => this.sql.exec(sql, ...a).toArray();
