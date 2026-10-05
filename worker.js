@@ -531,7 +531,7 @@ export class Accounts extends DurableObject {
       const rk = this.sql.exec(`SELECT r, n, w FROM ranks WHERE season=? AND uid=?`, this.season(), u.id).toArray()[0] || null;
       const owned = d["ti-cr"] && Array.isArray(d["ti-cr"].own) ? d["ti-cr"].own.map(o => o && o.id).filter(x => typeof x === "string").slice(0, 60) : [];
       const vip = this.sql.exec(`SELECT vip_until, vip_since FROM users WHERE id=?`, u.id).toArray()[0] || {};
-      const pf = d["ti-prof"] && typeof d["ti-prof"] === "object" ? { banner: String(d["ti-prof"].banner || "").slice(0, 20), title: String(d["ti-prof"].title || "").slice(0, 40), badges: Array.isArray(d["ti-prof"].badges) ? d["ti-prof"].badges.slice(0, 3).map(x => String(x).slice(0, 30)) : [] } : null;
+      const pf = d["ti-prof"] && typeof d["ti-prof"] === "object" ? { banner: String(d["ti-prof"].banner || "").slice(0, 20), title: String(d["ti-prof"].title || "").slice(0, 40), badges: Array.isArray(d["ti-prof"].badges) ? d["ti-prof"].badges.slice(0, 3).map(x => String(x).slice(0, 30)) : [], frame: String(d["ti-prof"].frame || "").slice(0, 20), bg: String(d["ti-prof"].bg || "").slice(0, 20), favs: Array.isArray(d["ti-prof"].favs) ? d["ti-prof"].favs.slice(0, 3).map(x => String(x).slice(0, 90)) : [] } : null;
       return json({ prof: pf, vip: vip.vip_until > Date.now() ? vip.vip_until : null, vipSince: vip.vip_since || null, rk, owned: pubGarage ? owned : null, username: u.username, created: u.created, avatar: av, garage: pubGarage && Array.isArray(d["ti-fav"]) ? d["ti-fav"].slice(0, 24) : null, laps, wins, reviews, ach, friends, me: s ? s.uid === u.id : false, rel });
     }
     if (route === "reviews") {
@@ -795,7 +795,7 @@ export class Accounts extends DurableObject {
           const base = String(c.base || ""); if (!/^[a-z0-9-]{2,90}$/.test(base)) return json({ error: "Pick a real car to start from." }, 400);
           const name = String(c.name || "").replace(/[<>]/g, "").trim().slice(0, 40); if (name.length < 2) return json({ error: "Give it a name." }, 400);
           const id = /^custom-[a-z0-9-]{2,60}$/.test(c.id || "") ? c.id : "custom-" + (name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "car") + "-" + rand(2);
-          all[id] = { id, base, name, bhp: num(c.bhp, 10, 20000, 300), acc: num(c.acc, .8, 30, 5), top: num(c.top, 30, 500, 150), grip: num(c.grip, .5, 3, 1), df: num(c.df, 0, 2, 0), brake: num(c.brake, .5, 3, 1), price: num(c.price, 0, 100000, 0), hidden: !!c.hidden, sale: !!c.sale, note: String(c.note || "").replace(/[<>]/g, "").slice(0, 200), created: Date.now() }; }
+          all[id] = { id, base, name, bhp: num(c.bhp, 1, 1e9, 300), acc: num(c.acc, .05, 60, 5), top: num(c.top, 5, 100000, 150), grip: num(c.grip, .1, 1000, 1), df: num(c.df, 0, 1000, 0), brake: num(c.brake, .1, 1000, 1), price: num(c.price, 0, 100000, 0), hidden: !!c.hidden, sale: !!c.sale, note: String(c.note || "").replace(/[<>]/g, "").slice(0, 200), created: Date.now() }; }
         this.sql.exec(`INSERT OR REPLACE INTO meta(k,v) VALUES('customcars',?)`, JSON.stringify(all));
         return json({ ok: true, cars: Object.values(all) });
       }
