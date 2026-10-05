@@ -63,7 +63,7 @@ export default {
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
       return stub.fetch(request);
     }
-    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(pw-change|pw-forgot|pw-reset|admin-pwreset|feedback|admin-feedback|ratings|ach-stats|admin-stats|admin-sale|admin-featured|admin-notify|admin-car|dm-list|dm-thread|dm-send|ghost|ghost-post|wevent|wevent-post|admin-wevent|lb-drift|drift-post|lb-earn|auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
+    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(admin-custom|pw-change|pw-forgot|pw-reset|admin-pwreset|feedback|admin-feedback|ratings|ach-stats|admin-stats|admin-sale|admin-featured|admin-notify|admin-car|dm-list|dm-thread|dm-send|ghost|ghost-post|wevent|wevent-post|admin-wevent|lb-drift|drift-post|lb-earn|auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
     if (a) {
       // Accounts: writes must come from this site (blocks cross-site form tricks).
       if (request.method !== "GET") {
@@ -407,7 +407,7 @@ export class Accounts extends DurableObject {
       const ev = this.sql.exec(`SELECT v FROM meta WHERE k='event'`).toArray()[0], e = ev ? JSON.parse(ev.v) : null;
       const gm = k => { const r = this.sql.exec(`SELECT v FROM meta WHERE k=?`, k).toArray()[0]; return r ? JSON.parse(r.v) : null; };
       const sale = gm("sale");
-      return json({ a: a ? JSON.parse(a.v) : null, event: e && e.until > Date.now() ? e : null, sale: sale && sale.until > Date.now() ? sale : null, featured: gm("featured") || [], cars: gm("caredits") || {} });
+      return json({ a: a ? JSON.parse(a.v) : null, event: e && e.until > Date.now() ? e : null, sale: sale && sale.until > Date.now() ? sale : null, featured: gm("featured") || [], cars: gm("caredits") || {}, customs: Object.values(gm("customcars") || {}).filter(c => !c.hidden || (s && s.role === "owner")) });
     }
     if (route === "lb-earn") {
       const top = this.sql.exec(`SELECT username, CAST(json_extract(data,'$."ti-cr".tot') AS INTEGER) AS tot, json_array_length(json_extract(data,'$."ti-cr".own')) AS cars FROM users WHERE (banned IS NULL OR banned=0) AND data IS NOT NULL AND json_valid(data) AND json_extract(data,'$."ti-cr".tot')>0 ORDER BY tot DESC LIMIT 50`).toArray();
@@ -787,6 +787,17 @@ export class Accounts extends DurableObject {
         if (!text) return json({ error: "Type a message." }, 400);
         const ids = this.sql.exec(`SELECT id FROM users WHERE banned IS NULL OR banned=0 LIMIT 20000`).toArray();
         ids.forEach(u => this.notify(u.id, "owner", text, link)); return json({ ok: true, sent: ids.length });
+      }
+      if (route === "admin-custom") {
+        const all = JSON.parse((this.sql.exec(`SELECT v FROM meta WHERE k='customcars'`).toArray()[0] || { v: "{}" }).v);
+        if (body.del) { delete all[String(body.del)]; }
+        else { const c = body.car || {}, num = (v, a, b, d) => { const n = +v; return isFinite(n) ? Math.max(a, Math.min(b, n)) : d; };
+          const base = String(c.base || ""); if (!/^[a-z0-9-]{2,90}$/.test(base)) return json({ error: "Pick a real car to start from." }, 400);
+          const name = String(c.name || "").replace(/[<>]/g, "").trim().slice(0, 40); if (name.length < 2) return json({ error: "Give it a name." }, 400);
+          const id = /^custom-[a-z0-9-]{2,60}$/.test(c.id || "") ? c.id : "custom-" + (name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "").slice(0, 40) || "car") + "-" + rand(2);
+          all[id] = { id, base, name, bhp: num(c.bhp, 10, 20000, 300), acc: num(c.acc, .8, 30, 5), top: num(c.top, 30, 500, 150), grip: num(c.grip, .5, 3, 1), df: num(c.df, 0, 2, 0), brake: num(c.brake, .5, 3, 1), price: num(c.price, 0, 100000, 0), hidden: !!c.hidden, sale: !!c.sale, note: String(c.note || "").replace(/[<>]/g, "").slice(0, 200), created: Date.now() }; }
+        this.sql.exec(`INSERT OR REPLACE INTO meta(k,v) VALUES('customcars',?)`, JSON.stringify(all));
+        return json({ ok: true, cars: Object.values(all) });
       }
       if (route === "admin-car") {
         const id = String(body.id || ""); if (!/^[a-z0-9-]{2,90}$/.test(id)) return json({ error: "Bad car" }, 400);
