@@ -63,7 +63,7 @@ export default {
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
       return stub.fetch(request);
     }
-    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(feedback|admin-feedback|ratings|ach-stats|admin-stats|admin-sale|admin-featured|admin-notify|admin-car|dm-list|dm-thread|dm-send|ghost|ghost-post|wevent|wevent-post|admin-wevent|lb-drift|drift-post|lb-earn|auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
+    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(pw-change|pw-forgot|pw-reset|admin-pwreset|feedback|admin-feedback|ratings|ach-stats|admin-stats|admin-sale|admin-featured|admin-notify|admin-car|dm-list|dm-thread|dm-send|ghost|ghost-post|wevent|wevent-post|admin-wevent|lb-drift|drift-post|lb-earn|auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
     if (a) {
       // Accounts: writes must come from this site (blocks cross-site form tricks).
       if (request.method !== "GET") {
@@ -72,7 +72,7 @@ export default {
         if (!same) return json({ error: "Forbidden" }, 403, url.host);
       }
       const stub = env.ACCOUNTS.get(env.ACCOUNTS.idFromName("accounts"));
-      const fwd = new Request("https://accounts/" + (a[1] || a[2]) + url.search, { method: request.method, headers: { "content-type": "application/json", "cookie": request.headers.get("Cookie") || "", "x-ip": request.headers.get("CF-Connecting-IP") || "local", "x-secure": url.protocol === "https:" ? "1" : "0" }, body: request.method === "GET" ? null : await request.text() });
+      const fwd = new Request("https://accounts/" + (a[1] || a[2]) + url.search, { method: request.method, headers: { "content-type": "application/json", "cookie": request.headers.get("Cookie") || "", "x-ip": request.headers.get("CF-Connecting-IP") || "local", "x-secure": url.protocol === "https:" ? "1" : "0", "x-origin": url.origin }, body: request.method === "GET" ? null : await request.text() });
       return withHeaders(await stub.fetch(fwd), url.host);
     }
     if (url.pathname.startsWith("/api/")) return new Response("Not found", { status: 404 });
@@ -245,6 +245,7 @@ export class Accounts extends DurableObject {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS clubs(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE COLLATE NOCASE, tag TEXT UNIQUE COLLATE NOCASE, col TEXT, owner TEXT, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS wevents(id INTEGER PRIMARY KEY AUTOINCREMENT, cfg TEXT, start INTEGER, ends INTEGER, settled INTEGER DEFAULT 0, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS wscores(ev INTEGER, uid TEXT, score REAL, car TEXT, created INTEGER, PRIMARY KEY(ev,uid))`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS resets(h TEXT PRIMARY KEY, uid TEXT, expires INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, kind TEXT, text TEXT, page TEXT, ua TEXT, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS dms(id INTEGER PRIMARY KEY AUTOINCREMENT, a TEXT, b TEXT, text TEXT, created INTEGER, seen INTEGER DEFAULT 0)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS ghosts(uid TEXT, track TEXT, t REAL, car TEXT, data TEXT, created INTEGER, PRIMARY KEY(uid,track))`);
@@ -280,6 +281,7 @@ export class Accounts extends DurableObject {
   async fetch(req) {
     const route = new URL(req.url).pathname.slice(1);
     const ip = req.headers.get("x-ip") || "?";
+    this.origin = req.headers.get("x-origin") || "";
     const secure = req.headers.get("x-secure") === "1";
     let body = {};
     if (req.method !== "GET") { const t = await req.text(); if (t.length > 300000) return json({ error: "Too much data" }, 413); try { body = JSON.parse(t || "{}"); } catch (e) { return json({ error: "Bad request" }, 400); } }
@@ -433,6 +435,26 @@ export class Accounts extends DurableObject {
       const mine = s ? this.sql.exec(`SELECT score, car FROM drifts WHERE uid=? AND track=?`, s.uid, track).toArray()[0] || null : null;
       return json({ top, mine });
     }
+    if (route === "pw-forgot") {
+      const key = this.env && this.env.RESEND_KEY, from = (this.env && this.env.MAIL_FROM) || "Torque Index <onboarding@resend.dev>";
+      if (!key) return json({ ok: false, error: "Email reset isn't switched on yet — ask the owner to reset your password." }, 503);
+      if (!this.limit("pf:" + String(body.login || "").toLowerCase(), 3, 3600e3)) return json({ ok: true });
+      const login = String(body.login || "").trim().toLowerCase(), u = this.sql.exec(`SELECT id, email, username FROM users WHERE lower(email)=? OR lower(username)=?`, login, login).toArray()[0];
+      if (u && u.email && /^https?:\/\//.test(this.origin)) {
+        const token = rand(24); this.sql.exec(`INSERT INTO resets(h,uid,expires) VALUES(?,?,?)`, await sha256(token), u.id, Date.now() + 3600e3);
+        const link = this.origin + "/#reset-" + token;
+        try { await fetch("https://api.resend.com/emails", { method: "POST", headers: { "authorization": "Bearer " + key, "content-type": "application/json" }, body: JSON.stringify({ from, to: [u.email], subject: "Reset your Torque Index password", html: `<p>Hi ${u.username},</p><p>Someone asked to reset your Torque Index password. If it was you, open this link within an hour:</p><p><a href="${link}">${link}</a></p><p>If it wasn't you, ignore this email — your password won't change.</p>` }) }); } catch (e) {}
+      }
+      return json({ ok: true });
+    }
+    if (route === "pw-reset") {
+      const pw = String(body.password || ""); if (pw.length < 8) return json({ error: "Passwords need at least 8 characters." }, 400);
+      const h = await sha256(String(body.token || "")), r = this.sql.exec(`SELECT uid, expires FROM resets WHERE h=?`, h).toArray()[0];
+      if (!r || r.expires < Date.now()) return json({ error: "That reset link has expired. Ask for a new one." }, 400);
+      const salt = rand(16); this.sql.exec(`UPDATE users SET salt=?, hash=? WHERE id=?`, salt, await hashPw(pw, salt), r.uid);
+      this.sql.exec(`DELETE FROM resets WHERE uid=?`, r.uid); this.sql.exec(`DELETE FROM sessions WHERE uid=?`, r.uid);
+      return json({ ok: true });
+    }
     if (route === "feedback") {
       if (!this.limit("fb:" + (s ? s.uid : "anon"), s ? 20 : 60, 3600e3)) return json({ error: "Thanks — that's plenty for now." }, 429);
       const text = String(body.text || "").replace(/[<>]/g, "").trim().slice(0, 1500); if (text.length < 3) return json({ error: "Tell us a little more." }, 400);
@@ -542,6 +564,14 @@ export class Accounts extends DurableObject {
       if (!this.limit("lw:" + s.uid, 60, 3600e3)) return json({ error: "Slow down" }, 429);
       const game = String(body.game || ""); if (!/^(bb|cd|champ)$/.test(game)) return json({ error: "Bad game" }, 400);
       this.sql.exec(`INSERT INTO wins(uid,game,n) VALUES(?,?,1) ON CONFLICT(uid,game) DO UPDATE SET n=n+1`, s.uid, game);
+      return json({ ok: true });
+    }
+    if (route === "pw-change") {
+      if (!this.limit("pc:" + s.uid, 10, 3600e3)) return json({ error: "Too many tries — wait a bit." }, 429);
+      const u = this.sql.exec(`SELECT salt, hash FROM users WHERE id=?`, s.uid).toArray()[0], np = String(body.password || "");
+      if (!u || !same(await hashPw(String(body.old || ""), u.salt), u.hash)) return json({ error: "Your current password isn't right." }, 400);
+      if (np.length < 8) return json({ error: "New passwords need at least 8 characters." }, 400);
+      const salt = rand(16); this.sql.exec(`UPDATE users SET salt=?, hash=? WHERE id=?`, salt, await hashPw(np, salt), s.uid);
       return json({ ok: true });
     }
     /* ---------- direct messages between friends ---------- */
@@ -722,6 +752,11 @@ export class Accounts extends DurableObject {
         if (gcar) { this.give(u.id, 0, String(body.note || "Gift from the owner"), gcar, null); this.notify(u.id, "gift", `You've been given a car: ${gcar.replace(/-/g, " ")}`, "#garage"); }
         if (vd > 0) { const until = vd >= 36500 ? 4102444800000 : Math.max(now, u.vip_until || 0) + vd * 864e5; this.sql.exec(`UPDATE users SET vip_until=?, vip_since=COALESCE(vip_since,?) WHERE id=?`, until, now, u.id); this.notify(u.id, "gift", vd >= 36500 ? "You've been given lifetime VIP" : `You've been given ${vd} days of VIP`, "#vip"); }
         return json({ ok: true, username: u.username, credits: cr, vipDays: vd, car: gcar });
+      }
+      if (route === "admin-pwreset") {
+        const u = who(body.username); if (!u) return json({ error: "No player with that username." }, 404);
+        const temp = rand(5).toUpperCase(), salt = rand(16); this.sql.exec(`UPDATE users SET salt=?, hash=? WHERE id=?`, salt, await hashPw(temp, salt), u.id); this.sql.exec(`DELETE FROM sessions WHERE uid=?`, u.id);
+        return json({ ok: true, username: u.username, temp });
       }
       if (route === "admin-feedback") {
         if (body.clear) { this.sql.exec(`DELETE FROM feedback WHERE id=?`, +body.clear); }
