@@ -6,6 +6,46 @@ import { DurableObject } from "cloudflare:workers";
 const VIP_CODES = {"09514e1039d17bc86a7fb45276c68023e37138829d3a4c519dc851b8a0467eff": 30,"86dbdf13052f3a6c236b05d08addf3a111d272179e21851e1c250e89ea4a7c27": 30,"5b750e91f327a68ca309e3eee7882665c40d237ec74a992ddbf47dd21e38d6e8": 30,"914098f4a188c897c802e9321a69a493ac4187b643203758731f41a8bba3ca97": 30,"c43df271250bea1f54ec1c13f8977fd7062344bcfcf6aeb8a31a7cd9622a2d30": 30,"c60f653564b9f119721868b64013b5d2fe5a793c5ce168c4962152d4eaaeb871": 30,"8953f37124a498c7ee9535b6844e78ec9df511735043e3fa1e10f9ff187518e0": 30,"fd0a45205253f1a965cee9e7c8325e1c84a6a280ecd730a48068af6d2d34bc44": 30,"ab495a062bd8317c7b5e3c9cab10ddb85dd4ef70e58cf15a9c290dd77aaba0f8": 30,"49c9d0cb494e54362965bd04dd498dd03ccd1fcc9c27646382e2af5c519b2360": 30,"b089a0c3c3c1344cf43c6666ab30b2b8c0bec2698bf3984504e00a6c11715d35": 30,"b07923350072530727ff19b1a8727b1c3741a0da9fb7a1a57ad7854d1831b437": 30,"ee91bb3a2f53bdc92a88e064c7f5b22fc58043200d2cce90aae60345068a15bb": 30,"4c1221cfcfe4fe6205d156d2650c2ea68421be2b2bdae82f9b004b25c19483f3": 30,"4f64b0678ecc93be0ae60d712816096e59c788fbd6c6cf995b0b7f1a9fca428d": 30,"c5e6bf4075c6404ea0d7d70bd97b25a77966fc7c451a67d0cb1865fbff8eabe2": 30,"0589de2ee31a7635d782a9ad08e72010a183463603a6c7aec6b6d135ee4ac4ba": 30,"81d4136ee6401861613aeddd4167105ecea7ed4b103f02653ed4f9a6328982e0": 30,"afb17af043e16d4ade6794288c3979011715220ec81369988a465a4aee46686d": 30,"6011bb892438728a882d9e2eebe910c0c202d2962788f1199df9d53f7571f17f": 30,"d1b1df4815090137bd8d28013fbfd5b658d19643c8fe337d89f34aaf3d159a9a": 365,"aebda853e341cb8ad561489001263d19074f20b0c1e9ecc9247936b5761c27ca": 365,"0844b9fe9dcb19df93007996510983b03b2961f89c95a4d2eccc9899a5a1d1c2": 365,"951fd4067f161ca435acbbd029d38df8a74468a01ccceae6bf69e41588d0639f": 365,"79a44a29ff5236557c102c30902a2b6d16ae9a3a0eed644edfbae4b65c2afd65": 365,"f1dd36cbced4c3292e7d28ee00e3bf1bd939535a57e40c5c5ac3196bd417cc40": 36500,"d4d29bfea28c8234db0383eb714cb18440e97a66a1ca0e7f6de22b9c4a8c25de": 36500,"d70c7fd3db21c4ec923026026e85541d847d70f0a0074fec08c56a67bf6f8d46": 36500};
 /* the one-time owner code (only its SHA-256 is stored) */
 const OWNER_CODE = "a8c4e39b7657f7eb85960fb7fd3d66c189269f86708ca2c858f58f94b09eef74";
+/* ---------- Web Push (RFC 8291 aes128gcm + VAPID ES256), no libraries ---------- */
+const b64u = {
+  enc: (buf) => btoa(String.fromCharCode(...new Uint8Array(buf))).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, ""),
+  dec: (s) => { s = s.replace(/-/g, "+").replace(/_/g, "/"); while (s.length % 4) s += "="; return Uint8Array.from(atob(s), (c) => c.charCodeAt(0)); },
+};
+const cat = (...a) => { const n = a.reduce((x, y) => x + y.length, 0), o = new Uint8Array(n); let i = 0; for (const x of a) { o.set(x, i); i += x.length; } return o; };
+async function hkdf(salt, ikm, info, len) {
+  const k = await crypto.subtle.importKey("raw", ikm, "HKDF", false, ["deriveBits"]);
+  return new Uint8Array(await crypto.subtle.deriveBits({ name: "HKDF", hash: "SHA-256", salt, info }, k, len * 8));
+}
+async function wpEncrypt(payload, p256dh, auth, opts = {}) {
+  const ua = b64u.dec(p256dh), authSecret = b64u.dec(auth);
+  const as = opts.asKey || await crypto.subtle.generateKey({ name: "ECDH", namedCurve: "P-256" }, true, ["deriveBits"]);
+  const asPub = new Uint8Array(await crypto.subtle.exportKey("raw", as.publicKey));
+  const uaKey = await crypto.subtle.importKey("raw", ua, { name: "ECDH", namedCurve: "P-256" }, false, []);
+  const shared = new Uint8Array(await crypto.subtle.deriveBits({ name: "ECDH", public: uaKey }, as.privateKey, 256));
+  const te = new TextEncoder();
+  const ikm = await hkdf(authSecret, shared, cat(te.encode("WebPush: info\0"), ua, asPub), 32);
+  const salt = opts.salt || crypto.getRandomValues(new Uint8Array(16));
+  const cek = await hkdf(salt, ikm, te.encode("Content-Encoding: aes128gcm\0"), 16);
+  const nonce = await hkdf(salt, ikm, te.encode("Content-Encoding: nonce\0"), 12);
+  const key = await crypto.subtle.importKey("raw", cek, "AES-GCM", false, ["encrypt"]);
+  const body = new Uint8Array(await crypto.subtle.encrypt({ name: "AES-GCM", iv: nonce }, key, cat(typeof payload === "string" ? te.encode(payload) : payload, new Uint8Array([2]))));
+  const rs = new Uint8Array([0, 0, 16, 0]);
+  return cat(salt, rs, new Uint8Array([asPub.length]), asPub, body);
+}
+async function vapidAuth(endpoint, pubB64, privJwk, subject) {
+  const aud = new URL(endpoint).origin, te = new TextEncoder();
+  const h = b64u.enc(te.encode(JSON.stringify({ typ: "JWT", alg: "ES256" }))), p = b64u.enc(te.encode(JSON.stringify({ aud, exp: Math.floor(Date.now() / 1000) + 12 * 3600, sub: subject })));
+  const key = await crypto.subtle.importKey("jwk", privJwk, { name: "ECDSA", namedCurve: "P-256" }, false, ["sign"]);
+  const sig = await crypto.subtle.sign({ name: "ECDSA", hash: "SHA-256" }, key, te.encode(h + "." + p));
+  return `vapid t=${h}.${p}.${b64u.enc(sig)}, k=${pubB64}`;
+}
+async function webPush(sub, data, env) {
+  if (!env || !env.VAPID_PRIVATE || !env.VAPID_PUBLIC) return 0;
+  const body = await wpEncrypt(JSON.stringify(data), sub.p256dh, sub.auth);
+  const r = await fetch(sub.endpoint, { method: "POST", headers: { "TTL": "86400", "Content-Encoding": "aes128gcm", "Content-Type": "application/octet-stream", "Authorization": await vapidAuth(sub.endpoint, env.VAPID_PUBLIC, JSON.parse(env.VAPID_PRIVATE), env.VAPID_SUBJECT || "mailto:owner@torque-index.app") }, body });
+  return r.status;
+}
+
 const CODE_RE = /^[A-HJ-NP-Z2-9]{5}$/;
 const EMOTES = ["👏", "🔥", "😂", "😮", "GG"];
 
@@ -63,7 +103,7 @@ export default {
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
       return stub.fetch(request);
     }
-    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(admin-custom|pw-change|pw-forgot|pw-reset|admin-pwreset|feedback|admin-feedback|ratings|ach-stats|admin-stats|admin-sale|admin-featured|admin-notify|admin-car|dm-list|dm-thread|dm-send|ghost|ghost-post|wevent|wevent-post|admin-wevent|lb-drift|drift-post|lb-earn|auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
+    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(push-key|push-sub|push-unsub|admin-export|admin-ach|admin-custom|pw-change|pw-forgot|pw-reset|admin-pwreset|feedback|admin-feedback|ratings|ach-stats|admin-stats|admin-sale|admin-featured|admin-notify|admin-car|dm-list|dm-thread|dm-send|ghost|ghost-post|wevent|wevent-post|admin-wevent|lb-drift|drift-post|lb-earn|auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
     if (a) {
       // Accounts: writes must come from this site (blocks cross-site form tricks).
       if (request.method !== "GET") {
@@ -245,6 +285,7 @@ export class Accounts extends DurableObject {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS clubs(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE COLLATE NOCASE, tag TEXT UNIQUE COLLATE NOCASE, col TEXT, owner TEXT, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS wevents(id INTEGER PRIMARY KEY AUTOINCREMENT, cfg TEXT, start INTEGER, ends INTEGER, settled INTEGER DEFAULT 0, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS wscores(ev INTEGER, uid TEXT, score REAL, car TEXT, created INTEGER, PRIMARY KEY(ev,uid))`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS pushsubs(endpoint TEXT PRIMARY KEY, uid TEXT, p256dh TEXT, auth TEXT, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS resets(h TEXT PRIMARY KEY, uid TEXT, expires INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, kind TEXT, text TEXT, page TEXT, ua TEXT, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS dms(id INTEGER PRIMARY KEY AUTOINCREMENT, a TEXT, b TEXT, text TEXT, created INTEGER, seen INTEGER DEFAULT 0)`);
@@ -347,8 +388,16 @@ export class Accounts extends DurableObject {
     return json({ error: "Not found" }, 404);
   }
 
-  notify(uid, kind, text, link) { this.sql.exec(`INSERT INTO notifs(uid,kind,text,link,created) VALUES(?,?,?,?,?)`, uid, kind, String(text).slice(0, 200), link || "", Date.now()); this.sql.exec(`DELETE FROM notifs WHERE uid=? AND id NOT IN (SELECT id FROM notifs WHERE uid=? ORDER BY id DESC LIMIT 50)`, uid, uid); }
+  notify(uid, kind, text, link) { try { this.ctx.waitUntil(this.pushTo(uid, { title: "Torque Index", body: String(text).slice(0, 140), link: link || "#home" }).catch(() => {})); } catch (e) {} this.sql.exec(`INSERT INTO notifs(uid,kind,text,link,created) VALUES(?,?,?,?,?)`, uid, kind, String(text).slice(0, 200), link || "", Date.now()); this.sql.exec(`DELETE FROM notifs WHERE uid=? AND id NOT IN (SELECT id FROM notifs WHERE uid=? ORDER BY id DESC LIMIT 50)`, uid, uid); }
 
+  /* phone/desktop push: the server makes its own VAPID keys the first time and keeps them private */
+  async vapid() { const r = this.sql.exec(`SELECT v FROM meta WHERE k='vapid'`).toArray()[0]; if (r) return JSON.parse(r.v);
+    const kp = await crypto.subtle.generateKey({ name: "ECDSA", namedCurve: "P-256" }, true, ["sign", "verify"]);
+    const v = { VAPID_PUBLIC: b64u.enc(await crypto.subtle.exportKey("raw", kp.publicKey)), VAPID_PRIVATE: JSON.stringify(await crypto.subtle.exportKey("jwk", kp.privateKey)) };
+    this.sql.exec(`INSERT OR REPLACE INTO meta(k,v) VALUES('vapid',?)`, JSON.stringify(v)); return v; }
+  async pushTo(uid, data) { try { return await this.pushTo2(uid, data); } catch (e) {} }
+  async pushTo2(uid, data) { const subs = this.sql.exec(`SELECT * FROM pushsubs WHERE uid=?`, uid).toArray(); if (!subs.length) return; const env = Object.assign({}, await this.vapid(), { VAPID_SUBJECT: (this.env && this.env.VAPID_SUBJECT) || undefined });
+    for (const sub of subs) { try { const st = await webPush(sub, data, env); if (st === 404 || st === 410) this.sql.exec(`DELETE FROM pushsubs WHERE endpoint=?`, sub.endpoint); } catch (e) {} } }
   /* hand things to a player: they collect them next time the site checks (credits and/or a car) */
   give(uid, cr, note, car, meta) { this.sql.exec(`INSERT INTO grants(uid,cr,note,created,car,meta) VALUES(?,?,?,?,?,?)`, uid, Math.max(0, Math.round(cr || 0)), String(note || "").slice(0, 80), Date.now(), car || null, meta ? JSON.stringify(meta).slice(0, 2000) : null); }
   clubPts(uid, n) { const u = this.sql.exec(`SELECT club FROM users WHERE id=?`, uid).toArray()[0]; if (!u || !u.club) return; this.sql.exec(`INSERT INTO clubpts(season,club,pts) VALUES(?,?,?) ON CONFLICT(season,club) DO UPDATE SET pts=pts+?`, this.season(), u.club, n, n); }
@@ -407,7 +456,7 @@ export class Accounts extends DurableObject {
       const ev = this.sql.exec(`SELECT v FROM meta WHERE k='event'`).toArray()[0], e = ev ? JSON.parse(ev.v) : null;
       const gm = k => { const r = this.sql.exec(`SELECT v FROM meta WHERE k=?`, k).toArray()[0]; return r ? JSON.parse(r.v) : null; };
       const sale = gm("sale");
-      return json({ a: a ? JSON.parse(a.v) : null, event: e && e.until > Date.now() ? e : null, sale: sale && sale.until > Date.now() ? sale : null, featured: gm("featured") || [], cars: gm("caredits") || {}, customs: Object.values(gm("customcars") || {}).filter(c => !c.hidden || (s && s.role === "owner")) });
+      return json({ a: a ? JSON.parse(a.v) : null, event: e && e.until > Date.now() ? e : null, sale: sale && sale.until > Date.now() && (!sale.start || sale.start <= Date.now()) ? sale : null, saleNext: s && s.role === "owner" && sale && sale.start > Date.now() ? sale : null, ach: gm("customach") || [], featured: gm("featured") || [], cars: gm("caredits") || {}, customs: Object.values(gm("customcars") || {}).filter(c => !c.hidden || (s && s.role === "owner")) });
     }
     if (route === "lb-earn") {
       const top = this.sql.exec(`SELECT username, CAST(json_extract(data,'$."ti-cr".tot') AS INTEGER) AS tot, json_array_length(json_extract(data,'$."ti-cr".own')) AS cars FROM users WHERE (banned IS NULL OR banned=0) AND data IS NOT NULL AND json_valid(data) AND json_extract(data,'$."ti-cr".tot')>0 ORDER BY tot DESC LIMIT 50`).toArray();
@@ -435,6 +484,7 @@ export class Accounts extends DurableObject {
       const mine = s ? this.sql.exec(`SELECT score, car FROM drifts WHERE uid=? AND track=?`, s.uid, track).toArray()[0] || null : null;
       return json({ top, mine });
     }
+    if (route === "push-key") return json({ key: (await this.vapid()).VAPID_PUBLIC });
     if (route === "pw-forgot") {
       const key = this.env && this.env.RESEND_KEY, from = (this.env && this.env.MAIL_FROM) || "Torque Index <onboarding@resend.dev>";
       if (!key) return json({ ok: false, error: "Email reset isn't switched on yet — ask the owner to reset your password." }, 503);
@@ -566,6 +616,13 @@ export class Accounts extends DurableObject {
       this.sql.exec(`INSERT INTO wins(uid,game,n) VALUES(?,?,1) ON CONFLICT(uid,game) DO UPDATE SET n=n+1`, s.uid, game);
       return json({ ok: true });
     }
+    if (route === "push-sub") {
+      const ep = String(body.endpoint || ""); if (!/^https:\/\//.test(ep) || ep.length > 800 || !body.p256dh || !body.auth) return json({ error: "Bad subscription" }, 400);
+      this.sql.exec(`INSERT OR REPLACE INTO pushsubs(endpoint,uid,p256dh,auth,created) VALUES(?,?,?,?,?)`, ep, s.uid, String(body.p256dh).slice(0, 200), String(body.auth).slice(0, 100), now);
+      if (body.test) this.ctx.waitUntil(this.pushTo(s.uid, { title: "Torque Index", body: "Notifications are on 🎉 You'll hear about trades, auctions, messages and events.", link: "#home" }));
+      return json({ ok: true });
+    }
+    if (route === "push-unsub") { this.sql.exec(`DELETE FROM pushsubs WHERE endpoint=? AND uid=?`, String(body.endpoint || ""), s.uid); return json({ ok: true }); }
     if (route === "pw-change") {
       if (!this.limit("pc:" + s.uid, 10, 3600e3)) return json({ error: "Too many tries — wait a bit." }, 429);
       const u = this.sql.exec(`SELECT salt, hash FROM users WHERE id=?`, s.uid).toArray()[0], np = String(body.password || "");
@@ -775,7 +832,8 @@ export class Accounts extends DurableObject {
       if (route === "admin-sale") {
         if (!(+body.pct > 0)) { this.sql.exec(`DELETE FROM meta WHERE k='sale'`); return json({ ok: true, sale: null }); }
         const pct = Math.max(5, Math.min(90, Math.round(+body.pct))), hours = Math.max(1, Math.min(336, +body.hours || 24)), rt = ["all", "make", "body"].includes(body.rtype) ? body.rtype : "all";
-        const sale = { pct, until: now + hours * 3600e3, rtype: rt, rval: String(body.rval || "").slice(0, 40), text: String(body.text || "").replace(/[<>]/g, "").slice(0, 80) };
+        const st0 = +body.start > now ? Math.min(+body.start, now + 60 * 864e5) : now;
+        const sale = { pct, start: st0, until: st0 + hours * 3600e3, rtype: rt, rval: String(body.rval || "").slice(0, 40), text: String(body.text || "").replace(/[<>]/g, "").slice(0, 80) };
         this.sql.exec(`INSERT OR REPLACE INTO meta(k,v) VALUES('sale',?)`, JSON.stringify(sale)); return json({ ok: true, sale });
       }
       if (route === "admin-featured") {
@@ -787,6 +845,21 @@ export class Accounts extends DurableObject {
         if (!text) return json({ error: "Type a message." }, 400);
         const ids = this.sql.exec(`SELECT id FROM users WHERE banned IS NULL OR banned=0 LIMIT 20000`).toArray();
         ids.forEach(u => this.notify(u.id, "owner", text, link)); return json({ ok: true, sent: ids.length });
+      }
+      if (route === "admin-export") {
+        const season = this.season();
+        const rows = this.sql.exec(`SELECT u.username, u.email, u.created, u.seen, u.vip_until, u.role, u.banned, c.tag AS club, k.r AS rating, CAST(json_extract(u.data,'$."ti-cr".tot') AS INTEGER) AS earned, CAST(json_extract(u.data,'$."ti-cr".bal') AS INTEGER) AS credits, json_array_length(json_extract(u.data,'$."ti-cr".own')) AS cars FROM users u LEFT JOIN clubs c ON c.id=u.club LEFT JOIN ranks k ON k.uid=u.id AND k.season=? ORDER BY u.created`, season).toArray();
+        return json({ rows });
+      }
+      if (route === "admin-ach") {
+        const L = JSON.parse((this.sql.exec(`SELECT v FROM meta WHERE k='customach'`).toArray()[0] || { v: "[]" }).v);
+        let out = L;
+        if (body.del) out = L.filter(a => a.id !== body.del);
+        else { const a = body.ach || {}, types = ["own", "owncar", "earned", "races", "drift", "drag", "pass", "make"];
+          if (!types.includes(a.type)) return json({ error: "Pick a goal." }, 400);
+          const n = String(a.name || "").replace(/[<>]/g, "").trim().slice(0, 40), d = String(a.desc || "").replace(/[<>]/g, "").trim().slice(0, 100); if (n.length < 2) return json({ error: "Give it a name." }, 400);
+          out = L.filter(x => x.id !== a.id).concat([{ id: /^[a-z0-9]{4,12}$/.test(a.id || "") ? a.id : rand(4), name: n, desc: d, icon: String(a.icon || "🏆").slice(0, 4), type: a.type, n: Math.max(0, Math.min(1e12, +a.n || 0)), val: String(a.val || "").slice(0, 90), reward: Math.max(0, Math.min(1e9, Math.round(+a.reward || 0))) }]).slice(-60); }
+        this.sql.exec(`INSERT OR REPLACE INTO meta(k,v) VALUES('customach',?)`, JSON.stringify(out)); return json({ ok: true, ach: out });
       }
       if (route === "admin-custom") {
         const all = JSON.parse((this.sql.exec(`SELECT v FROM meta WHERE k='customcars'`).toArray()[0] || { v: "{}" }).v);
@@ -815,9 +888,10 @@ export class Accounts extends DurableObject {
         const rt = ["any", "car", "body", "make", "maxbhp"].includes(body.rtype) ? body.rtype : "any", rv = String(body.rval || "").slice(0, 90);
         const rw = (Array.isArray(body.rewards) ? body.rewards : []).slice(0, 4).map(x => Math.max(0, Math.min(1e8, Math.round(+x || 0))));
         const cfg = { title: String(body.title || "Weekly special").replace(/[<>]/g, "").slice(0, 60), kind, track, wx: ["dry", "damp", "wet", "night", "fog", "change"].includes(body.wx) ? body.wx : "dry", rtype: rt, rval: rv, rewards: rw, note: String(body.note || "").replace(/[<>]/g, "").slice(0, 160) };
-        this.sql.exec(`UPDATE wevents SET ends=? WHERE start<=? AND ends>?`, now, now, now); this.settleEvents();
-        const id = this.sql.exec(`INSERT INTO wevents(cfg,start,ends,created) VALUES(?,?,?,?) RETURNING id`, JSON.stringify(cfg), now, now + days * 864e5, now).toArray()[0].id;
-        return json({ ok: true, id });
+        const st = +body.start > now ? Math.min(+body.start, now + 60 * 864e5) : now;
+        if (st === now) { this.sql.exec(`UPDATE wevents SET ends=? WHERE start<=? AND ends>?`, now, now, now); this.settleEvents(); }
+        const id = this.sql.exec(`INSERT INTO wevents(cfg,start,ends,created) VALUES(?,?,?,?) RETURNING id`, JSON.stringify(cfg), st, st + days * 864e5, now).toArray()[0].id;
+        return json({ ok: true, id, upcoming: this.sql.exec(`SELECT id, cfg, start FROM wevents WHERE start>? ORDER BY start`, Date.now()).toArray().map(e => ({ id: e.id, start: e.start, title: JSON.parse(e.cfg).title })) });
       }
       if (route === "admin-event") {
         const mult = +body.mult, hours = +body.hours;

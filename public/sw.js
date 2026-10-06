@@ -30,3 +30,12 @@ self.addEventListener("fetch", e => {
     return hit || net;
   }));
 });
+/* push notifications: show them, and open the right page when tapped */
+self.addEventListener("push", e => {
+  let d = {}; try { d = e.data ? e.data.json() : {}; } catch (err) { d = { body: e.data && e.data.text() }; }
+  e.waitUntil(self.registration.showNotification(d.title || "Torque Index", { body: d.body || "", icon: "icon-192.png", badge: "icon-192.png", data: { link: d.link || "#home" }, tag: d.tag || undefined }));
+});
+self.addEventListener("notificationclick", e => {
+  e.notification.close(); const url = new URL(self.registration.scope + (e.notification.data && e.notification.data.link || "#home")).href;
+  e.waitUntil(self.clients.matchAll({ type: "window", includeUncontrolled: true }).then(list => { for (const c of list) { if ("focus" in c) { c.navigate ? c.navigate(url).catch(() => {}) : 0; return c.focus(); } } return self.clients.openWindow(url); }));
+});
