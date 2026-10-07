@@ -103,7 +103,7 @@ export default {
       const stub = env.ROOMS.get(env.ROOMS.idFromName(code));
       return stub.fetch(request);
     }
-    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(push-key|push-sub|push-unsub|admin-export|admin-ach|admin-custom|pw-change|pw-forgot|pw-reset|admin-pwreset|feedback|admin-feedback|ratings|ach-stats|admin-stats|admin-sale|admin-featured|admin-notify|admin-car|dm-list|dm-thread|dm-send|ghost|ghost-post|wevent|wevent-post|admin-wevent|lb-drift|drift-post|lb-earn|auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
+    const a = url.pathname.match(/^\/api\/(?:auth\/(signup|login|logout|me|data|delete)|x\/(chat|chat-post|admin-chat|club-garage|club-lend|club-recall|push-key|push-sub|push-unsub|admin-export|admin-ach|admin-custom|pw-change|pw-forgot|pw-reset|admin-pwreset|feedback|admin-feedback|ratings|ach-stats|admin-stats|admin-sale|admin-featured|admin-notify|admin-car|dm-list|dm-thread|dm-send|ghost|ghost-post|wevent|wevent-post|admin-wevent|lb-drift|drift-post|lb-earn|auctions|auction-list|auction-bid|auction-cancel|trades|trade-offer|trade-respond|clubs|club|club-create|club-join|club-leave|admin-event|vip-redeem|vips|announce|grants|admin-codes|admin-grant|admin-announce|admin-ban|admin-users|ranked|ranked-post|daily|daily-post|lb-laps|lb-lap|lb-wins|lb-win|cup|cup-post|social|friend-add|friend-respond|friend-remove|invite|invite-clear|reviews|review|review-del|profile|notifs|notifs-read))$/);
     if (a) {
       // Accounts: writes must come from this site (blocks cross-site form tricks).
       if (request.method !== "GET") {
@@ -285,6 +285,9 @@ export class Accounts extends DurableObject {
     this.sql.exec(`CREATE TABLE IF NOT EXISTS clubs(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE COLLATE NOCASE, tag TEXT UNIQUE COLLATE NOCASE, col TEXT, owner TEXT, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS wevents(id INTEGER PRIMARY KEY AUTOINCREMENT, cfg TEXT, start INTEGER, ends INTEGER, settled INTEGER DEFAULT 0, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS wscores(ev INTEGER, uid TEXT, score REAL, car TEXT, created INTEGER, PRIMARY KEY(ev,uid))`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS chat(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, text TEXT, created INTEGER)`);
+    this.sql.exec(`CREATE TABLE IF NOT EXISTS clubcars(club INTEGER, car TEXT, uid TEXT, meta TEXT, created INTEGER, PRIMARY KEY(club,car,uid))`);
+    try { this.sql.exec(`ALTER TABLE users ADD COLUMN muted INTEGER`); } catch (e) {}
     this.sql.exec(`CREATE TABLE IF NOT EXISTS pushsubs(endpoint TEXT PRIMARY KEY, uid TEXT, p256dh TEXT, auth TEXT, created INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS resets(h TEXT PRIMARY KEY, uid TEXT, expires INTEGER)`);
     this.sql.exec(`CREATE TABLE IF NOT EXISTS feedback(id INTEGER PRIMARY KEY AUTOINCREMENT, uid TEXT, kind TEXT, text TEXT, page TEXT, ua TEXT, created INTEGER)`);
@@ -307,7 +310,7 @@ export class Accounts extends DurableObject {
   async session(req) {
     const m = (req.headers.get("cookie") || "").match(/(?:^|;\s*)ti_session=([a-f0-9]{64})/);
     if (!m) return null;
-    const row = this.sql.exec(`SELECT s.uid, s.expires, u.username, u.email, u.created, u.updated, u.vip_until, u.vip_since, u.role, u.banned, u.club FROM sessions s JOIN users u ON u.id=s.uid WHERE s.token=?`, await sha256(m[1])).toArray()[0];
+    const row = this.sql.exec(`SELECT s.uid, s.expires, u.username, u.email, u.created, u.updated, u.vip_until, u.vip_since, u.role, u.banned, u.club, u.muted FROM sessions s JOIN users u ON u.id=s.uid WHERE s.token=?`, await sha256(m[1])).toArray()[0];
     if (!row || row.expires < Date.now()) return null;
     return { ...row, raw: m[1] };
   }
@@ -407,13 +410,13 @@ export class Accounts extends DurableObject {
       const meta = a.meta ? JSON.parse(a.meta) : null;
       if (a.bidder) {
         this.give(a.bidder, 0, "Auction won", a.car, meta);
-        this.give(a.seller, Math.round(a.bid * 0.95), "Auction sale (after 5% fee)");
+        if (a.seller !== "system") this.give(a.seller, Math.round(a.bid * 0.95), "Auction sale (after 5% fee)");
         this.notify(a.bidder, "auction", `You won the auction for ${a.car.replace(/-/g, " ")} at ${a.bid.toLocaleString("en-GB")} CR`, "#garage");
-        this.notify(a.seller, "auction", `Your ${a.car.replace(/-/g, " ")} sold for ${a.bid.toLocaleString("en-GB")} CR`, "#auctions");
+        if (a.seller !== "system") this.notify(a.seller, "auction", `Your ${a.car.replace(/-/g, " ")} sold for ${a.bid.toLocaleString("en-GB")} CR`, "#auctions");
         this.sql.exec(`UPDATE auctions SET status='sold' WHERE id=?`, a.id);
       } else {
-        this.give(a.seller, 0, "Auction ended with no bids — car returned", a.car, meta);
-        this.notify(a.seller, "auction", `No bids on your ${a.car.replace(/-/g, " ")} — it's back in your garage`, "#garage");
+        if (a.seller !== "system") { this.give(a.seller, 0, "Auction ended with no bids — car returned", a.car, meta);
+        this.notify(a.seller, "auction", `No bids on your ${a.car.replace(/-/g, " ")} — it's back in your garage`, "#garage"); }
         this.sql.exec(`UPDATE auctions SET status='unsold' WHERE id=?`, a.id);
       }
     }
@@ -513,6 +516,15 @@ export class Accounts extends DurableObject {
       this.sql.exec(`DELETE FROM feedback WHERE id NOT IN (SELECT id FROM feedback ORDER BY id DESC LIMIT 500)`);
       return json({ ok: true });
     }
+    if (route === "chat") {
+      const since = +q.get("since") || 0;
+      const rows = this.sql.exec(`SELECT c.id, c.text, c.created, u.username FROM chat c JOIN users u ON u.id=c.uid WHERE c.id>? ORDER BY c.id DESC LIMIT 60`, since).toArray().reverse();
+      return json({ msgs: rows, owner: !!(s && s.role === "owner") });
+    }
+    if (route === "club-garage") {
+      const tag = String(q.get("tag") || ""), c = this.sql.exec(`SELECT id FROM clubs WHERE tag=?`, tag).toArray()[0]; if (!c) return json({ cars: [] });
+      return json({ cars: this.sql.exec(`SELECT k.car, k.meta, u.username FROM clubcars k JOIN users u ON u.id=k.uid WHERE k.club=? ORDER BY k.created DESC LIMIT 60`, c.id).toArray().map(r => ({ ...r, meta: r.meta ? JSON.parse(r.meta) : null })) });
+    }
     if (route === "ratings") {
       return json({ r: Object.fromEntries(this.sql.exec(`SELECT car, ROUND(AVG(rating),2) AS a, COUNT(*) AS n FROM reviews GROUP BY car`).toArray().map(x => [x.car, [x.a, x.n]])) });
     }
@@ -523,8 +535,13 @@ export class Accounts extends DurableObject {
     }
     if (route === "auctions") {
       this.settleAuctions();
-      const live = this.sql.exec(`SELECT a.id, a.car, a.meta, a.start, a.bid, a.bids, a.ends, u.username AS seller, b.username AS bidder FROM auctions a JOIN users u ON u.id=a.seller LEFT JOIN users b ON b.id=a.bidder WHERE a.status='live' ORDER BY a.ends ASC LIMIT 80`).toArray();
-      const recent = this.sql.exec(`SELECT a.car, a.bid, a.ends, a.status, u.username AS seller, b.username AS bidder FROM auctions a JOIN users u ON u.id=a.seller LEFT JOIN users b ON b.id=a.bidder WHERE a.status='sold' ORDER BY a.ends DESC LIMIT 12`).toArray();
+      /* a rare car goes up for auction by Torque Index itself every 12 hours (the client suggests which; the server keeps the timing) */
+      if (q.get("rare") && /^[a-z0-9-]{2,90}$/.test(q.get("rare")) && !this.sql.exec(`SELECT 1 FROM auctions WHERE seller='system' AND created>?`, Date.now() - 12 * 3600e3).toArray().length) {
+        const start = Math.max(50000, Math.min(5e7, Math.round(+q.get("start") || 250000)));
+        this.sql.exec(`INSERT INTO auctions(seller,car,meta,start,bid,bidder,ends,status,created) VALUES('system',?,?,?,0,NULL,?,'live',?)`, q.get("rare"), JSON.stringify({ rare: 1 }), start, Date.now() + 24 * 3600e3, Date.now());
+      }
+      const live = this.sql.exec(`SELECT a.id, a.car, a.meta, a.start, a.bid, a.bids, a.ends, u.username AS seller, b.username AS bidder FROM auctions a LEFT JOIN users u ON u.id=a.seller LEFT JOIN users b ON b.id=a.bidder WHERE a.status='live' ORDER BY a.ends ASC LIMIT 80`).toArray();
+      const recent = this.sql.exec(`SELECT a.car, a.bid, a.ends, a.status, u.username AS seller, b.username AS bidder FROM auctions a LEFT JOIN users u ON u.id=a.seller LEFT JOIN users b ON b.id=a.bidder WHERE a.status='sold' ORDER BY a.ends DESC LIMIT 12`).toArray();
       return json({ live: live.map(a => ({ ...a, meta: a.meta ? JSON.parse(a.meta) : null })), recent, now: Date.now() });
     }
     if (route === "clubs") {
@@ -616,6 +633,20 @@ export class Accounts extends DurableObject {
       this.sql.exec(`INSERT INTO wins(uid,game,n) VALUES(?,?,1) ON CONFLICT(uid,game) DO UPDATE SET n=n+1`, s.uid, game);
       return json({ ok: true });
     }
+    if (route === "chat-post") {
+      if (s.banned || s.muted) return json({ error: "You can't post in chat right now." }, 403);
+      if (!this.limit("ch:" + s.uid, 12, 60e3)) return json({ error: "Slow down a little." }, 429);
+      const text = String(body.text || "").replace(/[\u0000-\u001f\u007f<>]/g, " ").trim().slice(0, 280); if (!text) return json({ error: "Type a message." }, 400);
+      this.sql.exec(`INSERT INTO chat(uid,text,created) VALUES(?,?,?)`, s.uid, text, now); this.sql.exec(`DELETE FROM chat WHERE id NOT IN (SELECT id FROM chat ORDER BY id DESC LIMIT 400)`);
+      return json({ ok: true });
+    }
+    if (route === "club-lend") {
+      if (!s.club) return json({ error: "Join a club first." }, 400);
+      const car = String(body.car || ""); if (!/^[a-z0-9-]{2,90}$/.test(car)) return json({ error: "Bad car" }, 400);
+      if (this.sql.exec(`SELECT COUNT(*) AS n FROM clubcars WHERE uid=?`, s.uid).toArray()[0].n >= 10) return json({ error: "You can share up to 10 cars." }, 400);
+      this.sql.exec(`INSERT OR REPLACE INTO clubcars(club,car,uid,meta,created) VALUES(?,?,?,?,?)`, s.club, car, s.uid, JSON.stringify(body.meta || {}).slice(0, 1500), now); return json({ ok: true });
+    }
+    if (route === "club-recall") { this.sql.exec(`DELETE FROM clubcars WHERE uid=? AND car=?`, s.uid, String(body.car || "")); return json({ ok: true }); }
     if (route === "push-sub") {
       const ep = String(body.endpoint || ""); if (!/^https:\/\//.test(ep) || ep.length > 800 || !body.p256dh || !body.auth) return json({ error: "Bad subscription" }, 400);
       this.sql.exec(`INSERT OR REPLACE INTO pushsubs(endpoint,uid,p256dh,auth,created) VALUES(?,?,?,?,?)`, ep, s.uid, String(body.p256dh).slice(0, 200), String(body.auth).slice(0, 100), now);
@@ -845,6 +876,12 @@ export class Accounts extends DurableObject {
         if (!text) return json({ error: "Type a message." }, 400);
         const ids = this.sql.exec(`SELECT id FROM users WHERE banned IS NULL OR banned=0 LIMIT 20000`).toArray();
         ids.forEach(u => this.notify(u.id, "owner", text, link)); return json({ ok: true, sent: ids.length });
+      }
+      if (route === "admin-chat") {
+        if (body.del) this.sql.exec(`DELETE FROM chat WHERE id=?`, +body.del);
+        if (body.mute) { const u = who(body.mute); if (u) this.sql.exec(`UPDATE users SET muted=? WHERE id=?`, body.unmute ? 0 : 1, u.id); }
+        if (body.clear) this.sql.exec(`DELETE FROM chat`);
+        return json({ ok: true });
       }
       if (route === "admin-export") {
         const season = this.season();
